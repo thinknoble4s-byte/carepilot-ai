@@ -1,0 +1,66 @@
+:root {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --ink: #1f1e1c;
+  --quiet: #64615a;
+  --line: #dcd8cf;
+  --accent: #2f6fd0;
+  --ok: #2e7d4f;
+  --wait: #b7791f;
+  --bad: #b3261e;
+  --banner: #fff4dc;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #191917;
+    --surface: #23221f;
+    --ink: #ecebe7;
+    --quiet: #a9a69e;
+    --line: #3d3b37;
+    --accent: #79a7ee;
+    --ok: #6cc493;
+    --wait: #e0a75a;
+    --bad: #f08a80;
+    --banner: #3a321f;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+.app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.brand { display: flex; gap: 10px; align-items: center; }
+.brand small { display: block; color: var(--quiet); }
+.logo {
+  display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 8px;
+  background: var(--accent); color: #fff; font-weight: 700;
+}
+.viewing { display: flex; gap: 8px; align-items: center; color: var(--quiet); font-size: 14px; }
+select, button {
+  font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink);
+}
+button { background: var(--accent); border-color: var(--accent); color: #fff; cursor: pointer; }
+.banner {
+  margin: 14px 0; padding: 10px 12px; border-radius: 8px; background: var(--banner);
+  border: 1px solid var(--line); font-size: 13px;
+}
+main { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.card.wide { grid-column: 1 / -1; }
+.card h2 { font-size: 16px; margin: 0 0 8px; }
+.muted { color: var(--quiet); }
+.error { color: var(--bad); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.dot.ok { background: var(--ok); }
+.dot.wait { background: var(--wait); }
+.dot.bad { background: var(--bad); }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--quiet); font-weight: 600; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }

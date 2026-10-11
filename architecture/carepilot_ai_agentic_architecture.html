@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CarePilot AI: agentic workflow and architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF1EE; --sheet:#F8FAF8; --ink:#14252C; --mute:#51646B; --line:#C9D4CF; --line-soft:#DDE5E1;
+  --rule:#0B6566; --rule-tint:#D4E8E6;      /* deterministic system */
+  --ai:#B27A0C; --ai-tint:#F5E8C8;          /* AI (Sarvam etc.) */
+  --coord:#2C5A96; --coord-tint:#DCE6F3;    /* coordinator */
+  --doc:#74305F; --doc-tint:#EEDDE8;        /* doctor */
+  --pat:#4E6B55; --pat-tint:#DFE9E0;        /* patient / caregiver */
+  --stop:#A3322A; --stop-tint:#F4DEDB;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1B1F; --sheet:#15252A; --ink:#E4ECE8; --mute:#9FB2AE; --line:#2E4247; --line-soft:#223439;
+    --rule:#5CC3C1; --rule-tint:#15393A; --ai:#E9B54A; --ai-tint:#3A2F14; --coord:#8DB2E8; --coord-tint:#1D2E47;
+    --doc:#DB9CC6; --doc-tint:#3A2034; --pat:#9CC4A4; --pat-tint:#20352A; --stop:#F08A80; --stop-tint:#3D1F1C;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1B1F; --sheet:#15252A; --ink:#E4ECE8; --mute:#9FB2AE; --line:#2E4247; --line-soft:#223439;
+  --rule:#5CC3C1; --rule-tint:#15393A; --ai:#E9B54A; --ai-tint:#3A2F14; --coord:#8DB2E8; --coord-tint:#1D2E47;
+  --doc:#DB9CC6; --doc-tint:#3A2034; --pat:#9CC4A4; --pat-tint:#20352A; --stop:#F08A80; --stop-tint:#3D1F1C;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 64px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.55}
+a{color:var(--rule)}
+:focus-visible{outline:3px solid var(--coord);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+h1,h2,h3{font-family:var(--display);line-height:1.1;margin:0;letter-spacing:-.01em}
+h2{font-size:clamp(28px,3.6vw,40px);font-weight:800}
+h3{font-size:20px;font-weight:700}
+p{margin:0 0 12px;max-width:72ch}
+.lede{color:var(--mute);font-size:18px;max-width:68ch}
+small,.note{color:var(--mute);font-size:14.5px}
+
+/* top bar */
+.bar{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px);margin-top:calc(-1 * env(safe-area-inset-top,0px))}
+.bar .wrap{display:flex;align-items:center;gap:18px;height:56px}
+.brand{font-family:var(--display);font-weight:800;font-size:18px;white-space:nowrap}
+.brand span{color:var(--rule)}
+.bar nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1}
+.bar nav::-webkit-scrollbar{display:none}
+.bar nav a{color:var(--mute);text-decoration:none;font-size:14.5px;padding:6px 10px;border-radius:6px;white-space:nowrap}
+.bar nav a:hover{color:var(--ink);background:var(--line-soft)}
+
+/* hero */
+.hero{padding:56px 0 40px}
+.hero .kicker{color:var(--mute);font-size:15px;margin-bottom:18px}
+.hero h1{font-size:clamp(44px,7.4vw,96px);font-weight:800;letter-spacing:-.03em;line-height:.95;max-width:12ch}
+.hero .lede{margin-top:22px}
+.split{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:40px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--sheet)}
+.split > div{padding:20px 22px;border-left:1px solid var(--line)}
+.split > div:first-child{border-left:0}
+.split h3{font-size:17px;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.split ul{margin:0;padding-left:18px;color:var(--ink);font-size:15.5px}
+.split li{margin:3px 0}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none}
+.sw.rule{background:var(--rule)} .sw.ai{background:var(--ai)} .sw.hum{background:linear-gradient(90deg,var(--coord) 50%,var(--doc) 50%)}
+.sw.coord{background:var(--coord)} .sw.doc{background:var(--doc)} .sw.pat{background:var(--pat)}
+
+section{padding:56px 0;border-top:1px solid var(--line)}
+.sec-head{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-bottom:28px}
+
+/* design bar */
+.table{width:100%;border-collapse:collapse;background:var(--sheet);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:15.5px}
+.table th,.table td{text-align:left;vertical-align:top;padding:12px 14px;border-top:1px solid var(--line-soft)}
+.table thead th{border-top:0;background:var(--line-soft);font-family:var(--display);font-weight:700;font-size:15px}
+.table td:first-child{font-weight:700}
+.scroll{overflow-x:auto;border-radius:12px}
+.scroll .table{min-width:760px}
+.ok{color:var(--rule);font-weight:700}
+.chip{display:inline-block;font-size:13px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.chip.rule{background:var(--rule-tint);color:var(--rule)}
+.chip.ai{background:var(--ai-tint);color:var(--ai)}
+.chip.coord{background:var(--coord-tint);color:var(--coord)}
+.chip.doc{background:var(--doc-tint);color:var(--doc)}
+.chip.pat{background:var(--pat-tint);color:var(--pat)}
+.chip.stop{background:var(--stop-tint);color:var(--stop)}
+.chip.line{border-color:var(--line);color:var(--mute)}
+
+/* architecture stack */
+.stack{display:grid;gap:10px}
+.layer{display:grid;grid-template-columns:200px 1fr;gap:0;background:var(--sheet);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.layer > .lname{padding:14px 16px;border-right:1px solid var(--line);font-family:var(--display);font-weight:700;font-size:16px;line-height:1.2}
+.layer > .lname small{display:block;font-family:var(--body);font-weight:400;margin-top:4px}
+.layer .boxes{display:flex;flex-wrap:wrap;gap:8px;padding:12px}
+.box{border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:14.5px;background:var(--paper);line-height:1.3;min-width:150px;flex:1 1 170px}
+.box b{display:block;font-size:14.5px}
+.box span{color:var(--mute);font-size:13.5px}
+.layer.l-ai{border-color:var(--ai);border-width:1.5px}
+.layer.l-ai > .lname{background:var(--ai-tint);color:var(--ai)}
+.layer.l-ai .box{border-color:color-mix(in srgb,var(--ai) 40%,var(--line))}
+.layer.l-rule > .lname{background:var(--rule-tint);color:var(--rule)}
+.layer.l-trust{border-style:dashed}
+.layer.l-hum > .lname{background:var(--coord-tint);color:var(--coord)}
+.box.sar::after{content:"Sarvam";display:table;margin-top:5px;font-size:12px;font-weight:700;color:var(--ai);background:var(--ai-tint);padding:1px 7px;border-radius:999px}
+.box.later{opacity:.72;border-style:dashed}
+.box.later b::after{content:" (phase 2)";font-weight:400;color:var(--mute)}
+.arrow-note{display:flex;gap:10px;align-items:flex-start;color:var(--mute);font-size:14.5px;padding:4px 4px 0}
+
+/* workflow explorer */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.tab{font:inherit;font-size:15px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.flow-intro{background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.flow-intro p{margin:0}
+.lanes-head,.lane-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));column-gap:10px}
+.lanes-head{position:sticky;top:56px;z-index:2;background:var(--paper);padding:8px 0;border-bottom:1px solid var(--line)}
+.lanes-head div{font-family:var(--display);font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:7px}
+.lane-grid{position:relative;row-gap:8px;padding-top:10px;background-image:linear-gradient(90deg,transparent calc(20% - 5px),var(--line-soft) calc(20% - 5px),var(--line-soft) calc(20% - 4px),transparent calc(20% - 4px),transparent calc(40% - 3px),var(--line-soft) calc(40% - 3px),var(--line-soft) calc(40% - 2px),transparent calc(40% - 2px),transparent calc(60% - 1px),var(--line-soft) calc(60% - 1px),var(--line-soft) 60%,transparent 60%,transparent calc(80% + 1px),var(--line-soft) calc(80% + 1px),var(--line-soft) calc(80% + 2px),transparent calc(80% + 2px))}
+.step{background:var(--sheet);border:1px solid var(--line);border-left:4px solid var(--c,var(--line));border-radius:9px;padding:10px 12px;font-size:14.5px;line-height:1.4}
+.step .n{font-family:var(--display);font-weight:800;color:var(--c);margin-right:6px}
+.step b{font-size:15px}
+.step p{margin:5px 0 0;color:var(--mute);font-size:14px}
+.step .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.step.gate{box-shadow:0 0 0 2px var(--c) inset}
+.step .gate-label{display:inline-block;margin-top:7px;font-size:12.5px;font-weight:700;color:var(--c)}
+.step .lane-chip{display:none}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;color:var(--mute);font-size:14px}
+.legend span{display:flex;align-items:center;gap:6px}
+.gatebox{width:14px;height:10px;border-radius:3px;box-shadow:0 0 0 2px var(--coord) inset;display:inline-block}
+
+/* agents */
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.agent{background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.agent.is-ai{border-top:4px solid var(--ai)}
+.agent.is-rule{border-top:4px solid var(--rule)}
+.agent header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.agent dl{margin:0;display:grid;grid-template-columns:96px 1fr;gap:4px 10px;font-size:14.5px}
+.agent dt{color:var(--mute)}
+.agent dd{margin:0}
+.agent .never{border-top:1px dashed var(--line);padding-top:8px;font-size:14px;color:var(--stop)}
+.filter{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+
+/* rules ladder */
+.ladder{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.rung{background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:14px;line-height:1.4;position:relative}
+.rung .id{font-family:var(--display);font-weight:800;font-size:22px;color:var(--rule)}
+.rung b{display:block;font-size:14.5px;margin:2px 0 6px}
+.rung .who{margin-top:8px}
+
+/* state machines */
+.sm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 4px}
+.sm .st{border:1px solid var(--line);background:var(--sheet);border-radius:6px;padding:4px 9px;font-size:14px}
+.sm .st.h{border-color:var(--coord);color:var(--coord);font-weight:700}
+.sm .st.d{border-color:var(--doc);color:var(--doc);font-weight:700}
+.sm .ar{color:var(--mute)}
+.card{background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.card h3{margin-bottom:8px}
+
+/* decisions */
+.dec{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.dec .card .verdict{font-family:var(--display);font-weight:800;font-size:22px;margin:4px 0 8px}
+.v-adopt{color:var(--rule)} .v-borrow{color:var(--coord)} .v-exclude{color:var(--stop)}
+
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;counter-reset:ph}
+.road .card{position:relative}
+.road .card h3::before{counter-increment:ph;content:"Phase " counter(ph) "  ";color:var(--rule)}
+.road ul{margin:6px 0 0;padding-left:18px;font-size:15px}
+.road li{margin:4px 0}
+
+footer{padding:40px 0 60px;color:var(--mute);font-size:14.5px;border-top:1px solid var(--line)}
+
+@media (max-width:980px){
+  .ladder{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dec{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .road{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  body{font-size:16px}
+  .wrap{padding:0 16px}
+  .split{grid-template-columns:1fr}
+  .split > div{border-left:0;border-top:1px solid var(--line)}
+  .split > div:first-child{border-top:0}
+  .layer{grid-template-columns:1fr}
+  .layer > .lname{border-right:0;border-bottom:1px solid var(--line)}
+  .grid2,.dec{grid-template-columns:1fr}
+  .lanes-head{display:none}
+  .lane-grid{grid-template-columns:1fr;background-image:none}
+  .step{grid-column:1 / -1 !important}
+  .step .lane-chip{display:inline-block;margin-bottom:5px}
+  .agent dl{grid-template-columns:1fr}
+  .agent dt{margin-top:4px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .lane-grid.fresh .step{animation:drop .35s ease both;animation-delay:calc(var(--i) * 45ms)}
+  @keyframes drop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+}
+@media print{.bar{position:static}.lanes-head{position:static}}
+
+/* v7.1 additions */
+.sw.appr{background:linear-gradient(90deg,var(--ai) 50%,var(--coord) 50%)}
+.tiers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tier{background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:16px 18px;border-top:4px solid var(--c)}
+.tier h3{font-size:17px;margin-bottom:10px;color:var(--c)}
+.tier ul{list-style:none;margin:0;padding:0;font-size:15px}
+.tier li{padding:7px 0;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.tier li:first-child{border-top:0}
+.mode{font-size:12px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.mode.live{background:var(--rule-tint);color:var(--rule)}
+.mode.shadow{background:var(--line-soft);color:var(--mute);border:1px dashed var(--line)}
+.stopbox{margin-top:14px;background:var(--stop-tint);border:1.5px solid var(--stop);border-radius:12px;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:24px}
+.stopbox h3{color:var(--stop);font-size:22px;margin-bottom:8px}
+.stopbox p{margin:0 0 8px}
+.stopbox ol{margin:0;padding-left:20px;font-size:15.5px}
+.stopbox li{margin:5px 0}
+
+@media (max-width:980px){.tiers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.tiers{grid-template-columns:1fr}.stopbox{grid-template-columns:1fr}}
+.filter .tab[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">CarePilot <span>AI</span></div>
+    <nav aria-label="Sections">
+      <a href="#scope">Design bar</a>
+      <a href="#stack">Architecture</a>
+      <a href="#autonomy">Autonomy policy</a>
+      <a href="#flows">Workflows</a>
+      <a href="#agents">Agent and services</a>
+      <a href="#rules">Gap rules</a>
+      <a href="#sarvam">Sarvam</a>
+      <a href="#frameworks">Frameworks</a>
+      <a href="#states">State model</a>
+      <a href="#trust">Trust &amp; governance</a>
+      <a href="#measure">Measurement</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#trace">Review traceability</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <div class="hero">
+    <div class="kicker">Agentic workflow and architecture for patient follow-up and continuity of care. Matches prototype v7.1, locked for the Round 1 submission.</div>
+    <h1>The agent runs the routine. People make the calls.</h1>
+    <p class="lede">The CarePilot agent works the follow-up list continuously: reminders, booking help, report chases, refill nudges and the morning department lists. It acts only through the same logged actions a coordinator would use, within an autonomy policy set by the clinical lead. The moment a patient mentions a health matter, it stops and hands over. Coordinators handle exceptions, escalations and conversations; doctors make every clinical decision.</p>
+
+    <div class="split" role="list">
+      <div role="listitem">
+        <h3><i class="sw ai"></i>Agent does it, logged</h3>
+        <ul>
+          <li>Booking, visit and missed-item reminders</li>
+          <li>Refill reminders and the pharmacy list</li>
+          <li>First report chase; document requests</li>
+          <li>Morning lists to department owners</li>
+          <li>Logging button replies</li>
+        </ul>
+      </div>
+      <div role="listitem">
+        <h3><i class="sw appr"></i>Agent prepares, coordinator approves</h3>
+        <ul>
+          <li>Structuring free-text and voice replies</li>
+          <li>Matching incoming documents to patients</li>
+          <li>Pause proposals from patient replies</li>
+          <li>Lost-to-follow-up closure drafts</li>
+        </ul>
+      </div>
+      <div role="listitem">
+        <h3><i class="sw hum"></i>People only</h3>
+        <ul>
+          <li>Anything about symptoms, mood or distress</li>
+          <li>Verifying documents; phone calls</li>
+          <li>Closing a case; exceptions to the rules</li>
+          <li>Doctor: urgent or routine, and the instruction</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DESIGN BAR -->
+<section id="scope">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>How the design bar is enforced</h2>
+      <p class="lede">The Health-a-thon puts clinical AI out of scope. An agent that works on its own makes this more important, not less: each exclusion needs a place in the architecture where it is structurally blocked, and an eval that proves it.</p>
+    </div>
+    <div class="scroll">
+    <table class="table">
+      <thead><tr><th>Out of scope</th><th>Where it could creep in</th><th>How the architecture blocks it</th></tr></thead>
+      <tbody>
+        <tr><td>Diagnosis</td><td>Structuring a patient's reply about pain at the surgery site</td><td>The extraction schema has no severity, cause or diagnosis fields. A validator rejects any output containing them, and a red-team eval set runs before every release.</td></tr>
+        <tr><td>Treatment recommendations</td><td>Coordinator copilot drafting a call brief</td><td>The copilot reads contact history and order status only. It cannot edit the plan and has no tool that writes to the patient.</td></tr>
+        <tr><td>Clinical decision support</td><td>Doctor's "Needs my decision" screen</td><td>Shows the patient's words, the translation and the source links. No suggested action; the doctor picks urgent or routine with nothing pre-selected.</td></tr>
+        <tr><td>Clinical risk scoring</td><td>Workspace ordering</td><td>Sorted by due date and rule only. Early-warning facts ("last message unanswered", "refill late") are listed as facts and never added up into a score.</td></tr>
+        <tr><td>Interpretation of medical data</td><td>Reading an outside report; noticing a health mention</td><td>Sarvam Vision extracts identifiers and metadata only. The health-matter flag decides who reads a reply, never what it means.</td></tr>
+        <tr><td>Autonomous clinical advice</td><td>The agent replying to a patient</td><td>The agent never discusses health matters. On any health mention it stops, sends a fixed acknowledgement and hands over. All outbound text comes from templates the clinical lead approved.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note" style="margin-top:12px">In scope and visible: leverages existing AI (Sarvam, LangGraph); works with existing workflows (Excel register, uploaded appointment list, WhatsApp, printed department lists); assistive, because the agent works only within a clinician-set policy and every clinical step has a human gate; measurable on two KPIs within 60 to 90 days.</p>
+  </div>
+</section>
+
+<!-- ARCHITECTURE STACK -->
+<section id="stack">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Architecture at a glance</h2>
+      <p class="lede">One named agent sits in the middle. Its policy is the autonomy table, its senses are Sarvam models, and its hands are the same logged actions a coordinator has. Rules and records underneath are plain, tested code.</p>
+    </div>
+
+    <div class="stack">
+      <div class="layer l-hum">
+        <div class="lname">People and channels</div>
+        <div class="boxes">
+          <div class="box"><b>Patient and caregiver</b><span>WhatsApp buttons, text, voice notes; replying HELP (ಸಹಾಯ / मदद) always reaches a person</span></div>
+          <div class="box"><b>Care coordinator</b><span>Workspace, Patient journey, Intake &amp; verification, Audit trail, Care Plan</span></div>
+          <div class="box"><b>Oncologist</b><span>Needs my decision, Patient journey, Audit trail, Care Plan</span></div>
+          <div class="box"><b>Chief of hospital</b><span>Performance Indicators, aggregates only</span></div>
+          <div class="box"><b>Department owners</b><span>Morning lists by WhatsApp or printout; reply "done" per item; no login</span></div>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="lname">Edge<small>Deterministic</small></div>
+        <div class="boxes">
+          <div class="box"><b>Channel gateway</b><span>WhatsApp Business Platform via a BSP; verified number, opt-in, approved utility templates, 24-hour session window</span></div>
+          <div class="box"><b>Role-based web app</b><span>Same screens as v7.1</span></div>
+          <div class="box"><b>API and auth</b><span>FastAPI, role-based access, session audit</span></div>
+        </div>
+      </div>
+
+      <div class="layer l-ai">
+        <div class="lname">CarePilot agent<small>LangGraph, durable state</small></div>
+        <div class="boxes">
+          <div class="box"><b>Autonomy policy</b><span>Every task is autonomous, approve-first or human-only; each autonomous task is live or in shadow</span></div>
+          <div class="box"><b>Morning run, 07:30</b><span>Acts on the gap events it is allowed to; skips paused, closed, agent-off and handed-over patients</span></div>
+          <div class="box"><b>Workflow graphs</b><span>Outreach, reply, document, care-elsewhere</span></div>
+          <div class="box"><b>Stop-and-hand-over</b><span>A health mention ends the agent's part of the conversation</span></div>
+          <div class="box"><b>Human gates</b><span>interrupt() at every approval; Postgres checkpointer keeps a two-day wait safe across restarts</span></div>
+        </div>
+      </div>
+
+      <div class="layer l-ai">
+        <div class="lname">AI the agent calls<small>Drafts only, never final</small></div>
+        <div class="boxes">
+          <div class="box sar"><b>Reply understanding</b><span>Saaras v3 speech; Sarvam-30B structuring and the health-matter flag</span></div>
+          <div class="box sar"><b>Document intake</b><span>Sarvam Vision OCR and identifier extraction</span></div>
+          <div class="box sar"><b>Coordinator copilot</b><span>Call briefs and history summaries with source links</span></div>
+          <div class="box sar later"><b>Journey reconciliation</b><span>Suggests event-to-order matches; parked until after the build sprint</span></div>
+        </div>
+      </div>
+
+      <div class="layer l-rule">
+        <div class="lname">Rules and records<small>Locked business logic</small></div>
+        <div class="boxes">
+          <div class="box"><b>Gap check, 07:00</b><span>Rules G0 to G6, idempotent keys; logged as "CarePilot gap check"</span></div>
+          <div class="box"><b>Plan and order cards</b><span>Signed-off template to cards, each with owner and cover</span></div>
+          <div class="box"><b>Template library</b><span>Approved wording per language; the agent can only send through it</span></div>
+          <div class="box"><b>Handoff router</b><span>Deadlines and escalation to cover</span></div>
+          <div class="box"><b>Consent service</b><span>DPDP consent, including automated messaging, gates every outbound action</span></div>
+          <div class="box"><b>Programme metrics</b><span>Recall completion, time to first contact, agent acceptance</span></div>
+        </div>
+      </div>
+
+      <div class="layer l-trust">
+        <div class="lname">Trust layer<small>Cuts across everything</small></div>
+        <div class="boxes">
+          <div class="box"><b>Audit ledger</b><span>Append-only, hash-chained; four actor types: person, system, CarePilot agent, AI suggestion</span></div>
+          <div class="box"><b>Provenance links</b><span>Every flag opens its source in one click</span></div>
+          <div class="box"><b>Trust tiers</b><span>In-house, verified external, unverified, patient-reported</span></div>
+          <div class="box"><b>Guardrails</b><span>Schema validators, action allow-list for the agent, PHI minimisation before LLM calls</span></div>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="lname">Data<small>India region</small></div>
+        <div class="boxes">
+          <div class="box"><b>PostgreSQL</b><span>Patients, order cards, events, contacts, proposals, handovers, audit, graph checkpoints</span></div>
+          <div class="box"><b>Object store</b><span>Encrypted documents and audio; in-house reports are linked, never copied</span></div>
+          <div class="box"><b>Config store</b><span>Plan templates, rule thresholds, message templates, autonomy policy; all versioned and signed off</span></div>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div class="lname">Sources</div>
+        <div class="boxes">
+          <div class="box"><b>Level 0: no integration</b><span>Excel register, daily appointment list upload, report PDFs, pharmacy register, WhatsApp</span></div>
+          <div class="box later"><b>Level 1: hospital feeds</b><span>HL7/FHIR from HIS, LIS, RIS/PACS, pharmacy replace uploads</span></div>
+          <div class="box later"><b>Level 2: ABDM</b><span>Consent artefacts and record pull via ABHA and HIE-CM</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-note"><span class="chip line">Daily rhythm</span><span>07:00 the gap check writes gap events. 07:30 the agent run acts on the ones its policy allows and hands the rest to named people. Inbound replies start a graph run immediately. Every action, by the agent or a person, writes its audit entry in the same transaction.</span></div>
+  </div>
+</section>
+
+<!-- AUTONOMY -->
+<section id="autonomy">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Autonomy policy</h2>
+      <p class="lede">Set by the clinical lead and shown read-only on the Care Plan screen. The agent can do nothing that is not on this table, and anything not listed defaults to a person.</p>
+    </div>
+    <div class="tiers">
+      <div class="tier" style="--c:var(--ai)">
+        <h3>Agent does it, logged</h3>
+        <ul>
+          <li>Booking reminders (T-7) and visit reminders<span class="mode live">Live</span></li>
+          <li>Booking help: offer slots when still unbooked at T-3<span class="mode shadow">Shadow</span></li>
+          <li>Missed-item reminders (G1)<span class="mode live">Live</span></li>
+          <li>Rebooking offer after a missed booked visit (G2)<span class="mode live">Live</span></li>
+          <li>Refill reminders and the pharmacy list (G3)<span class="mode live">Live</span></li>
+          <li>First report chase (G5)<span class="mode live">Live</span></li>
+          <li>Document requests after a care-elsewhere disclosure<span class="mode live">Live</span></li>
+          <li>Morning department lists<span class="mode live">Live</span></li>
+          <li>Logging button replies ("All well", "Booked")<span class="mode live">Live</span></li>
+        </ul>
+      </div>
+      <div class="tier" style="--c:var(--coord)">
+        <h3>Agent prepares, coordinator approves</h3>
+        <ul>
+          <li>Structuring free-text and voice replies</li>
+          <li>Matching incoming documents to patients</li>
+          <li>Pause proposals from patient replies</li>
+          <li>Lost-to-follow-up closure drafts</li>
+        </ul>
+      </div>
+      <div class="tier" style="--c:var(--coord)">
+        <h3>Coordinator only</h3>
+        <ul>
+          <li>Anything a patient says about symptoms, mood or distress</li>
+          <li>Verifying that a document belongs to the patient</li>
+          <li>Phone calls with patients and caregivers</li>
+          <li>Closing a case</li>
+          <li>Exceptions to the rules</li>
+        </ul>
+      </div>
+      <div class="tier" style="--c:var(--doc)">
+        <h3>Doctor only</h3>
+        <ul>
+          <li>Urgent or routine, for every concern</li>
+          <li>The instruction in the hospital record</li>
+          <li>Signing off plan templates and message wording (clinical lead)</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note" style="margin-top:10px">Live and shadow modes above are the prototype's demo settings. In the pilot, every autonomous task starts in shadow for weeks 1 to 4: the agent proposes, a coordinator approves with one tap, and each approval or rejection counts toward that task's acceptance rate. A task goes live only at 95%+ acceptance without edits, and can be moved back to shadow at any time.</p>
+
+    <div class="stopbox">
+      <div>
+        <h3>Stop-and-hand-over</h3>
+        <p>The moment a patient or caregiver mentions a symptom, feeling or worry, the agent stops, sends a fixed acknowledgement, and hands the conversation to the coordinator. It never discusses health matters, and it sends nothing more to that patient until a person closes the handover.</p>
+      </div>
+      <div>
+        <p><b>How the agent knows to stop</b></p>
+        <ol>
+          <li>Button taps are already structured, so the agent acts on them. A "Booked" tap is recorded even when the same reply carries a health mention.</li>
+          <li>The agent never acts on the content of free text or voice. Sarvam-30B sets one flag, health matter or not, tuned to over-flag; uncertain counts as yes.</li>
+          <li>Flagged replies become a handover at the top of Needs you. Unflagged ones still become approve-first proposals a coordinator reads.</li>
+          <li>So a missed flag changes which queue a person sees the reply in, not whether a person sees it.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:12px">
+      <div class="card"><h3>What the coordinator sees</h3><p style="margin:0">The Workspace opens with today at a glance: actions the agent took since yesterday evening, patients fully handled by the agent, approvals waiting, and patients who need you now. Below that, one-tap agent proposals, the Needs you list, and Handled by the agent. A patient moves back to Needs you automatically if a reply does not arrive in time or a health matter comes up.</p></div>
+      <div class="card"><h3>Other limits on the agent</h3><p style="margin:0">It can be switched off for any patient from their patient view. It stops chasing at G4 and hands the patient to the named caller. Its messages are signed as the clinic's automated assistant, and automated messaging is covered in the DPDP consent. It skips paused, closed and handed-over patients.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- WORKFLOWS -->
+<section id="flows">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>End-to-end workflows</h2>
+      <p class="lede">Five flows cover the follow-up use case. Each step sits in the lane of whoever does it. Outlined steps are human gates: nothing downstream happens until a person acts.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Workflows" id="flowTabs"></div>
+    <div class="flow-intro" id="flowIntro"></div>
+    <div class="lanes-head" aria-hidden="true">
+      <div><i class="sw pat"></i>Patient / caregiver</div>
+      <div><i class="sw rule"></i>Rules and records</div>
+      <div><i class="sw ai"></i>CarePilot agent</div>
+      <div><i class="sw coord"></i>Coordinator</div>
+      <div><i class="sw doc"></i>Oncologist</div>
+    </div>
+    <div class="lane-grid" id="laneGrid" role="tabpanel" aria-live="polite"></div>
+    <div class="legend">
+      <span><i class="gatebox"></i>Human gate</span>
+      <span><span class="chip ai">Sarvam model</span> model the agent calls at that step</span>
+      <span><span class="chip line">G4</span> gap rule that fired</span>
+      <span><span class="chip coord">Approve-first</span> agent drafts, a person approves</span>
+    </div>
+  </div>
+</section>
+
+<!-- AGENTS -->
+<section id="agents">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>The agent, its AI, and the services it acts through</h2>
+      <p class="lede">One named agent, four AI capabilities it calls, and eight services it acts through. Anything that must behave the same way every time for a medico-legal audit is a service, not a model; the agent chooses when to use it, within policy.</p>
+    </div>
+    <div class="filter" role="group" aria-label="Filter roster">
+      <button class="tab" data-f="all" aria-pressed="true">All</button>
+      <button class="tab" data-f="ai" aria-pressed="false">Agent and AI</button>
+      <button class="tab" data-f="rule" aria-pressed="false">Rules and records</button>
+    </div>
+    <div class="grid2" id="roster"></div>
+  </div>
+</section>
+
+<!-- RULES -->
+<section id="rules">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Gap rules, escalation and handoff deadlines</h2>
+      <p class="lede">The gap check decides what is wrong; the agent decides only whether the fix is on its list. Thresholds live in versioned config (visit grace 2 days, refill 3, report 7, return window 21) so a clinic can tune them with sign-off, without a code change.</p>
+    </div>
+    <div class="ladder">
+      <div class="rung"><div class="id">G0</div><b>Not booked by T-7</b>Agent sends a booking reminder with buttons. Still unbooked at T-3: agent offers slots, and the coordinator helps book within 2 working days.<div class="who"><span class="chip ai">agent</span> <span class="chip coord">T-3</span></div></div>
+      <div class="rung"><div class="id">G1</div><b>Missed plan item</b>Never booked, not attended by due + 2 days. Item overdue; agent sends the approved reminder.<div class="who"><span class="chip ai">agent</span></div></div>
+      <div class="rung"><div class="id">G2</div><b>Booked, not attended</b>No attendance on the next appointment list. Agent offers rebooking slots; unanswered, it goes to the coordinator.<div class="who"><span class="chip ai">agent</span> <span class="chip coord">then</span></div></div>
+      <div class="rung"><div class="id">G3</div><b>Refill not collected</b>Hormonal therapy not refilled within 3 days of supply ending. Agent reminds and adds it to the pharmacy's morning list.<div class="who"><span class="chip ai">agent</span></div></div>
+      <div class="rung"><div class="id">G4</div><b>Not responding</b>Two messages unanswered after 24 hours each. The agent stops chasing; named caller phones within 2 working days.<div class="who"><span class="chip coord">call</span></div></div>
+      <div class="rung"><div class="id">G5</div><b>Evidence missing</b>Test done, or patient says done, with no report in 7 days. Agent sends the first chase; second goes to the coordinator.<div class="who"><span class="chip ai">agent</span> <span class="chip coord">2nd</span></div></div>
+      <div class="rung"><div class="id">G6</div><b>Beyond return window</b>No visit for 21+ days after a missed item. Agent asks "Since your last visit, did you receive care anywhere else?"<div class="who"><span class="chip ai">agent</span></div></div>
+    </div>
+
+    <div class="grid2" style="margin-top:12px">
+      <div class="card">
+        <h3>After the ladder</h3>
+        <p style="margin:0">Patient not reached by phone: coordinator calls the caregiver within 3 working days. When the lost-to-follow-up definition is met (60+ days since the missed item and at least four documented attempts), the agent drafts the closure. The coordinator closes the case with a reason, the clinical lead reviews it, and only then does the KPI denominator change.</p>
+      </div>
+      <div class="card">
+        <h3>Handoff deadlines</h3>
+        <p style="margin:0">Concern decision: coordinator to doctor, 1 working day, then the doctor's cover. Instruction in the record: 1 working day after the decision, then a reminder. Urgent call: same day, then the coordinator's cover. Booking from an instruction: department owner, 2 working days, then their cover. Patient notified: automatic, same day.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SARVAM -->
+<section id="sarvam">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Where Sarvam is used, and where it is not</h2>
+      <p class="lede">Sarvam gives the agent its senses for Indian languages: code-mixed Kannada and Hindi replies, regional letterheads, handwritten notes, and caregivers who prefer audio. It is deliberately kept out of the send path at runtime; the agent only sends text a clinician has already approved.</p>
+    </div>
+    <div class="scroll">
+    <table class="table">
+      <thead><tr><th>Need</th><th>Sarvam model</th><th>Where in CarePilot</th><th>When it runs</th><th>Guardrail</th></tr></thead>
+      <tbody>
+        <tr><td>Voice notes to text</td><td><span class="chip ai">Saaras v3</span></td><td>Patient and caregiver voice replies; "I can't come" reasons spoken rather than typed</td><td>Per note, batch. Realtime reserved for phase-2 voice calls</td><td>Keeps native transcript, English translation and original audio side by side for the coordinator.</td></tr>
+        <tr><td>Health-matter flag</td><td><span class="chip ai">Sarvam-30B</span></td><td>Every free-text or transcribed reply</td><td>On receipt</td><td>Chooses between handover and proposal only. Tuned to over-flag; uncertain counts as a health matter.</td></tr>
+        <tr><td>Structuring free text</td><td><span class="chip ai">Sarvam-30B</span></td><td>Booking intent, pause requests, care-elsewhere details, reason codes</td><td>After transcription</td><td>JSON schema with no clinical fields; approve-first; the model receives a de-identified transcript.</td></tr>
+        <tr><td>Reading outside documents</td><td><span class="chip ai">Sarvam Vision</span></td><td>WhatsApp photos, scans, courier PDFs, paper plan notes at Level 0</td><td>On receipt</td><td>Identifiers and metadata only; document held as Unverified; mismatches shown as facts.</td></tr>
+        <tr><td>Localising message templates</td><td><span class="chip ai">Sarvam-Translate / Mayura</span></td><td>Template library in Kannada, Hindi, Tamil, Telugu</td><td>Authoring time only</td><td>A clinician and a native-language reviewer approve each version; runtime fills only names and dates.</td></tr>
+        <tr><td>Audio reminders</td><td><span class="chip ai">Bulbul v3</span></td><td>Low-literacy patients and elderly caregivers</td><td>Pre-generated per approved template</td><td>The approved audio file is what gets sent; nothing is synthesised on the fly.</td></tr>
+        <tr><td>Coordinator copilot</td><td><span class="chip ai">Sarvam-105B</span></td><td>Call briefs and contact-history summaries</td><td>On demand</td><td>Internal only. Every sentence links to the record it came from; uncited sentences are dropped.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note" style="margin-top:10px">Not a model job: the HELP keyword (and ಸಹಾಯ / मदद) is matched by the gateway directly, so reaching a person never depends on a classifier.</p>
+    <div class="grid2" style="margin-top:12px">
+      <div class="card"><h3>Hackathon build sprint</h3><p style="margin:0">Managed Sarvam API with synthetic data only. Pre-recorded Kannada and Hindi replies and photographed synthetic reports exercise the real models end to end.</p></div>
+      <div class="card"><h3>Pilot with real patients</h3><p style="margin:0">Saaras v3, Bulbul v3 and Sarvam Vision run as self-hosted deployments inside the clinic's own cloud account in an Indian region, so audio and documents stay in-house. Until an equivalent option is confirmed for the chat models, they only receive de-identified text.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- FRAMEWORKS -->
+<section id="frameworks">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Framework decisions</h2>
+      <p class="lede">The design bar names LangChain, OpenClaw and Hermes Agents as examples. Each is judged on one question: can every action the agent takes be reproduced and explained to a hospital's medico-legal team?</p>
+    </div>
+    <div class="dec">
+      <div class="card"><h3>LangGraph (LangChain)</h3><div class="verdict v-adopt">Adopt</div><p>Runs the CarePilot agent. Explicit graphs are auditable, interrupt() maps onto approve-first and handover, and the checkpointer lets a proposal or concern wait days without losing state.</p></div>
+      <div class="card"><h3>Sarvam</h3><div class="verdict v-adopt">Adopt</div><p>The agent's Indian-language senses: speech, documents, translation. Has a self-hosted path for pilot data. Also the Health-a-thon technology partner.</p></div>
+      <div class="card"><h3>OpenClaw</h3><div class="verdict v-borrow">Borrow the pattern</div><p>Its gateway idea is right: channels separated from the agent, and the agent limited to an allow-list of tools. CarePilot's autonomy policy is that allow-list. Keep OpenClaw itself off the patient path: patient messaging must run on the WhatsApp Business Platform, and shell and browser tools are the wrong blast radius near health data.</p></div>
+      <div class="card"><h3>Hermes Agent</h3><div class="verdict v-exclude">Keep out of runtime</div><p>An agent that writes its own skills conflicts with an autonomy policy the clinical lead signs off. Fine as the developer's assistant during the build sprint, on synthetic data.</p></div>
+    </div>
+    <p class="note" style="margin-top:12px">Supporting tools: Langfuse for traces and evals (self-hosted), APScheduler for the 07:00 gap check and 07:30 agent run, pytest suites for every gap rule and autonomy entry. No message bus in the MVP; a Postgres outbox is enough at one-clinic scale.</p>
+  </div>
+</section>
+
+<!-- STATE MODEL -->
+<section id="states">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>State model</h2>
+      <p class="lede">One order card tracks each doctor's order end to end. Stages in blue need a coordinator; stages in plum need the doctor.</p>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Test order card</h3>
+        <div class="sm"><span class="st">Due</span><span class="ar">›</span><span class="st">Ordered</span><span class="ar">›</span><span class="st">Scheduled</span><span class="ar">›</span><span class="st">Completed</span><span class="ar">›</span><span class="st">Report received</span><span class="ar">›</span><span class="st h">Report verified</span></div>
+        <p class="note" style="margin:6px 0 0">Cannot sit at Scheduled without an appointment date. In-house reports are linked from the source system, never uploaded by hand.</p>
+      </div>
+      <div class="card">
+        <h3>Visit order card</h3>
+        <div class="sm"><span class="st">Due</span><span class="ar">›</span><span class="st">Booked</span><span class="ar">›</span><span class="st">Attended</span></div>
+        <p class="note" style="margin:6px 0 0">A "Booked" button tap moves it to Booked. Attendance comes only from the appointment list or a hospital feed.</p>
+      </div>
+      <div class="card">
+        <h3>Agent handover</h3>
+        <div class="sm"><span class="st">Health mention</span><span class="ar">›</span><span class="st">Agent stopped</span><span class="ar">›</span><span class="st h">Sent to doctor</span><span class="ar">or</span><span class="st h">Call first</span><span class="ar">or</span><span class="st h">Nothing clinical, closed</span></div>
+        <p class="note" style="margin:6px 0 0">While a handover is open, the agent sends nothing to that patient.</p>
+      </div>
+      <div class="card">
+        <h3>Agent proposal</h3>
+        <div class="sm"><span class="st">Drafted</span><span class="ar">›</span><span class="st h">Approved</span><span class="ar">or</span><span class="st h">Rejected</span></div>
+        <p class="note" style="margin:6px 0 0">Nothing is sent before approval. Approvals are logged with the coordinator's name; rejections count against the task's acceptance rate.</p>
+      </div>
+      <div class="card">
+        <h3>Agent task mode</h3>
+        <div class="sm"><span class="st">Shadow</span><span class="ar">›</span><span class="st h">Live at 95%+</span><span class="ar">›</span><span class="st h">Back to shadow</span></div>
+        <p class="note" style="margin:6px 0 0">Promotion and demotion are recorded in the audit trail with who made the change.</p>
+      </div>
+      <div class="card">
+        <h3>Patient-reported concern</h3>
+        <div class="sm"><span class="st">Handover</span><span class="ar">›</span><span class="st h">Sent to doctor</span><span class="ar">›</span><span class="st d">Urgent / routine</span><span class="ar">›</span><span class="st d">Instruction</span><span class="ar">›</span><span class="st">New order card</span><span class="ar">›</span><span class="st">Closed</span></div>
+        <p class="note" style="margin:6px 0 0">Visible on the patient's page under the doctor's own login, not only in the coordinator's queue.</p>
+      </div>
+      <div class="card">
+        <h3>Outside document</h3>
+        <div class="sm"><span class="st">Received</span><span class="ar">›</span><span class="st">Unverified</span><span class="ar">›</span><span class="st h">Verified</span><span class="ar">or</span><span class="st h">Rejected</span></div>
+        <p class="note" style="margin:6px 0 0">Nothing is verified without an attached file and two matching identifiers. Never auto-promoted to the in-house trust tier.</p>
+      </div>
+      <div class="card">
+        <h3>Patient follow-up status</h3>
+        <div class="sm"><span class="st">Active</span><span class="ar">·</span><span class="st">Paused</span><span class="ar">·</span><span class="st">Agent off</span><span class="ar">·</span><span class="st h">Lost to follow-up</span><span class="ar">·</span><span class="st h">Followed up elsewhere</span></div>
+        <p class="note" style="margin:6px 0 0">Pause suspends rules and the agent. "Agent off" keeps the rules running but routes all contact to the coordinator. Closing always needs a person and a reason.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<section id="trust">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Trust, consent and governance</h2>
+      <p class="lede">The senior oncologist's review made provenance a day-one safety requirement. An autonomous agent adds a second requirement: everything it does must be as reviewable as a person's work.</p>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>The agent is a named actor</h3><p style="margin:0">The audit trail has four actor types: a named person, the system ("CarePilot gap check"), the CarePilot agent, and AI suggestions. Agent entries record the task, its mode, and for approve-first work, who approved. AI entries record model and prompt version.</p></div>
+      <div class="card"><h3>Same actions as a coordinator</h3><p style="margin:0">The agent has no private tools. It sends through the same template library, writes through the same order-card actions, and appears in the same audit trail. Anything a coordinator can review, they can review for the agent.</p></div>
+      <div class="card"><h3>Provenance on every flag</h3><p style="margin:0">Every status the doctor sees opens its source in one click: the report, the appointment list row, the WhatsApp message and audio. A timeline item with no originating order is shown as a gap, never assumed.</p></div>
+      <div class="card"><h3>Four trust tiers</h3><p style="margin:0">In-house feed, verified external, unverified external, patient-reported. When sources disagree, for example an outside prescription with medicines not on the hospital list, both are shown under "Sources disagree" and flagged to the doctor. Nothing is resolved automatically.</p></div>
+      <div class="card"><h3>Consent and transparency</h3><p style="margin:0">A DPDP consent record with a reference number and explicit scope (outside-record retrieval, external-care reconciliation, WhatsApp contact with patient and caregiver, automated messaging) gates every outbound action. Agent messages are signed as the clinic's automated assistant, and HELP always reaches a person. ABDM consent artefacts follow in phase 2.</p></div>
+      <div class="card"><h3>WhatsApp is a channel, not a record</h3><p style="margin:0">Every inbound message, file and call outcome is copied into the patient's record with its audit entry. Staff never work from personal phones or personal WhatsApp.</p></div>
+      <div class="card"><h3>Change control</h3><p style="margin:0">Plan templates, rule thresholds, message wording and the autonomy policy are versioned and signed off. Models and prompts ship only after passing the eval suite, including zero scope violations on the red-team set.</p></div>
+      <div class="card"><h3>Access and data minimisation</h3><p style="margin:0">Coordinator and doctor see their patients; the chief sees aggregates only. Names, phone numbers and IDs are replaced with tokens before any chat-model call. Audio and documents stay in the India-region object store.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- MEASUREMENT -->
+<section id="measure">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>What gets measured in 60 to 90 days</h2>
+      <p class="lede">Two defensible KPIs with a baseline measured inside the clinic before go-live, as the reviewer asked. Only the aggregate leaves the clinic. Agent metrics sit underneath as operating evidence, not headline claims.</p>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Recall completion</h3><p style="margin:0">Share of follow-up items completed within ±14 days of due. Baseline from the clinic's own register (prototype uses a synthetic 64%, Feb to Jul 2026).</p></div>
+      <div class="card"><h3>Time to first human contact</h3><p style="margin:0">Median working days from a G4 escalation to the first call. Shows whether the coordinator time the agent frees up reaches the patients who need it.</p></div>
+    </div>
+    <div class="scroll" style="margin-top:12px">
+    <table class="table">
+      <thead><tr><th>Evidence</th><th>How it is measured</th><th>Bar</th></tr></thead>
+      <tbody>
+        <tr><td>Agent acceptance, per task</td><td>Share of shadow-mode proposals approved without edits</td><td>95%+ before a task goes live</td></tr>
+        <tr><td>Coordinator load</td><td>Patients needing a person today, with and without the agent (shown daily on the Workspace)</td><td>Reported, not targeted</td></tr>
+        <tr><td>Handover response</td><td>Time from agent stop to coordinator review</td><td>Next working morning</td></tr>
+        <tr><td>Health-matter flag</td><td>Kannada, Hindi and code-mixed replies with and without health mentions</td><td>Recall reported per language; misses still reach a person</td></tr>
+        <tr><td>Scope violations</td><td>Red-team prompts that bait severity, advice or interpretation</td><td>Zero, or the release is blocked</td></tr>
+        <tr><td>Voice and field accuracy</td><td>Labelled voice notes and transcripts, including caregivers</td><td>Word error rate and field accuracy reported per language</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Build sequence</h2>
+      <p class="lede">Smallest working system first. Scope, and the agent's autonomy, grow only on evidence.</p>
+    </div>
+    <div class="road">
+      <div class="card"><h3>Build sprint</h3>
+        <ul>
+          <li>Level 0 sources, synthetic data</li>
+          <li>Gap check, order cards and the agent's morning run with the v7.1 autonomy policy</li>
+          <li>Stop-and-hand-over working on recorded Kannada and Hindi replies</li>
+          <li>Document intake with Sarvam Vision, verification queue</li>
+          <li>Audit trail with the agent as a named actor from day one</li>
+        </ul>
+      </div>
+      <div class="card"><h3>Pilot, 60 to 90 days</h3>
+        <ul>
+          <li>One clinic, breast cancer survivorship plan after clinical sign-off</li>
+          <li>Every agent task in shadow for weeks 1 to 4, promoted one at a time</li>
+          <li>WhatsApp Business Platform, live voice replies</li>
+          <li>Self-hosted Sarvam speech and vision in an Indian region</li>
+          <li>Baseline measured, two KPIs reported</li>
+        </ul>
+      </div>
+      <div class="card"><h3>Scale</h3>
+        <ul>
+          <li>Level 1 hospital feeds replace uploads</li>
+          <li>Journey reconciliation added to the agent</li>
+          <li>More cancer plans; ABDM consent and record pull</li>
+          <li>Tumour board case preparation and consultation readiness on the same journey data</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRACEABILITY -->
+<section id="trace">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Traceability to the oncologist's review</h2>
+      <p class="lede">Each modification and addition from the senior oncologist's review, and where it lives in this design.</p>
+    </div>
+    <div class="scroll">
+    <table class="table">
+      <thead><tr><th>Review point</th><th>Design response</th></tr></thead>
+      <tbody>
+        <tr><td>Pending actions need a named owner</td><td>Every order card and concern carries owner and cover. The agent works the routine steps; a named person owns the outcome, and deadlines escalate to cover.</td></tr>
+        <tr><td>Cost and pre-authorisation drive non-completion</td><td>"I can't come" captures reason codes including cost and pre-authorisation, so the coordinator acts on the real blocker.</td></tr>
+        <tr><td>External documents unverified until a human confirms</td><td>The agent may propose a match; verification is coordinator-only, with a two-identifier check and no auto-promotion across trust tiers.</td></tr>
+        <tr><td>Stale medication lists are a safety issue</td><td>"Sources disagree" surfaces outside prescriptions to the doctor as facts; never merged automatically.</td></tr>
+        <tr><td>One-click verification of every flag</td><td>Provenance links on every status; agent actions and AI suggestions are in the same audit trail as people's.</td></tr>
+        <tr><td>WhatsApp is not a clinical record</td><td>Gateway copies every message and file into the record with an audit entry.</td></tr>
+        <tr><td>Consent and data governance</td><td>Consent service gates outreach, including automated messaging; DPDP-aligned now, ABDM consent artefacts in phase 2.</td></tr>
+        <tr><td>Nurses and coordinators are the human workflow engine</td><td>The agent takes the repetitive coordination; coordinators keep exceptions, escalations and conversations.</td></tr>
+        <tr><td>Institutional memory and staff turnover</td><td>Plan templates, rules, message wording and the autonomy policy are versioned at clinic level, not held in a person's head.</td></tr>
+        <tr><td>Tumour board as a phase-two extension</td><td>Same journey data and orchestration layer, listed in the scale phase.</td></tr>
+        <tr><td>Narrow, defensible KPIs</td><td>Two KPIs with a measured baseline; agent metrics kept as supporting evidence.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>CarePilot AI organises, reminds, tracks and routes. Its agent never discusses health matters and stops the moment one comes up. CarePilot never diagnoses, prescribes, scores clinical risk, interprets results or advises patients. The breast cancer follow-up plan and all acceptance figures referenced here are illustrative and synthetic, pending clinical sign-off.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var L = {pat:1, rule:2, ai:3, coord:4, doc:5};
+  var LN = {pat:'Patient / caregiver', rule:'Rules and records', ai:'CarePilot agent', coord:'Coordinator', doc:'Oncologist'};
+  var FLOWS = [
+    { id:'plan', name:'Plan to order cards',
+      intro:'Starts when the oncologist sets the survivorship plan. Ends with every follow-up item on a card with a named owner, and the patient told, in her language, what to expect and how to reach a person.',
+      steps:[
+        {l:'doc', t:'Sets the follow-up plan', d:'In the hospital record (EMR or paper note). Survivorship template v1, signed off clinically.'},
+        {l:'ai', t:'Reads the paper note (Level 0 only)', d:'Pulls template ID, therapy and treatment end date to pre-fill the form. No clinical inference.', m:['Sarvam Vision'], a:1},
+        {l:'coord', t:'Confirms plan pickup', d:'Checks two identifiers, therapy and start date against the note.', g:'Gate 1: plan confirmed'},
+        {l:'rule', t:'Creates order cards', d:'Each item gets a due date, lifecycle, named owner and cover. Audit entry in the same transaction.'},
+        {l:'rule', t:'Checks consent', d:'Scope must include WhatsApp contact and automated messaging. If not, the agent is off for this patient and the coordinator gets a task.'},
+        {l:'ai', t:'Sends the welcome message', d:'Approved Kannada template to patient and caregiver, signed as the clinic\u2019s automated assistant: upcoming dates and how to reply.'},
+        {l:'pat', t:'Can reach a person any time', d:'Replying HELP (\u0cb8\u0cb9\u0cbe\u0caf / \u092e\u0926\u0926) goes straight to the coordinator, matched by keyword, not by a model.'}
+      ]},
+    { id:'gap', name:'Morning run',
+      intro:'07:00 gap check, 07:30 agent run. Example: Lakshmi Prakash\u2019s 3-month clinic review, arm check and wellbeing review are unbooked a week before they fall due.',
+      steps:[
+        {l:'rule', t:'Ingests yesterday\u2019s sources', d:'Appointment list, report PDFs, pharmacy register (uploads at Level 0, feeds at Level 1).'},
+        {l:'rule', t:'Runs rules G0 to G6', d:'Logged as \u201cCarePilot gap check\u201d. Idempotent keys so a gap is raised once. Paused patients skipped.', r:['G0']},
+        {l:'ai', t:'Sends the booking reminder', d:'Buttons: Booked, Please help me book, I can\u2019t come. Autonomous, logged as the CarePilot agent. Morning department lists go out in the same run.'},
+        {l:'pat', t:'Taps a button, or doesn\u2019t', d:'A tap is recorded by the agent automatically. Free text takes the reply flow instead.'},
+        {l:'ai', t:'Offers booking slots at T-3', d:'Still unbooked: three slots in her language. In shadow mode this is a proposal awaiting one-tap approval.', r:['G0'], a:1},
+        {l:'coord', t:'Opens the Workspace', d:'Today at a glance, then approvals, Needs you, and Handled by the agent. Helps book anything still open at T-3 within 2 working days.', g:'Gate 2: approvals'},
+        {l:'ai', t:'Stops chasing at G4', d:'Two messages unanswered: the agent stops and the patient moves to Needs you with a named caller.', r:['G4']},
+        {l:'coord', t:'Calls and records the outcome', d:'Patient, then caregiver within 3 working days. Books, pauses with a reason and end date, or records why she can\u2019t come.', g:'Gate 3: call outcome'},
+        {l:'ai', t:'Asks about care elsewhere; drafts closure', d:'At G6 sends the approved question. If the lost-to-follow-up definition is met, drafts the closure for approval.', r:['G6'], a:1},
+        {l:'coord', t:'Closes only with a reason', d:'Lost to follow-up, or followed up elsewhere. Reviewed by the clinical lead.', g:'Gate 4: case closed by a person'}
+      ]},
+    { id:'reply', name:'Stop-and-hand-over',
+      intro:'A patient taps \u201cBooked\u201d on the agent\u2019s reminder and adds, in Hindi: \u201cI will come on Saturday. But there has been pain at the operation site since last week.\u201d The booking is routine. The rest is not the agent\u2019s business.',
+      steps:[
+        {l:'pat', t:'Replies with a button plus free text', d:'Or a voice note, or \u201cI have a concern\u201d on the monthly check-in.'},
+        {l:'ai', t:'Records the booking', d:'The button is structured, so the order card moves to Booked. Autonomous, logged.'},
+        {l:'ai', t:'Transcribes, translates, flags', d:'Native text plus English. One flag: health matter or not, tuned to over-flag. The flag chooses the queue, nothing else.', m:['Saaras v3','Sarvam-30B']},
+        {l:'ai', t:'Stops and hands over', d:'Sends the fixed acknowledgement that a care-team member will be in touch. Does not respond to the content. Sends nothing more to her until the handover closes.'},
+        {l:'coord', t:'Reviews the handover', d:'Original words, translation, audio if any. Sends it to the doctor as a concern, calls the patient first, or closes it as nothing clinical.', g:'Gate 5: handover reviewed'},
+        {l:'doc', t:'Decides urgent or routine', d:'On the patient\u2019s page and in Needs my decision. 1 working day, then the doctor\u2019s cover.', g:'Gate 6: doctor\u2019s disposition'},
+        {l:'coord', t:'Urgent: calls the patient today', d:'Same day, then the coordinator\u2019s cover.'},
+        {l:'doc', t:'Gives the instruction', d:'In the hospital record, for example a surgical-site review within 7 days. 1 working day after the decision.', g:'Gate 7: instruction recorded'},
+        {l:'rule', t:'Creates the new order card', d:'Named department owner books within 2 working days, then their cover.'},
+        {l:'ai', t:'Notifies the patient and resumes', d:'Approved booking message the same day. With the handover closed, the agent picks up her routine follow-up again.'}
+      ]},
+    { id:'doc', name:'Outside document',
+      intro:'A patient sends a WhatsApp photo of a lipid profile from a lab near home. The agent can read and suggest; only a person can verify.',
+      steps:[
+        {l:'pat', t:'Sends a photo or PDF', d:'WhatsApp, email, courier, or her own copy at the desk.'},
+        {l:'rule', t:'Holds it as Unverified', d:'WhatsApp files arrive tied to the sender. Anything else, the coordinator uploads.'},
+        {l:'ai', t:'Reads identifiers only', d:'Name, age, sex, lab ID, facility, report date, document type. Result values are not parsed.', m:['Sarvam Vision']},
+        {l:'ai', t:'Proposes the patient and order match', d:'Suggests which patient and which open item it answers. Mismatches shown as facts.', a:1},
+        {l:'coord', t:'Verifies or rejects', d:'Two identifiers, document type, clinical and received dates, channel, and the pending action it answers.', g:'Human only: document verified'},
+        {l:'rule', t:'Advances the order card', d:'Moves to Report received. No originating order? Shown as an origin gap on the journey.'},
+        {l:'doc', t:'Opens the source', d:'One click from the card to the original file. The doctor reads the result; CarePilot does not.'}
+      ]},
+    { id:'else', name:'Care elsewhere',
+      intro:'A patient has moved or chosen another hospital. The goal is continuity of the record, not a chain of overdue flags.',
+      steps:[
+        {l:'ai', t:'Asks the question', d:'At G6, and on every monthly check-in: \u201cSince your last visit, did you receive care anywhere else?\u201d', r:['G6']},
+        {l:'pat', t:'Taps \u201cI got care elsewhere\u201d', d:'Or says so in text, a voice note or on a call.'},
+        {l:'ai', t:'Drafts provider and dates', d:'Facility, city and approximate dates, as she said them.', m:['Saaras v3','Sarvam-30B'], a:1},
+        {l:'coord', t:'Opens an external-care episode', d:'Confirms details and the documents to request.', g:'Human gate: episode confirmed'},
+        {l:'ai', t:'Requests documents and chases', d:'Autonomous: approved request template, and a chase if nothing arrives in 7 days.', r:['G5']},
+        {l:'coord', t:'Verifies and reconciles', d:'Each document goes through the outside-document flow; matching in-house items are marked done elsewhere, not overdue.', g:'Human gate: reconciled'},
+        {l:'doc', t:'Sees it on the journey', d:'A defining milestone: care elsewhere disclosed, with the verified documents attached.'}
+      ]}
+  ];
+
+  var tabs = document.getElementById('flowTabs'), grid = document.getElementById('laneGrid'), intro = document.getElementById('flowIntro');
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  var colour = {pat:'var(--pat)', rule:'var(--rule)', ai:'var(--ai)', coord:'var(--coord)', doc:'var(--doc)'};
+  function show(id){
+    var f = FLOWS.filter(function(x){return x.id===id;})[0];
+    Array.prototype.forEach.call(tabs.children,function(b){ b.setAttribute('aria-selected', b.dataset.id===id ? 'true':'false'); });
+    intro.innerHTML = '<p>' + esc(f.intro) + '</p>';
+    grid.innerHTML = f.steps.map(function(s,i){
+      var col = L[s.l];
+      var tags = (s.m||[]).map(function(m){return '<span class="chip ai">'+esc(m)+'</span>';}).join('') + (s.r||[]).map(function(r){return '<span class="chip line">'+esc(r)+'</span>';}).join('') + (s.a?'<span class="chip coord">Approve-first</span>':'');
+      return '<div class="step'+(s.g?' gate':'')+'" style="--c:'+colour[s.l]+';--i:'+i+';grid-column:'+col+';grid-row:'+(i+1)+'">' +
+        '<span class="chip '+s.l+' lane-chip">'+LN[s.l]+'</span><div><span class="n">'+(i+1)+'</span><b>'+esc(s.t)+'</b></div>' +
+        '<p>'+esc(s.d)+'</p>' + (tags?'<div class="tags">'+tags+'</div>':'') + (s.g?'<span class="gate-label">'+esc(s.g)+'</span>':'') + '</div>';
+    }).join('');
+    grid.classList.remove('fresh'); void grid.offsetWidth; grid.classList.add('fresh');
+  }
+  FLOWS.forEach(function(f){
+    var b = document.createElement('button'); b.className='tab'; b.type='button'; b.setAttribute('role','tab'); b.dataset.id=f.id; b.textContent=f.name;
+    b.addEventListener('click',function(){ show(f.id); }); tabs.appendChild(b);
+  });
+  show('reply');
+
+  var ROSTER = [
+    {k:'ai', tag:'The agent', n:'CarePilot agent', m:'LangGraph, autonomy policy', in:'Gap events, button replies, flagged and structured replies', out:'Logged actions, proposals for approval, handovers', gate:'Coordinators approve its proposals and can switch it off per patient', never:'Never discusses health matters; never acts outside the actions a coordinator has.'},
+    {k:'ai', tag:'AI', n:'Reply understanding', m:'Saaras v3, Sarvam-30B', in:'Voice notes, free text, caregiver replies', out:'Native transcript, English translation, health-matter flag, structured draft', gate:'Coordinator reviews every handover and proposal', never:'Never assigns severity or urgency; never replies to the patient.'},
+    {k:'ai', tag:'AI', n:'Document intake', m:'Sarvam Vision', in:'Photos, scans, PDFs from any channel', out:'Identifiers, metadata, suggested patient and order match', gate:'Coordinator verifies', never:'Never extracts result values; never marks a document verified.'},
+    {k:'ai', tag:'AI', n:'Coordinator copilot', m:'Sarvam-105B', in:'Contact history, order status, audit trail', out:'Call brief, history summary', gate:'Coordinator uses or ignores', never:'Never writes to the patient or the plan; uncited sentences dropped.'},
+    {k:'ai', tag:'AI, phase 2', n:'Journey reconciliation', m:'Sarvam-30B', in:'Events, verified documents, orders', out:'Suggested event-to-order links; origin gaps', gate:'Coordinator accepts each link', never:'Never fills a gap by assumption.'},
+    {k:'rule', tag:'Service', n:'Channel gateway', m:'WhatsApp Business Platform', in:'Inbound messages, files, button taps, HELP', out:'Events in the record; approved templates out', gate:'None; logistics', never:'Never sends text that is not an approved template.'},
+    {k:'rule', tag:'Service', n:'Gap check', m:'Code, versioned thresholds', in:'Order cards, contacts, sources', out:'Gap events G0 to G6, tasks', gate:'Tasks go to named people', never:'Never closes a case or combines facts into a score.'},
+    {k:'rule', tag:'Service', n:'Plan and order cards', m:'Code', in:'Confirmed plan, signed-off template', out:'Order cards with owner, cover, due dates', gate:'Plan confirmed by the coordinator', never:'Never lets a card sit at Scheduled without a date.'},
+    {k:'rule', tag:'Service', n:'Template library', m:'Code, signed-off wording', in:'Agent or coordinator send requests, language, recipient', out:'Filled templates in the patient\u2019s and caregiver\u2019s languages', gate:'Wording approved at authoring', never:'Never accepts free wording from the agent.'},
+    {k:'rule', tag:'Service', n:'Handoff router', m:'Code', in:'Handovers, concerns, doctor actions', out:'Decision queue, deadlines, cover escalation', gate:'Doctor decides', never:'Never pre-selects a disposition.'},
+    {k:'rule', tag:'Service', n:'Consent service', m:'Code', in:'Consent record and scope', out:'Allow or block per action', gate:'Coordinator records consent', never:'Never assumes consent from a reply.'},
+    {k:'rule', tag:'Service', n:'Audit and provenance ledger', m:'Postgres, hash chain', in:'Every write from every component', out:'Tamper-evident history; source links', gate:'Read by all roles', never:'Never updated or deleted in place.'},
+    {k:'rule', tag:'Service', n:'Programme metrics', m:'Code', in:'Order cards, closures, proposals', out:'Recall completion, time to first contact, agent acceptance', gate:'Chief reviews', never:'Never shows names on the chief\u2019s screen.'}
+  ];
+  var roster = document.getElementById('roster');
+  function drawRoster(f){
+    roster.innerHTML = ROSTER.filter(function(r){return f==='all'||r.k===f;}).map(function(r){
+      return '<article class="agent is-'+r.k+'"><header><h3>'+esc(r.n)+'</h3><span class="chip '+(r.k==='ai'?'ai':'rule')+'">'+esc(r.tag)+'</span></header>' +
+        '<dl><dt>Runs on</dt><dd>'+esc(r.m)+'</dd><dt>Takes</dt><dd>'+esc(r.in)+'</dd><dt>Produces</dt><dd>'+esc(r.out)+'</dd><dt>Human role</dt><dd>'+esc(r.gate)+'</dd></dl>' +
+        '<div class="never">'+esc(r.never)+'</div></article>';
+    }).join('');
+  }
+  drawRoster('all');
+  document.querySelectorAll('.filter .tab').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('.filter .tab').forEach(function(x){x.setAttribute('aria-pressed','false');});
+      b.setAttribute('aria-pressed','true'); drawRoster(b.dataset.f);
+    });
+  });
+})();
+</script>
+</body>
+</html>

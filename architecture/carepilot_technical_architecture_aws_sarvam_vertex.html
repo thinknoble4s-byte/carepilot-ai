@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CarePilot Technical Architecture</title>
+<style>
+:root{
+  --bg:#fbfaf7;--surface:#ffffff;--ink:#1f1e1c;--quiet:#5f5c55;--line:#d9d5cc;--tint:#f2f0ea;
+  --accent:#2f6fd0;--accent-soft:rgba(47,111,208,.12);
+  --free:#2e7d4f;--free-bg:rgba(46,125,79,.12);
+  --paid:#a86512;--paid-bg:rgba(168,101,18,.13);
+  --sarvam:#2f6fd0;--sarvam-bg:rgba(47,111,208,.12);
+  --vertex:#7a3fb0;--vertex-bg:rgba(122,63,176,.12);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#191917;--surface:#22211f;--ink:#ecebe7;--quiet:#a9a69e;--line:#3d3b37;--tint:#2a2926;
+    --accent:#79a7ee;--accent-soft:rgba(121,167,238,.16);
+    --free:#6cc493;--free-bg:rgba(108,196,147,.15);
+    --paid:#e0a75a;--paid-bg:rgba(224,167,90,.15);
+    --sarvam:#79a7ee;--sarvam-bg:rgba(121,167,238,.15);
+    --vertex:#c49be8;--vertex-bg:rgba(196,155,232,.15);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#191917;--surface:#22211f;--ink:#ecebe7;--quiet:#a9a69e;--line:#3d3b37;--tint:#2a2926;
+  --accent:#79a7ee;--accent-soft:rgba(121,167,238,.16);
+  --free:#6cc493;--free-bg:rgba(108,196,147,.15);
+  --paid:#e0a75a;--paid-bg:rgba(224,167,90,.15);
+  --sarvam:#79a7ee;--sarvam-bg:rgba(121,167,238,.15);
+  --vertex:#c49be8;--vertex-bg:rgba(196,155,232,.15);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:28px;line-height:1.2;margin:0 0 6px}
+h2{font-size:20px;margin:44px 0 10px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:15px;margin:22px 0 8px}
+p{margin:8px 0}
+.byline{color:var(--quiet);font-size:13px;margin-bottom:18px}
+.lead{font-size:16px}
+.note{color:var(--quiet);font-size:13px}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin:16px 0 0}
+nav.toc a{color:var(--accent);text-decoration:none}
+.changes{background:var(--tint);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:13.5px;margin:16px 0}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{background:var(--tint);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;background:var(--tint);padding:1px 4px;border-radius:4px}
+.chip{display:inline-block;font-size:12px;line-height:1.3;padding:2px 7px;border-radius:999px;margin:2px 3px 2px 0;white-space:nowrap;border:1px solid transparent}
+.free{color:var(--free);background:var(--free-bg)}
+.paid{color:var(--paid);background:var(--paid-bg)}
+.sarvam{color:var(--sarvam);background:var(--sarvam-bg)}
+.vertex{color:var(--vertex);background:var(--vertex-bg)}
+.none{color:var(--quiet)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;margin:8px 0}
+.matrix td{min-width:150px}
+.matrix td:first-child{min-width:170px}
+.matrix .step{font-weight:600}
+.matrix .trig{display:block;color:var(--quiet);font-size:12px;font-weight:400}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:12px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.card .k{font-size:12px;color:var(--quiet)}
+.card .v{font-size:22px;font-weight:600;margin:2px 0}
+.card .s{font-size:12.5px;color:var(--quiet)}
+figure{margin:12px 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:12.5px;color:var(--quiet);margin-top:6px}
+ul.check{list-style:none;padding-left:0}
+ul.check li::before{content:"\2610";margin-right:8px;color:var(--quiet)}
+/* diagram classes */
+.d-title{font-size:15px;font-weight:600;fill:var(--ink)}
+.d-name{font-size:13px;font-weight:600;fill:var(--ink)}
+.d-line{font-size:11.5px;fill:var(--quiet)}
+.d-ink{font-size:11.5px;fill:var(--ink)}
+.d-layer{font-size:11.5px;font-weight:600;fill:var(--quiet)}
+.d-box{fill:var(--surface);stroke:var(--quiet);stroke-width:1.1}
+.d-cont{fill:var(--tint);stroke:var(--line);stroke-width:1}
+.d-accent{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.d-sarvam{fill:var(--sarvam-bg);stroke:var(--sarvam);stroke-width:1.25;stroke-dasharray:5 4}
+.d-vertex{fill:var(--vertex-bg);stroke:var(--vertex);stroke-width:1.25;stroke-dasharray:5 4}
+.d-conn{fill:none;stroke:var(--quiet);stroke-width:1.25}
+.d-arrow{fill:var(--quiet)}
+@media print{nav.toc{display:none}h2{break-after:avoid}figure,.tablewrap{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+
+<h1>CarePilot AI — Technical Architecture (AWS + Sarvam + Vertex AI)</h1>
+<div class="byline">As of 11 Oct 2026 · Barani · v1.1 for pre-implementation review · MVP Golden Path, prototype v7.2, agentic architecture (Round 1)</div>
+
+<p class="lead">Recommendation: host the public MVP demo on AWS in <b>ap-south-1 (Mumbai)</b> with S3 + CloudFront, and run a serverless-first backend there. Sarvam handles only the Indian-language tasks: speech, language ID, the health-matter flag, translation, audio and document reading. Vertex AI Gemini, paid from the existing prepaid balance, is the general LLM for agent planning, structuring and the copilot. Estimated run cost for the sprint is <b>about US$40–60 a month on AWS</b> (largely covered by AWS credits), <b>about US$15 a month of Sarvam usage</b>, and Gemini is drawn from the prepaid balance.</p>
+
+<div class="changes"><b>Changes since v1.0:</b> (1) Vertex AI Gemini added as the general LLM, replacing Sarvam-105B for the copilot and adding a constrained planner to the agent run. (2) New section 4 maps free and paid services to each Golden Path step. (3) Public demo hosting on S3 + CloudFront is spelled out (section 5). (4) Cross-cloud security for AWS to Google Cloud is added to section 7. (5) Section 10 adds an incremental build plan. (6) <b>v1.2 demo profile:</b> security is out of scope for the synthetic-data demo; see section 1a. AWS cost falls to about US$20–25 a month. Sections 4–8 still describe the full design for the pilot.</div>
+
+<nav class="toc">
+<a href="#s1">1. Scope</a><a href="#s1a">1a. Demo profile</a><a href="#s2">2. Architecture</a><a href="#s3">3. Golden Path → services</a><a href="#s4">4. Free vs paid by step</a><a href="#s5">5. AWS services</a><a href="#s6">6. Sarvam and Vertex AI</a><a href="#s7">7. Data and security</a><a href="#s8">8. Cost</a><a href="#s9">9. Decisions and risks</a><a href="#s10">10. Build plan</a><a href="#src">Sources</a>
+</nav>
+
+<!-- 1 -->
+<h2 id="s1">1. Scope and principles</h2>
+<p>This design implements MVP Golden Path Steps 0–9 and the prototype v7.2 screens: Workspace, Patient journey, Intake and verification, Care Plan, Needs my decision, Audit trail, Rules, Programme and Performance indicators. It follows the locked agentic architecture: the LangGraph agent, gap rules G0–G6, the autonomy policy and the four-actor audit ledger.</p>
+<p><b>Scope of this build.</b> All patient data is synthetic. The WhatsApp channel and the hospital record (EMR) are simulated. The Sarvam and Vertex AI calls are real. The demo is reachable by outside reviewers at a public HTTPS URL, with one demo login per role.</p>
+<ol>
+<li><b>Safety is enforced in code and state, not in prompts.</b> Consent, pause, agent-off and open-handover checks all run in one send-guard inside the database transaction.</li>
+<li><b>Each AI does one job.</b> Sarvam handles Indian-language input and output. Gemini plans and structures, but only within an allow-list. Neither model writes text a patient receives: patients only get approved templates.</li>
+<li><b>Safe path on any doubt.</b> A health flag of YES or uncertain, a timeout or an error opens a handover. If Gemini fails, the agent falls back to the rule table's default action.</li>
+<li><b>Pay per use, scale to zero.</b> The only always-on AWS costs are RDS and a tiny NAT instance.</li>
+<li><b>India residency.</b> AWS runs in ap-south-1 and Vertex AI uses the asia-south1 regional endpoint, never the global one. Chat models only see tokenised text.</li>
+<li><b>Same actions for agent and human.</b> The agent has no private tools, and every action writes an audit entry in the same transaction.</li>
+</ol>
+
+<!-- 1a -->
+<h2 id="s1a">1a. Demo profile (current scope): security deferred</h2>
+<p>For the synthetic-data demo, security infrastructure is out of scope. The demo runs on public endpoints with no login, no gateway, no certificate and no VPC, for <b>about US$20–25 a month on AWS</b>. Sections 4–8 describe the full design, which comes back at pilot, before any real patient data.</p>
+<div class="tablewrap"><table>
+<tr><th>Component</th><th>Full design (pilot)</th><th>Demo profile (now)</th></tr>
+<tr><td>Frontend hosting</td><td>Private S3 + CloudFront, custom domain, ACM</td><td>S3 static website hosting, public bucket, <code>http://&lt;bucket&gt;.s3-website.ap-south-1.amazonaws.com</code></td></tr>
+<tr><td>API</td><td>API Gateway HTTP API + JWT</td><td>Lambda Function URL (auth type NONE, CORS on)</td></tr>
+<tr><td>Login and roles</td><td>Cognito groups, MFA</td><td>"Viewing as" role switcher, as in prototype v7.2</td></tr>
+<tr><td>Edge protection</td><td>WAF</td><td>None</td></tr>
+<tr><td>DNS / TLS</td><td>Route 53 + ACM certificate</td><td>None (AWS default URLs)</td></tr>
+<tr><td>Network</td><td>Private VPC, NAT</td><td>No VPC. Lambdas call Sarvam and Vertex AI directly</td></tr>
+<tr><td>Database access</td><td>Private RDS, IAM auth</td><td>RDS publicly accessible, password login</td></tr>
+<tr><td>Secrets and keys</td><td>Secrets Manager, KMS CMK, Workload Identity Federation</td><td>Lambda environment variables; default S3/RDS encryption; Google service-account key or API key in the env</td></tr>
+<tr><td>Platform audit</td><td>CloudTrail, X-Ray</td><td>CloudTrail default (free), CloudWatch logs only</td></tr>
+</table></div>
+<p><b>Kept, because they protect the budget or the product rather than the data:</b></p>
+<ul>
+<li>Sarvam and Gemini keys stay in Lambda environment variables, never in frontend code, so the prepaid balance and credits cannot be read from the browser.</li>
+<li>AWS Budgets alerts, plus a per-day call cap on Sarvam and Gemini. The demo URL is public, so anyone can trigger replies through the simulator.</li>
+<li>The send-guard, safe path, human gates and the audit ledger. These are Golden Path features (Steps 3–9), not security infrastructure.</li>
+</ul>
+<p class="note">Two practical limits of the demo profile: the S3 website URL is HTTP only, so in-browser microphone recording will not work and voice notes must be uploaded as files (the MVP already uses pre-recorded notes). A public RDS endpoint attracts scanning bots, so use a long random password and stop the instance outside demo hours.</p>
+<div class="tablewrap"><table>
+<tr><th>Demo profile line item</th><th>US$/month</th></tr>
+<tr><td>RDS PostgreSQL t4g.micro + 20 GB + public IPv4 address</td><td>about 19</td></tr>
+<tr><td>S3 website, Lambda, EventBridge, SQS</td><td>about 1</td></tr>
+<tr><td>CloudWatch logs</td><td>about 2</td></tr>
+<tr><td><b>AWS total</b></td><td><b>about 20–25</b> (less with RDS stopped out of hours)</td></tr>
+</table></div>
+
+<!-- 2 -->
+<h2 id="s2">2. Architecture at a glance</h2>
+<figure>
+<svg viewBox="0 0 760 900" role="img" aria-label="Every send passes one send-guard; Sarvam handles Indian languages, Gemini plans">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="d-arrow"/></marker></defs>
+<text x="24" y="32" class="d-title">Every send passes one send-guard; Sarvam handles Indian languages, Gemini plans</text>
+
+<rect x="24" y="52" width="712" height="104" rx="8" class="d-cont"/>
+<text x="40" y="72" class="d-layer">People and channels (outside world)</text>
+<rect x="40" y="84" width="216" height="56" rx="8" class="d-box"/>
+<text x="148" y="108" text-anchor="middle" class="d-name">Patient / caregiver</text>
+<text x="148" y="124" text-anchor="middle" class="d-line">WhatsApp (simulator in sprint)</text>
+<rect x="272" y="84" width="448" height="56" rx="8" class="d-box"/>
+<text x="496" y="108" text-anchor="middle" class="d-name">Reviewers, coordinator, oncologist, chief</text>
+<text x="496" y="124" text-anchor="middle" class="d-line">Browser; role switcher, no login</text>
+
+<rect x="24" y="180" width="712" height="104" rx="8" class="d-cont"/>
+<text x="720" y="200" text-anchor="end" class="d-layer">AWS public endpoints, ap-south-1</text>
+<rect x="40" y="212" width="216" height="56" rx="8" class="d-box"/>
+<text x="148" y="236" text-anchor="middle" class="d-name">Lambda Function URL</text>
+<text x="148" y="252" text-anchor="middle" class="d-line">public HTTPS, CORS, no auth</text>
+<rect x="272" y="212" width="216" height="56" rx="8" class="d-accent"/>
+<text x="380" y="236" text-anchor="middle" class="d-name">S3 static website</text>
+<text x="380" y="252" text-anchor="middle" class="d-ink">public demo URL (HTTP)</text>
+<rect x="504" y="212" width="216" height="56" rx="8" class="d-box"/>
+<text x="612" y="236" text-anchor="middle" class="d-name">EventBridge Scheduler</text>
+<text x="612" y="252" text-anchor="middle" class="d-line">07:00, 07:30, deadline timers</text>
+
+<rect x="24" y="308" width="712" height="176" rx="8" class="d-cont"/>
+<text x="168" y="328" class="d-layer">AWS Lambda, Python arm64, no VPC</text>
+<rect x="40" y="340" width="160" height="56" rx="8" class="d-box"/>
+<text x="120" y="364" text-anchor="middle" class="d-name">api</text>
+<text x="120" y="380" text-anchor="middle" class="d-line">FastAPI: UI + gates</text>
+<rect x="216" y="340" width="160" height="56" rx="8" class="d-box"/>
+<text x="296" y="364" text-anchor="middle" class="d-name">channel-in</text>
+<text x="296" y="380" text-anchor="middle" class="d-line">buttons, HELP match</text>
+<rect x="392" y="340" width="160" height="56" rx="8" class="d-box"/>
+<text x="472" y="364" text-anchor="middle" class="d-name">reply-graph (SQS)</text>
+<text x="472" y="380" text-anchor="middle" class="d-line">LangGraph; AI calls</text>
+<rect x="568" y="340" width="160" height="56" rx="8" class="d-box"/>
+<text x="648" y="364" text-anchor="middle" class="d-name">agent-run</text>
+<text x="648" y="380" text-anchor="middle" class="d-line">LangGraph + Gemini</text>
+<rect x="40" y="412" width="160" height="56" rx="8" class="d-box"/>
+<text x="120" y="436" text-anchor="middle" class="d-name">gap-check</text>
+<text x="120" y="452" text-anchor="middle" class="d-line">rules G0 to G6, 07:00</text>
+<rect x="216" y="412" width="160" height="56" rx="8" class="d-accent"/>
+<text x="296" y="436" text-anchor="middle" class="d-name">send-guard</text>
+<text x="296" y="452" text-anchor="middle" class="d-ink">blocks unsafe sends</text>
+<rect x="392" y="412" width="160" height="56" rx="8" class="d-box"/>
+<text x="472" y="436" text-anchor="middle" class="d-name">channel-out</text>
+<text x="472" y="452" text-anchor="middle" class="d-line">approved templates</text>
+<rect x="568" y="412" width="160" height="56" rx="8" class="d-box"/>
+<text x="648" y="436" text-anchor="middle" class="d-name">intake + metrics</text>
+<text x="648" y="452" text-anchor="middle" class="d-line">imports, nightly KPIs</text>
+
+<rect x="24" y="508" width="540" height="104" rx="8" class="d-cont"/>
+<text x="40" y="528" class="d-layer">Data, ap-south-1, default encryption</text>
+<rect x="40" y="540" width="248" height="56" rx="8" class="d-box"/>
+<text x="164" y="564" text-anchor="middle" class="d-name">RDS PostgreSQL 16</text>
+<text x="164" y="580" text-anchor="middle" class="d-line">state, checkpoints, outbox, audit</text>
+<rect x="304" y="540" width="244" height="56" rx="8" class="d-box"/>
+<text x="426" y="564" text-anchor="middle" class="d-name">Amazon S3</text>
+<text x="426" y="580" text-anchor="middle" class="d-line">voice notes, uploads, audio</text>
+
+<rect x="24" y="636" width="440" height="176" rx="8" class="d-sarvam"/>
+<text x="40" y="660" class="d-name">Sarvam AI: Indian-language tasks (pay per use)</text>
+<text x="40" y="684" class="d-ink">Saaras v3: voice note to text + English (batch)</text>
+<text x="40" y="706" class="d-ink">Language ID: picks the reply language</text>
+<text x="40" y="728" class="d-ink">Sarvam-30B: health-matter flag YES / NO only</text>
+<text x="40" y="750" class="d-ink">Translate / Mayura: replies; templates at authoring</text>
+<text x="40" y="772" class="d-ink">Bulbul v3: audio pre-made per approved template</text>
+<text x="40" y="794" class="d-ink">Vision: identifiers from documents (intake)</text>
+
+<rect x="480" y="636" width="256" height="176" rx="8" class="d-vertex"/>
+<text x="496" y="660" class="d-name">Vertex AI Gemini (prepaid)</text>
+<text x="496" y="684" class="d-ink">asia-south1 regional endpoint</text>
+<text x="496" y="706" class="d-ink">agent: pick allowed action</text>
+<text x="496" y="728" class="d-ink">free text to JSON proposal</text>
+<text x="496" y="750" class="d-ink">copilot briefs, eval judge</text>
+<text x="496" y="772" class="d-ink">auth: key in Lambda env</text>
+
+<path d="M148 140V212" class="d-conn" marker-end="url(#arr)"/>
+<path d="M380 140V212" class="d-conn" marker-end="url(#arr)"/>
+<path d="M272 240H256" class="d-conn" marker-end="url(#arr)"/>
+<path d="M148 268V340" class="d-conn" marker-end="url(#arr)"/>
+<path d="M612 268V340" class="d-conn" marker-end="url(#arr)"/>
+<path d="M270 468V540" class="d-conn" marker-end="url(#arr)"/>
+<path d="M650 484V636" class="d-conn" marker-end="url(#arr)"/>
+<path d="M650 620H244V636" class="d-conn" marker-end="url(#arr)"/>
+<text x="156" y="300" class="d-line">REST + webhook</text>
+<text x="604" y="300" text-anchor="end" class="d-line">cron + SLA timers</text>
+<text x="278" y="500" class="d-line">same transaction</text>
+<text x="642" y="500" text-anchor="end" class="d-line">from reply-graph, agent-run</text>
+<text x="658" y="560" class="d-line">direct HTTPS</text>
+
+<rect x="24" y="836" width="712" height="40" rx="8" class="d-cont"/>
+<text x="380" y="860" text-anchor="middle" class="d-ink" style="font-size:13px">Across all layers: CloudWatch logs and AWS Budgets (security deferred to pilot)</text>
+</svg>
+<figcaption>CarePilot MVP demo profile: AWS ap-south-1 with security deferred (see 1a), the Sarvam managed API and Vertex AI asia-south1. Highlighted boxes are the public demo entry point and the send-guard choke point.</figcaption>
+</figure>
+<p>Outside reviewers open the CloudFront URL. The React app is served from a private S3 bucket and calls API Gateway. Two scheduled runs and the SLA timers come from EventBridge Scheduler. The send-guard writes the outbox in the same Postgres transaction as its safety checks. Only reply-graph and agent-run leave the VPC to call Sarvam or Gemini.</p>
+
+<!-- 3 -->
+<h2 id="s3">3. Golden Path mapped to services</h2>
+<p>At runtime, AI is called in Step 3 (Gemini picks from allowed actions), Step 5 (Sarvam hears and flags; Gemini structures unflagged replies) and optionally Step 7 (Gemini copilot brief). Every message a patient receives is an approved template.</p>
+<div class="tablewrap"><table>
+<tr><th>Step</th><th>Trigger</th><th>AWS services</th><th>Sarvam</th><th>Vertex AI Gemini</th><th>State written (Postgres)</th></tr>
+<tr><td>0. Patient in system</td><td>Coordinator uploads register and appointment list</td><td>S3 presigned upload → S3 event → Lambda <code>intake-import</code></td><td>—</td><td>—</td><td><code>patients</code>, <code>appointments</code>. Duplicate, malformed or unmatched MRNs go to <code>intake_exceptions</code>, never auto-created</td></tr>
+<tr><td>1. Confirm plan</td><td>Coordinator confirms plan, end date and consent</td><td>CloudFront → API Gateway → Lambda <code>api</code>, Cognito JWT</td><td>—</td><td>—</td><td><code>care_plans</code>, <code>consents</code>, <code>order_cards</code> (owner, cover, due date)</td></tr>
+<tr><td>2. Detect gap, 07:00 IST</td><td>EventBridge Scheduler cron</td><td>Lambda <code>gap-check</code></td><td>—</td><td>—</td><td><code>gap_events</code>, unique on <code>(rule, order_card, due_date)</code>, so it is idempotent</td></tr>
+<tr><td>3. Agent reminder, 07:30 IST</td><td>EventBridge Scheduler cron</td><td>Lambda <code>agent-run</code> (LangGraph) → send-guard → outbox → <code>channel-out</code></td><td>None at runtime. Templates translated and Bulbul audio generated at authoring time</td><td>Picks one action from the allow-list for this patient state, with a reason code. Falls back to the rule default on failure</td><td><code>agent_actions</code> (reason code, policy and template version), <code>outbox</code>, <code>next_planned_action</code></td></tr>
+<tr><td>4. Button + free text</td><td>WhatsApp simulator (BSP at pilot)</td><td>API Gateway → <code>channel-in</code>. A button updates the card directly. Text or voice goes to SQS</td><td>—</td><td>—</td><td>Visit card set to Booked with no AI call. Raw message and audio stored in S3 and <code>messages</code></td></tr>
+<tr><td>5. Understand reply</td><td>SQS message</td><td>Lambda <code>reply-graph</code>, PHI tokeniser, 20 s timeout, DLQ</td><td>Saaras v3 (voice), language ID, Sarvam-30B flag, Translate</td><td>NO path only: structures the English translation into a JSON proposal (intent, reason code)</td><td>YES, uncertain, timeout or error opens a <code>handover</code>. NO creates a <code>proposal</code> and holds routine sends</td></tr>
+<tr><td>6. Stop and hand over</td><td>Handover opened</td><td>Send-guard blocks all sends. EventBridge one-off timer set for the 1-working-day deadline</td><td>—</td><td>—</td><td><code>handovers</code>, <code>audit_ledger</code></td></tr>
+<tr><td>7. Human gates 1–3</td><td>Coordinator → doctor in the UI</td><td>Lambda <code>api</code>. LangGraph <code>interrupt()</code> resumes from the checkpoint. SES email escalation to cover</td><td>—</td><td>Optional: coordinator call brief from contact history, with a citation on every sentence</td><td><code>handover_decisions</code> (gate, actor, choice). Urgent creates a same-day call task</td></tr>
+<tr><td>8. Next task, resume</td><td>Doctor records an instruction in the simulated EMR</td><td>Lambda <code>api</code> → order-card service → send-guard → outbox</td><td>Approved template (and pre-made audio) only</td><td>—</td><td>New <code>order_card</code>. Handover closed by a named person with a reason, then automation resumes</td></tr>
+<tr><td>9. Record and measure</td><td>Every write, plus nightly</td><td>Same transaction appends to the hash-chained ledger. Lambda <code>metrics</code>, CloudWatch</td><td>—</td><td>CI only: LLM judge for the red-team and health-flag eval sets</td><td><code>metrics_daily</code>, labelled synthetic</td></tr>
+</table></div>
+<p><b>Send-guard.</b> Every outbound message calls <code>send_guard(patient_id, template_id)</code> inside the transaction that writes the outbox row. It rejects the send if consent is missing, agent messaging is off, the patient is paused or closed, a handover is open, or the template is not approved. The row lock (<code>SELECT … FOR UPDATE</code>) stops two workflows racing. <b>HELP</b>, <b>ಸಹಾಯ</b> and <b>मदद</b> are matched by string in <code>channel-in</code> before any model call.</p>
+
+<!-- 4 -->
+<h2 id="s4">4. Free vs paid services by workflow step</h2>
+<p>Six of the ten steps make no AI call and use only always-free compute plus the shared database. The costs that actually accrue come from three places: the always-on database and NAT, Sarvam usage in Step 5, and Gemini calls in Steps 3 and 5, which are drawn from the prepaid balance.</p>
+<div class="legend">
+<span><span class="chip free">Free</span> AWS always-free, within monthly limits</span>
+<span><span class="chip paid">AWS paid</span> pay per use; new-account credits apply</span>
+<span><span class="chip sarvam">Sarvam</span> pay per use; signup credits</span>
+<span><span class="chip vertex">Vertex prepaid</span> drawn from the existing balance</span>
+</div>
+<div class="tablewrap"><table class="matrix">
+<tr><th>Golden Path step</th><th>Free (AWS always-free)</th><th>AWS paid (credits apply)</th><th>Sarvam (per use)</th><th>Vertex AI (prepaid)</th></tr>
+<tr><td class="step">0. Patient in system<span class="trig">register + appointment upload</span></td><td><span class="chip free">Lambda</span><span class="chip free">CloudFront</span><span class="chip free">Cognito</span></td><td><span class="chip paid">S3 (cents)</span><span class="chip paid">API Gateway</span><span class="chip paid">RDS</span></td><td class="none">—</td><td class="none">—</td></tr>
+<tr><td class="step">1. Confirm plan<span class="trig">coordinator UI</span></td><td><span class="chip free">Lambda</span><span class="chip free">CloudFront</span><span class="chip free">Cognito</span></td><td><span class="chip paid">API Gateway</span><span class="chip paid">RDS</span></td><td class="none">—</td><td class="none">—</td></tr>
+<tr><td class="step">2. Detect gap<span class="trig">07:00 cron</span></td><td><span class="chip free">EventBridge Scheduler</span><span class="chip free">Lambda</span></td><td><span class="chip paid">RDS</span></td><td class="none">—</td><td class="none">—</td></tr>
+<tr><td class="step">3. Agent reminder<span class="trig">07:30 cron</span></td><td><span class="chip free">EventBridge Scheduler</span><span class="chip free">Lambda</span></td><td><span class="chip paid">RDS</span><span class="chip paid">NAT instance</span></td><td><span class="chip sarvam">Translate (authoring, one-off)</span><span class="chip sarvam">Bulbul v3 (authoring, one-off)</span></td><td><span class="chip vertex">Gemini Flash: action choice</span></td></tr>
+<tr><td class="step">4. Patient replies<span class="trig">webhook</span></td><td><span class="chip free">Lambda</span><span class="chip free">SQS</span></td><td><span class="chip paid">API Gateway</span><span class="chip paid">S3 (audio)</span><span class="chip paid">RDS</span></td><td class="none">— (button needs no AI)</td><td class="none">—</td></tr>
+<tr><td class="step">5. Understand reply<span class="trig">SQS consumer</span></td><td><span class="chip free">Lambda</span><span class="chip free">SQS + DLQ</span></td><td><span class="chip paid">NAT instance</span><span class="chip paid">RDS</span></td><td><span class="chip sarvam">Saaras v3</span><span class="chip sarvam">Language ID</span><span class="chip sarvam">Sarvam-30B flag</span><span class="chip sarvam">Translate</span></td><td><span class="chip vertex">Gemini Flash: JSON proposal (NO path)</span></td></tr>
+<tr><td class="step">6. Stop and hand over<span class="trig">handover opened</span></td><td><span class="chip free">EventBridge one-off timer</span><span class="chip free">Lambda</span></td><td><span class="chip paid">RDS</span></td><td class="none">—</td><td class="none">—</td></tr>
+<tr><td class="step">7. Human gates 1–3<span class="trig">coordinator, doctor</span></td><td><span class="chip free">Cognito</span><span class="chip free">Lambda</span><span class="chip free">EventBridge timers</span></td><td><span class="chip paid">API Gateway</span><span class="chip paid">RDS</span><span class="chip paid">SES (escalation email)</span></td><td class="none">—</td><td><span class="chip vertex">Gemini: call brief (optional)</span></td></tr>
+<tr><td class="step">8. Next task, resume<span class="trig">doctor instruction</span></td><td><span class="chip free">Lambda</span></td><td><span class="chip paid">API Gateway</span><span class="chip paid">RDS</span></td><td class="none">— (template pre-approved)</td><td class="none">—</td></tr>
+<tr><td class="step">9. Record and measure<span class="trig">every write, nightly</span></td><td><span class="chip free">Lambda</span><span class="chip free">CloudWatch basic</span><span class="chip free">X-Ray</span><span class="chip free">CloudTrail (mgmt events)</span></td><td><span class="chip paid">RDS</span><span class="chip paid">S3 Object Lock export</span></td><td class="none">—</td><td><span class="chip vertex">Gemini: eval judge (CI)</span></td></tr>
+<tr><td class="step">Platform, always on<span class="trig">not tied to a step</span></td><td><span class="chip free">ACM certificate</span><span class="chip free">CloudFront (1 TB/month)</span><span class="chip free">Cognito (≤10K MAU)</span><span class="chip free">AWS-managed KMS keys</span></td><td><span class="chip paid">RDS ~US$15</span><span class="chip paid">NAT instance ~US$4</span><span class="chip paid">WAF ~US$10 (optional)</span><span class="chip paid">Secrets Manager ~US$2</span><span class="chip paid">KMS CMK US$1</span><span class="chip paid">Route 53 US$0.50</span></td><td><span class="chip sarvam">Vision (intake screen, outside Golden Path)</span></td><td class="none">—</td></tr>
+</table></div>
+<p class="note">AWS always-free limits as commonly published: Lambda 1M requests and 400K GB-s a month, SQS 1M requests, CloudFront 1 TB out and 10M requests, EventBridge Scheduler 14M invocations, Cognito 10K MAU, CloudWatch 10 metrics, 10 alarms and 5 GB logs, X-Ray 100K traces. Confirm each limit on the AWS Free Tier page for your account type. Since 15 Jul 2025, new AWS accounts receive up to US$200 of credits valid for 6 months instead of the old 12-month free tier. Choose the Paid plan so that all services (WAF, NAT, etc.) are available while the credits still apply.</p>
+
+<div class="cards">
+<div class="card"><div class="k">AWS, sprint / demo</div><div class="v">US$40–60/mo</div><div class="s">US$200 credits cover about 4 months</div></div>
+<div class="card"><div class="k">Sarvam, sprint</div><div class="v">≈ ₹1,300/mo</div><div class="s">≈ US$15; translation is the biggest item</div></div>
+<div class="card"><div class="k">Vertex AI Gemini, sprint</div><div class="v">≈ 5–10M tokens/mo</div><div class="s">drawn from prepaid balance; approximate</div></div>
+<div class="card"><div class="k">Steps with no AI spend</div><div class="v">6 of 10</div><div class="s">Steps 0, 1, 2, 4, 6, 8: free compute + shared database</div></div>
+</div>
+
+<!-- 5 -->
+<h2 id="s5">5. AWS services</h2>
+<h3>Public demo hosting (outside world)</h3>
+<ul>
+<li><b>S3 bucket (private, Block Public Access on)</b> holds the built React/Vite app, rebuilt from the v7.2 screens. <b>CloudFront</b> serves it over HTTPS through Origin Access Control. The S3 website endpoint alone is HTTP-only and would need a public bucket, so it is not used.</li>
+<li><b>Custom domain</b>: <code>demo.carepilot.&lt;domain&gt;</code> and <code>api.carepilot.&lt;domain&gt;</code> via Route 53, with a free ACM certificate. The ACM certificate for CloudFront must be issued in us-east-1. This is the only resource outside Mumbai, and it holds no data.</li>
+<li><b>Demo access</b>: Cognito accounts for each role (coordinator, oncologist, chief, reviewer read-only), a permanent "synthetic data" banner, and a nightly <b>reset-demo</b> Lambda that reloads the synthetic register so every reviewer sees the same Golden Path story.</li>
+<li><b>Protection</b>: WAF managed rules and a rate limit on the webhook and the login. Turn WAF on before the URL is shared publicly.</li>
+</ul>
+<div class="tablewrap"><table>
+<tr><th>Layer</th><th>Service</th><th>Used for</th><th>MVP sizing</th><th>Rejected for MVP (why)</th></tr>
+<tr><td>Web hosting</td><td>S3 + CloudFront</td><td>Public SPA, demo URL</td><td>1 bucket, 1 distribution</td><td>Amplify Hosting (adds little), EC2 (always-on)</td></tr>
+<tr><td>DNS / TLS</td><td>Route 53 + ACM</td><td>Custom domains, HTTPS</td><td>1 hosted zone</td><td>—</td></tr>
+<tr><td>Edge security</td><td>AWS WAF</td><td>Managed rules, rate limits</td><td>1 web ACL, 3–4 rules</td><td>Shield Advanced (cost)</td></tr>
+<tr><td>Auth</td><td>Cognito user pool</td><td>Roles as groups, MFA, JWT for API Gateway</td><td>&lt; 50 users</td><td>Custom auth</td></tr>
+<tr><td>API</td><td>API Gateway HTTP API</td><td>UI REST, <code>/webhook/whatsapp</code>, <code>/webhook/sim</code></td><td>Pay per request</td><td>REST API (pricier)</td></tr>
+<tr><td>Compute</td><td>Lambda (Python 3.12, arm64)</td><td><code>api</code>, <code>channel-in</code>, <code>channel-out</code>, <code>gap-check</code>, <code>agent-run</code>, <code>reply-graph</code>, <code>intake-import</code>, <code>metrics</code>, <code>reset-demo</code></td><td>512–1024 MB</td><td>ECS Fargate (always-on, ~US$30+/month)</td></tr>
+<tr><td>Scheduling</td><td>EventBridge Scheduler</td><td>07:00 gap check, 07:30 agent run, SLA timers, demo reset</td><td>&lt; 1,000/month</td><td>APScheduler (needs always-on compute)</td></tr>
+<tr><td>Queue</td><td>SQS + DLQ</td><td>Buffer replies from AI latency; DLQ leads to the safe path</td><td>Standard queue</td><td>Kinesis, MSK</td></tr>
+<tr><td>Database</td><td>RDS PostgreSQL 16</td><td>System of record, LangGraph checkpoints, outbox, audit ledger</td><td>db.t4g.micro, 20 GB gp3, single-AZ</td><td>Aurora Serverless v2 (higher floor), DynamoDB (relational joins)</td></tr>
+<tr><td>Objects</td><td>S3 (SSE-KMS)</td><td>Audio, uploads, documents, Bulbul audio, audit exports</td><td>Lifecycle rule after 90 days</td><td>EFS</td></tr>
+<tr><td>Secrets / keys</td><td>Secrets Manager + KMS</td><td>Sarvam key, WhatsApp token, GCP federation config</td><td>3–4 secrets, 1 CMK</td><td>Env vars</td></tr>
+<tr><td>Notifications</td><td>SES</td><td>Escalation emails, department morning lists</td><td>Sandbox, then production</td><td>—</td></tr>
+<tr><td>Observability</td><td>CloudWatch, X-Ray, CloudTrail</td><td>Logs (PHI-redacted), alarms, traces, infra audit</td><td>14-day retention</td><td>Managed Grafana</td></tr>
+<tr><td>IaC / CI</td><td>AWS CDK (Python) + GitHub Actions OIDC</td><td><code>dev</code> and <code>demo</code> environments</td><td>—</td><td>Click-ops</td></tr>
+</table></div>
+<p><b>Network.</b> Lambdas run in two private subnets. Outbound calls to Sarvam and Vertex AI use a NAT instance (fck-nat on t4g.nano, ~US$4/month) rather than a NAT Gateway (~US$33/month plus data). An S3 gateway endpoint is free. RDS uses IAM database authentication. At pilot, switch to a NAT Gateway and Multi-AZ RDS.</p>
+
+<!-- 6 -->
+<h2 id="s6">6. Sarvam (purpose-specific) and Vertex AI (general LLM)</h2>
+<p>The split rule is simple: anything that hears, reads or speaks an Indian language goes to Sarvam, and anything that reasons over tokenised English goes to Gemini. Only Sarvam-30B decides the health-matter routing, as the MVP specifies.</p>
+<div class="tablewrap"><table>
+<tr><th>Purpose</th><th>Provider / model</th><th>Golden Path step</th><th>When</th><th>Guardrail in code</th></tr>
+<tr><td>Voice note to text + English</td><td><span class="chip sarvam">Saaras v3</span></td><td>4–5</td><td>Per voice note</td><td>Native transcript, translation and audio kept side by side</td></tr>
+<tr><td>Language identification</td><td><span class="chip sarvam">Sarvam LID</span></td><td>5</td><td>Before translation</td><td>Selects the language only</td></tr>
+<tr><td>Health-matter flag</td><td><span class="chip sarvam">Sarvam-30B</span></td><td>5</td><td>Every free-text or transcribed reply</td><td>Schema <code>{health_matter: YES|NO|UNCERTAIN}</code>. Anything else, a timeout or an error counts as YES</td></tr>
+<tr><td>Reply translation for the coordinator</td><td><span class="chip sarvam">Sarvam Translate / Mayura</span></td><td>5–6</td><td>On receipt</td><td>Labelled "machine translation"</td></tr>
+<tr><td>Template localisation (kn, hi, ta, te)</td><td><span class="chip sarvam">Sarvam Translate / Mayura</span></td><td>Authoring</td><td>One-off per template version</td><td>A clinician and a native reviewer sign off</td></tr>
+<tr><td>Audio reminders</td><td><span class="chip sarvam">Bulbul v3</span></td><td>3, 8</td><td>Pre-generated, stored in S3</td><td>Nothing synthesised at runtime</td></tr>
+<tr><td>Document identifiers</td><td><span class="chip sarvam">Sarvam Vision</span></td><td>Intake screen</td><td>On receipt</td><td>Identifiers and metadata only; Unverified until 2-ID check</td></tr>
+<tr><td>Constrained action choice</td><td><span class="chip vertex">Gemini Flash</span></td><td>3</td><td>07:30 run, per gap event</td><td>Function-calling over the autonomy allow-list only. Send-guard re-checks. Rule default on failure</td></tr>
+<tr><td>Free-text structuring (NO path)</td><td><span class="chip vertex">Gemini Flash</span></td><td>5</td><td>After the flag says NO</td><td>JSON schema with no clinical fields. Extra keys rejected. Approve-first</td></tr>
+<tr><td>Coordinator copilot</td><td><span class="chip vertex">Gemini (Flash or Pro)</span></td><td>7 (optional)</td><td>On demand</td><td>Internal only. Uncited sentences are dropped</td></tr>
+<tr><td>Eval judge and red-team</td><td><span class="chip vertex">Gemini Pro</span></td><td>CI</td><td>Every prompt or model change</td><td>A single scope violation blocks the release</td></tr>
+</table></div>
+<h3>Integration pattern</h3>
+<ul>
+<li><b>One AI client layer</b> (shared Lambda layer) wraps both providers. It tokenises names, phone numbers, MRN and ABHA before any chat-model call. It applies a 20 s timeout with one retry, validates output with Pydantic and rejects extra keys, and logs model, prompt version, latency and tokens to <code>ai_calls</code> and the audit ledger (actor "AI suggestion").</li>
+<li><b>Vertex AI access from AWS</b> uses Workload Identity Federation: the Lambda's IAM role is exchanged for a short-lived Google service-account token, so no JSON key is stored. Use the <code>asia-south1</code> regional endpoint (Gemini 2.5 Flash or a newer Flash listed there), never the global endpoint.</li>
+<li><b>Prepaid governance</b>: create a dedicated GCP project for CarePilot, set a per-day quota on the Vertex AI API, and add a budget alert on the prepaid balance.</li>
+<li><b>Agent framework</b>: LangGraph runs inside Lambda, with a <code>PostgresSaver</code> checkpointer on RDS so that a Gate 1–3 <code>interrupt()</code> can wait for days. Gemini is the only model bound to graph nodes. Sarvam is called as tools.</li>
+</ul>
+
+<!-- 7 -->
+<h2 id="s7">7. Data, security and compliance</h2>
+<div class="tablewrap"><table>
+<tr><th>Table</th><th>Holds</th><th>Key constraint</th></tr>
+<tr><td><code>patients</code></td><td>MRN, tokenised contact, language, follow-up status, <code>next_planned_action</code></td><td>Unique MRN. No insert from an unmatched upload</td></tr>
+<tr><td><code>consents</code></td><td>DPDP scope incl. automated messaging, reference number</td><td>Read by the send-guard</td></tr>
+<tr><td><code>care_plans</code>, <code>order_cards</code></td><td>Plan items, stage, owner, cover, due date</td><td>State machine on stage transitions</td></tr>
+<tr><td><code>gap_events</code></td><td>Rule, card, due date</td><td>Unique key makes the gap check idempotent</td></tr>
+<tr><td><code>messages</code>, <code>outbox</code></td><td>Inbound and outbound messages, S3 audio key, template version</td><td>Outbox written in the send-guard transaction</td></tr>
+<tr><td><code>proposals</code></td><td>Approve-first drafts</td><td>Approver name required</td></tr>
+<tr><td><code>handovers</code>, <code>handover_decisions</code></td><td>Gate 1–3 choices, deadlines, closure reason</td><td>One open handover per patient (partial unique index). Close needs a named person and a reason</td></tr>
+<tr><td><code>agent_actions</code>, <code>ai_calls</code></td><td>Reason code, mode, policy and template version; provider, model, prompt version</td><td>—</td></tr>
+<tr><td><code>audit_ledger</code></td><td>Append-only, four actor types, SHA-256 hash chain</td><td>INSERT-only role, nightly chain verification</td></tr>
+<tr><td><code>config_versions</code></td><td>Plan templates, thresholds, templates, autonomy policy</td><td>Signed off and versioned</td></tr>
+</table></div>
+<ul>
+<li><b>Identity</b>: Cognito groups map to roles. The chief sees aggregates only, enforced in the API with Postgres row-level security as a second layer. Staff use MFA.</li>
+<li><b>Encryption</b>: KMS CMK for RDS, S3 and Secrets Manager. TLS 1.2+ everywhere. CloudFront OAC to a private bucket.</li>
+<li><b>Least privilege</b>: one IAM role per Lambda. Outbound traffic is HTTPS only. Only <code>channel-out</code> marks the outbox as sent. The GCP service account has <code>roles/aiplatform.user</code> only.</li>
+<li><b>Cross-cloud data</b>: Gemini receives tokenised English text only, never audio, documents or identifiers. Request and response logging is disabled for the Vertex project.</li>
+<li><b>DPDP Act 2023</b>: consent gates every outbound action. Purpose limitation is enforced through consent scope. Erasure follows a runbook, and the ledger keeps tokens, not identities.</li>
+<li><b>Clinical AI exclusions</b>: no diagnosis, severity or risk fields exist in any schema. The red-team eval set runs in CI.</li>
+<li><b>Pilot</b>: Saaras, Bulbul and Vision move to self-hosted deployments in the clinic's AWS account. Chat models stay on de-identified text.</li>
+</ul>
+
+<!-- 8 -->
+<h2 id="s8">8. Cost estimate</h2>
+<p>These are planning estimates for ap-south-1 from list prices as of October 2026. Re-check them in the AWS Pricing Calculator. Assumed sprint volume: 200 synthetic patients, 500 replies and 150 voice notes (about 30 s each) a month. Assumed pilot volume: 1,000 patients and 3,000 replies a month.</p>
+<div class="tablewrap"><table>
+<tr><th>Line item</th><th>Sprint / demo (US$/month)</th><th>Pilot, 1 clinic (US$/month)</th><th>Tier</th></tr>
+<tr><td>RDS PostgreSQL</td><td>15</td><td>60</td><td><span class="chip paid">AWS paid</span></td></tr>
+<tr><td>NAT (instance → gateway)</td><td>4</td><td>40</td><td><span class="chip paid">AWS paid</span></td></tr>
+<tr><td>WAF</td><td>10</td><td>12</td><td><span class="chip paid">AWS paid</span></td></tr>
+<tr><td>CloudWatch + X-Ray beyond free</td><td>4</td><td>15</td><td><span class="chip paid">AWS paid</span></td></tr>
+<tr><td>Lambda, API Gateway, SQS, EventBridge</td><td>1</td><td>8</td><td><span class="chip free">Mostly free</span></td></tr>
+<tr><td>S3 + CloudFront</td><td>2</td><td>6</td><td><span class="chip free">Mostly free</span></td></tr>
+<tr><td>Secrets Manager + KMS</td><td>3</td><td>4</td><td><span class="chip paid">AWS paid</span></td></tr>
+<tr><td>Route 53, Cognito, SES</td><td>2</td><td>3</td><td><span class="chip free">Mostly free</span></td></tr>
+<tr><td>AWS Backup (copy to ap-south-2)</td><td>—</td><td>10</td><td><span class="chip paid">AWS paid</span></td></tr>
+<tr><td><b>AWS subtotal</b></td><td><b>about 40–60</b></td><td><b>about 140–200</b></td><td>credits: US$200 / 6 months</td></tr>
+<tr><td>Sarvam usage</td><td>about 15</td><td>about 75</td><td><span class="chip sarvam">Sarvam</span></td></tr>
+<tr><td>Vertex AI Gemini</td><td>a few dollars of tokens</td><td>tens of dollars</td><td><span class="chip vertex">Prepaid</span></td></tr>
+<tr><td>Self-hosted Sarvam speech/vision (pilot option)</td><td>—</td><td>250–800</td><td><span class="chip paid">AWS paid</span> GPU</td></tr>
+</table></div>
+<div class="tablewrap"><table>
+<tr><th>Sarvam API</th><th>List price</th><th>Sprint usage</th><th>Pilot usage</th></tr>
+<tr><td>Speech-to-text (Saaras)</td><td>₹30 per audio hour</td><td>1.25 h ≈ ₹40</td><td>12.5 h ≈ ₹375</td></tr>
+<tr><td>Translation</td><td>₹50 per 10K characters</td><td>150K chars ≈ ₹750</td><td>900K chars ≈ ₹4,500</td></tr>
+<tr><td>Chat LLM, flag only (30B price not listed; 105B rate used)</td><td>₹29.28 / ₹73.20 per 1M in / out tokens</td><td>≈ 0.5M tokens ≈ ₹20</td><td>≈ 3M tokens ≈ ₹120</td></tr>
+<tr><td>Text-to-speech (Bulbul v3)</td><td>₹30 per 10K characters</td><td>32K chars once ≈ ₹100</td><td>on template change only</td></tr>
+<tr><td>Document AI extraction</td><td>₹1 per page</td><td>100 pages ≈ ₹100</td><td>1,000 pages ≈ ₹1,000</td></tr>
+</table></div>
+<p class="note">The Gemini token estimate assumes about 600 action choices, 500 structurings, 100 call briefs and CI eval runs a month. Price it against your Vertex AI rate card; Gemini numbers here are approximate and were not looked up.</p>
+<h3>Cost levers</h3>
+<ul>
+<li>Stop RDS and the NAT instance out of hours with an EventBridge schedule, which cuts about 60% off those lines. Keep the demo up during review windows.</li>
+<li>Use Saaras speech-to-text-translate to avoid a second translate call for voice. Translate text replies only when a coordinator opens them.</li>
+<li>Default to Gemini Flash. Use Pro only for the CI judge and, if needed, copilot briefs.</li>
+<li>Run arm64 (Graviton) everywhere. Add no message bus, Aurora, OpenSearch or NAT Gateway in the sprint.</li>
+<li>Set AWS Budgets alerts at US$50 and US$100, turn on Cost Anomaly Detection, put a Vertex AI daily quota and budget on the prepaid balance, and add a per-day Sarvam call cap that takes the safe path when hit.</li>
+<li>Apply for AWS Activate credits and claim Sarvam signup credits, plus any Health-a-thon partner credits.</li>
+</ul>
+
+<!-- 9 -->
+<h2 id="s9">9. Open decisions, risks and review checklist</h2>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Decision</th><th>Recommendation</th><th>Alternative</th><th>Effect of the alternative</th></tr>
+<tr><td>D1</td><td>Compute</td><td>Lambda everywhere</td><td>One Fargate / App Runner container</td><td>No cold starts, simpler local dev; +US$30–60/month</td></tr>
+<tr><td>D2</td><td>Database</td><td>RDS t4g.micro</td><td>Aurora Serverless v2 (scales to 0)</td><td>Pauses when idle, but a 10–15 s resume on the first request</td></tr>
+<tr><td>D3</td><td>Egress</td><td>fck-nat instance</td><td>NAT Gateway</td><td>+US$30/month, fully managed</td></tr>
+<tr><td>D4</td><td>WhatsApp in sprint</td><td>Built-in simulator using the BSP webhook contract</td><td>BSP sandbox (Gupshup, Twilio, Meta test number)</td><td>Real template-approval lead time</td></tr>
+<tr><td>D5</td><td>Health flag</td><td>Sarvam-30B alone, as the MVP specifies</td><td>Sarvam-30B + Gemini, YES if either says YES</td><td>Higher recall on misses, small extra prepaid spend, more over-flagging</td></tr>
+<tr><td>D6</td><td>Agent action choice</td><td>Gemini function-calling over the allow-list</td><td>Purely deterministic rule table</td><td>Simpler and cheaper, but shows less "agent reasoning" in the demo</td></tr>
+</table></div>
+<div class="tablewrap"><table>
+<tr><th>Risk</th><th>Mitigation</th></tr>
+<tr><td>Sarvam or Vertex latency or outage</td><td>SQS buffer. A Sarvam failure takes the safe path (handover). A Gemini failure in Step 3 falls back to the rule default, and in Step 5 the reply becomes a plain proposal for the coordinator to read</td></tr>
+<tr><td>Health flag misses a concern</td><td>Unflagged replies still get human review. Per-language recall is tracked. Option D5</td></tr>
+<tr><td>Cold start in a live demo</td><td>Warm-up ping every 5 min in demo hours, or provisioned concurrency of 1 on <code>api</code></td></tr>
+<tr><td>Public demo abuse</td><td>WAF rate limits, Cognito-only access, synthetic data, nightly reset</td></tr>
+<tr><td>Cross-cloud residency</td><td><code>asia-south1</code> regional endpoint only; tokenised text only; request logging disabled</td></tr>
+<tr><td>Prepaid balance runs out mid-demo</td><td>Budget alert at 50% and 80%, daily quota, Flash by default</td></tr>
+</table></div>
+<h3>Review checklist</h3>
+<ul class="check">
+<li>ap-south-1, serverless-first compute, S3 + CloudFront public demo accepted</li>
+<li>Postgres as the single system of record, checkpoint store and ledger</li>
+<li>Send-guard is the only path to the outbox, with tests for every block condition</li>
+<li>Provider split: Sarvam for Indian-language tasks, Gemini for reasoning over tokenised English</li>
+<li>Safe-path rule for flag YES, uncertain, timeout or error</li>
+<li>Workload Identity Federation from AWS to GCP, no stored keys</li>
+<li>Red-team and health-flag eval sets in CI before the first prompt ships</li>
+<li>Budgets on AWS, Vertex prepaid and the Sarvam cap set on day one</li>
+<li>Pilot step-ups (Multi-AZ, NAT Gateway, self-hosted Sarvam, BSP) kept out of sprint scope</li>
+</ul>
+
+<!-- 10 -->
+<h2 id="s10">10. Build plan: stable core first, change at the edges</h2>
+<p>Build the closed loop without any AI first (Increments 0–3), then plug AI in at fixed points (Increments 4–5), then harden the demo for outside review (Increment 6). Most requirement changes then land in config, adapters or AI nodes, not in the core.</p>
+<p><b>The flow that does not change:</b> known patient → confirmed plan → order cards → gap detected → allowed action → approved message through the send-guard → reply (a button updates state; free text is routed to a person) → human decisions → next order card → named closure → resume. Every step is audited.</p>
+
+<figure>
+<svg viewBox="0 0 760 416" role="img" aria-label="The full loop runs without AI by increment 3; AI plugs in from increment 4">
+<defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="d-arrow"/></marker></defs>
+<text x="24" y="30" class="d-title">The full loop runs without AI by increment 3; AI plugs in from increment 4</text>
+<rect x="24" y="48" width="712" height="160" rx="8" class="d-cont"/>
+<text x="40" y="68" class="d-layer">Stable core, deterministic, no AI</text>
+<rect x="24" y="232" width="712" height="160" rx="8" class="d-cont"/>
+<text x="40" y="252" class="d-layer">Intelligence at fixed points, then hardening</text>
+
+<rect x="40" y="80" width="158" height="112" rx="8" class="d-box"/>
+<text x="52" y="100" class="d-line">INCREMENT 0</text><text x="52" y="118" class="d-name">Walking skeleton</text><text x="52" y="138" class="d-line">No Golden Path step</text><text x="52" y="162" class="d-ink">Exit: demo URL live,</text><text x="52" y="178" class="d-ink">deploys via CI</text>
+<rect x="214" y="80" width="158" height="112" rx="8" class="d-box"/>
+<text x="226" y="100" class="d-line">INCREMENT 1</text><text x="226" y="118" class="d-name">Records + plan</text><text x="226" y="138" class="d-line">Steps 0, 1</text><text x="226" y="162" class="d-ink">Exit: import + cards</text><text x="226" y="178" class="d-ink">audited, no AI</text>
+<rect x="388" y="80" width="158" height="112" rx="8" class="d-box"/>
+<text x="400" y="100" class="d-line">INCREMENT 2</text><text x="400" y="118" class="d-name">Deterministic loop</text><text x="400" y="138" class="d-line">Steps 2, 3, 4 (buttons)</text><text x="400" y="162" class="d-ink">Exit: gap → reminder</text><text x="400" y="178" class="d-ink">→ Booked, end to end</text>
+<rect x="562" y="80" width="158" height="112" rx="8" class="d-accent"/>
+<text x="574" y="100" class="d-line">INCREMENT 3</text><text x="574" y="118" class="d-name">Human safety path</text><text x="574" y="138" class="d-line">Steps 6, 7, 8</text><text x="574" y="162" class="d-ink">Exit: gates 1–3 and</text><text x="574" y="178" class="d-ink">closure → resume</text>
+
+<rect x="40" y="264" width="158" height="112" rx="8" class="d-box"/>
+<text x="52" y="284" class="d-line">INCREMENT 4</text><text x="52" y="302" class="d-name">Sarvam replies</text><text x="52" y="322" class="d-line">Steps 4 (text, voice), 5</text><text x="52" y="346" class="d-ink">Exit: full Golden</text><text x="52" y="362" class="d-ink">Path incl. safe path</text>
+<rect x="214" y="264" width="158" height="112" rx="8" class="d-box"/>
+<text x="226" y="284" class="d-line">INCREMENT 5</text><text x="226" y="302" class="d-name">Gemini add-ons</text><text x="226" y="322" class="d-line">Steps 3, 5, 7</text><text x="226" y="346" class="d-ink">Exit: AI on/off per</text><text x="226" y="362" class="d-ink">task, rule fallback</text>
+<rect x="388" y="264" width="158" height="112" rx="8" class="d-box"/>
+<text x="400" y="284" class="d-line">INCREMENT 6</text><text x="400" y="302" class="d-name">Measure + harden</text><text x="400" y="322" class="d-line">Step 9</text><text x="400" y="346" class="d-ink">Exit: evals in CI,</text><text x="400" y="362" class="d-ink">public review ready</text>
+<rect x="562" y="264" width="158" height="112" rx="8" class="d-cont" style="stroke-dasharray:5 4"/>
+<text x="574" y="284" class="d-line">AFTER THE MVP</text><text x="574" y="302" class="d-name">Pilot step-ups</text><text x="574" y="322" class="d-line">Not in sprint scope</text><text x="574" y="346" class="d-ink">BSP, Multi-AZ,</text><text x="574" y="362" class="d-ink">self-hosted Sarvam</text>
+
+<path d="M198 136H214" class="d-conn" marker-end="url(#arr2)"/>
+<path d="M372 136H388" class="d-conn" marker-end="url(#arr2)"/>
+<path d="M546 136H562" class="d-conn" marker-end="url(#arr2)"/>
+<path d="M641 192V220H119V264" class="d-conn" marker-end="url(#arr2)"/>
+<path d="M198 320H214" class="d-conn" marker-end="url(#arr2)"/>
+<path d="M372 320H388" class="d-conn" marker-end="url(#arr2)"/>
+<path d="M546 320H562" class="d-conn" marker-end="url(#arr2)"/>
+</svg>
+<figcaption>Build sequence: seven increments, each ending in a demo-able slice on the public URL. Increments are not drawn to time scale.</figcaption>
+</figure>
+
+<h3>The stable core: build once, protect with tests</h3>
+<div class="tablewrap"><table>
+<tr><th>Core element</th><th>Why it does not change</th></tr>
+<tr><td>Core records: Patient (MRN), Consent, Care plan, Order card, Gap event, Message/Outbox, Proposal, Handover, Audit entry</td><td>Every Golden Path step reads or writes them. Changes add fields or tables, not new foundations</td></tr>
+<tr><td>State machines: order card, handover, proposal, patient follow-up status</td><td>They are the workflow. Changes add states or transitions; they do not replace the model</td></tr>
+<tr><td>Send-guard + outbox: the single path every outgoing message takes</td><td>Enforces consent, pause and open-handover blocks: non-negotiable safety</td></tr>
+<tr><td>Safe-path rule: health matter, uncertainty, timeout or error opens a handover</td><td>The design bar. The AI behind it can change; the rule cannot</td></tr>
+<tr><td>Human-only actions: urgent/routine, the instruction, closure by a named person with a reason</td><td>Clinical governance, not product preference</td></tr>
+<tr><td>Audit entry in the same transaction as each action</td><td>Medico-legal requirement that every later feature relies on</td></tr>
+<tr><td>Event pattern: scheduled check → event → action; reply → queue → handler</td><td>Lets rules, channels and AI change without touching the core</td></tr>
+</table></div>
+
+<h3>Where expected changes land</h3>
+<div class="tablewrap"><table>
+<tr><th>Likely change</th><th>Lands in</th><th>Core touched?</th></tr>
+<tr><td>Gap thresholds, new rules G1–G6, deadlines, escalation</td><td>Versioned config + one rule function</td><td>No</td></tr>
+<tr><td>Message wording, new languages, audio</td><td>Template library</td><td>No</td></tr>
+<tr><td>Which tasks the agent may do; shadow vs live</td><td>Autonomy policy table</td><td>No</td></tr>
+<tr><td>Simulator → WhatsApp BSP, SMS, voice calls</td><td>Channel adapter (<code>channel-in</code> / <code>channel-out</code>)</td><td>No</td></tr>
+<tr><td>AI provider or model (Sarvam, Gemini, self-hosted)</td><td>AI client layer + graph node</td><td>No</td></tr>
+<tr><td>New AI use (copilot, document matching)</td><td>New LangGraph node behind approve-first</td><td>No</td></tr>
+<tr><td>Excel → HIS feeds → ABDM</td><td>Importer adapter</td><td>No</td></tr>
+<tr><td>Screens, layout, roles</td><td>Frontend + API endpoints</td><td>No</td></tr>
+<tr><td>KPIs</td><td>Metrics job</td><td>No</td></tr>
+<tr><td>Removing a human gate, or AI writing patient-facing text</td><td>—</td><td><b>Yes</b>: clinical sign-off and design review; a redesign, not an iteration</td></tr>
+</table></div>
+
+<h3>Increments in detail</h3>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Builds</th><th>Golden Path checks that turn green</th><th>Change hooks introduced</th><th>Why at this point</th></tr>
+<tr><td>0</td><td>CDK, S3 static website demo URL, Lambda Function URL + <code>api</code> Lambda, public RDS, role switcher (no login), audit ledger table, CI/CD, budgets and AI call caps</td><td>—</td><td>Environments (<code>dev</code>, <code>demo</code>), migrations</td><td>Deployment and audit become routine from day one, and reviewers get a URL immediately</td></tr>
+<tr><td>1</td><td>Register/appointment import with MRN matching and exceptions; plan confirmation; consent; order cards with owner and cover; Workspace + Patient journey screens</td><td>Register loaded, patient exists, plan confirmed, consent checked</td><td><code>config_versions</code> (plan templates), importer adapter</td><td>Everything reads these records. Data-quality rules (no silent patient creation) are cheapest before anything acts on the data</td></tr>
+<tr><td>2</td><td>G0 gap check (idempotent), EventBridge 07:00/07:30, send-guard + outbox, WhatsApp simulator, rule-default reminder, button reply → Booked, <code>next_planned_action</code></td><td>G0 detects the gap; agent checks policy and records a reason code; only approved messages are sent; button tap updates state with no LLM call</td><td>Rule registry, template library, autonomy policy table, channel adapter</td><td>Proves the loop end to end with zero AI. Rule, template and policy changes are now config edits on a working system</td></tr>
+<tr><td>3</td><td>Handover (opened manually by the coordinator at first), Gates 1–3, deadline timers and escalation to cover, urgent same-day call task, doctor instruction → new order card, named closure → resume; Needs my decision + Audit screens</td><td>All sends blocked while a handover is open; explicit doctor choice; escalation works; instruction creates a card; closure needs a name and reason; follow-up resumes only after closure</td><td>Deadline and escalation config</td><td>The safe path must exist before any AI can route into it. AI later becomes only a new trigger for a tested path</td></tr>
+<tr><td>4</td><td>AI client layer (tokeniser, timeout, schema validation); Saaras v3, language ID, Sarvam-30B flag, Translate; SQS + DLQ; NO → proposal and hold</td><td>Real Sarvam calls on text and voice; flagged and unflagged paths; timeout/error → handover; unflagged replies hold reminders until the coordinator decides</td><td>Provider-agnostic AI interface, prompt versioning</td><td>First AI, plugged into Increment 3, so a wrong or failed call is already safe. The Golden Path is now complete</td></tr>
+<tr><td>5</td><td>Gemini via Workload Identity Federation: constrained action choice, structured proposals, coordinator copilot; per-task shadow/live switch</td><td>Same checks still green with AI on and off</td><td>Per-task AI toggle, model routing config</td><td>Optional intelligence on top. The fallback is the Increment 2 rule default, so each use can be switched off</td></tr>
+<tr><td>6</td><td>Metrics and KPI screens, red-team + health-flag evals in CI, nightly demo reset, WAF, cold-start warm-up</td><td>Audit trail covers the full sequence; measures update (labelled synthetic)</td><td>Eval sets as release gates</td><td>Turns a working demo into a defensible one before outside review</td></tr>
+</table></div>
+
+<h3>Rules that keep it stable while requirements move</h3>
+<ul>
+<li>Make the MVP's "How would you know the Golden Path works?" checklist an automated end-to-end suite. Add the relevant checks in each increment and run all of them on every change. A change that breaks one has touched the core.</li>
+<li>Keep rules, templates, the autonomy policy and deadlines in versioned config from Increment 1, so most changes are data, not code.</li>
+<li>Keep the AI behind one interface from Increment 4, so switching Sarvam ⇄ Gemini ⇄ self-hosted is configuration.</li>
+<li>Triage each change request against the "Where expected changes land" table first. If it lands in the last row, it goes to clinical sign-off before it is scheduled.</li>
+</ul>
+
+<h2 id="src">Sources</h2>
+<ul>
+<li>Project: <code>MVP/MVP-Golden Path.docx</code>, <code>architecture/carepilot_ai_agentic_architecture.html</code>, <code>prototype/carepilot_ai_prototype_v7.2.html</code></li>
+<li><a href="https://www.sarvam.ai/api-pricing">Sarvam API pricing</a>, read 11 Oct 2026</li>
+<li><a href="https://aws.amazon.com/free/">AWS Free Tier</a>, read 11 Oct 2026 (credits model; per-service limits to confirm)</li>
+<li><a href="https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/locations">Vertex AI generative AI locations</a>, read 11 Oct 2026 (Gemini available in asia-south1; the global endpoint gives no residency guarantee)</li>
+</ul>
+<p class="note">CarePilot organises, reminds, tracks and routes. It never diagnoses, prescribes, scores clinical risk, interprets results or advises patients. All data in the sprint is synthetic.</p>
+</main>
+</body>
+</html>

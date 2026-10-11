@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-synth:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: carepilot
+          POSTGRES_PASSWORD: carepilot
+          POSTGRES_DB: carepilot
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://carepilot:carepilot@localhost:5432/carepilot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: pip install -r backend/requirements-dev.txt -r infra/requirements.txt
+      - run: DATABASE_URL=$TEST_DATABASE_URL python db/migrate.py
+      - run: pytest -q tests
+      - run: python backend/build.py
+      - run: cd frontend && npm ci && npm run build
+      - name: CDK synth (no deploy)
+        run: cd infra && npx --yes aws-cdk@2 synth > /dev/null
+        env:
+          CAREPILOT_DB_PASSWORD: ci-only-placeholder-password
+          CDK_DEFAULT_ACCOUNT: "111111111111"

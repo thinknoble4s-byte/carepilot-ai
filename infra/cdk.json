@@ -1,0 +1,11 @@
+{
+  "app": "python app.py",
+  "context": {
+    "appEnv": "demo",
+    "dbIdleMinutes": 60,
+    "dbStopCron": "cron(0 21 * * ? *)",
+    "dbStartCron": "cron(30 6 ? * MON-FRI *)",
+    "dbAutoStart": "false",
+    "budgetUsd": 30
+  }
+}
