@@ -11,7 +11,7 @@
   --banner: #fff4dc;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #191917;
     --surface: #23221f;
     --ink: #ecebe7;
@@ -24,6 +24,21 @@
     --banner: #3a321f;
   }
 }
+:root[data-theme='dark'] {
+  --bg: #191917;
+  --surface: #23221f;
+  --ink: #ecebe7;
+  --quiet: #a9a69e;
+  --line: #3d3b37;
+  --accent: #79a7ee;
+  --ok: #6cc493;
+  --wait: #e0a75a;
+  --bad: #f08a80;
+  --banner: #3a321f;
+}
+:root { color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { color-scheme: dark; } }
+:root[data-theme='dark'] { color-scheme: dark; }
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -64,3 +79,11 @@ table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--quiet); font-weight: 600; }
 code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+header .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.theme { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.theme button {
+  border: 0; border-radius: 0; padding: 6px 10px; font-size: 13px;
+  background: var(--surface); color: var(--quiet);
+}
+.theme button + button { border-left: 1px solid var(--line); }
+.theme button[aria-pressed='true'] { background: var(--accent); color: #fff; }

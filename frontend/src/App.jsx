@@ -9,6 +9,45 @@ const DB_LABEL = {
   unreachable: 'Database unreachable',
 };
 
+const THEMES = [
+  { id: 'system', label: 'Auto' },
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+];
+
+function readTheme() {
+  try {
+    return localStorage.getItem('carepilot-theme') || 'system';
+  } catch (e) {
+    return 'system';
+  }
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'system') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', theme);
+  try {
+    localStorage.setItem('carepilot-theme', theme);
+  } catch (e) {
+    // Storage unavailable (private window): theme still applies for this visit.
+  }
+}
+
+function ThemeSwitch() {
+  const [theme, setTheme] = useState(readTheme);
+  useEffect(() => applyTheme(theme), [theme]);
+  return (
+    <div className="theme" role="group" aria-label="Theme">
+      {THEMES.map((t) => (
+        <button key={t.id} type="button" aria-pressed={theme === t.id} onClick={() => setTheme(t.id)}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function App() {
   const [health, setHealth] = useState(null);
   const [roles, setRoles] = useState([]);
@@ -64,16 +103,19 @@ export default function App() {
             <small>Follow-up &amp; Continuity of Care · MVP demo</small>
           </div>
         </div>
-        <label className="viewing">
-          Viewing as
-          <select value={role} onChange={(e) => switchRole(e.target.value)}>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label} — {r.person}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="controls">
+          <label className="viewing">
+            Viewing as
+            <select value={role} onChange={(e) => switchRole(e.target.value)}>
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label} — {r.person}
+                </option>
+              ))}
+            </select>
+          </label>
+          <ThemeSwitch />
+        </div>
       </header>
 
       <div className="banner">
