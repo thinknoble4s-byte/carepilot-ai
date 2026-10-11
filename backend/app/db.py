@@ -40,16 +40,3 @@ def instance_status() -> str | None:
 
     rds = boto3.client("rds")
     return rds.describe_db_instances(DBInstanceIdentifier=instance_id)["DBInstances"][0]["DBInstanceStatus"]
-
-
-def start_instance() -> str:
-    instance_id = os.environ.get("DB_INSTANCE_ID")
-    if not instance_id:
-        return "not-managed"
-    import boto3
-
-    status = instance_status()
-    if status == "stopped":
-        boto3.client("rds").start_db_instance(DBInstanceIdentifier=instance_id)
-        return "starting"
-    return status or "unknown"

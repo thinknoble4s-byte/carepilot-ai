@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api } from './api.js';
 
 const DB_LABEL = {
   available: 'Database running',
-  stopped: 'Database stopped (saves cost when unused)',
+  stopped: 'Database is off (kept off between demos to save cost)',
   starting: 'Database starting, about 5 minutes',
   stopping: 'Database stopping',
   unreachable: 'Database unreachable',
@@ -15,7 +15,6 @@ export default function App() {
   const [role, setRole] = useState('coordinator');
   const [audit, setAudit] = useState(null);
   const [error, setError] = useState('');
-  const poll = useRef(null);
 
   const loadAudit = useCallback(async () => {
     try {
@@ -39,31 +38,7 @@ export default function App() {
   useEffect(() => {
     api('roles').then(setRoles).catch(() => {});
     checkHealth().then((h) => h?.db === 'available' && loadAudit());
-    return () => clearInterval(poll.current);
   }, [checkHealth, loadAudit]);
-
-  // Poll only while the database is waking up, so an idle page lets it stop.
-  const waitForDb = () => {
-    clearInterval(poll.current);
-    poll.current = setInterval(async () => {
-      const h = await checkHealth();
-      if (h?.db === 'available') {
-        clearInterval(poll.current);
-        loadAudit();
-      }
-    }, 20000);
-  };
-
-  const startDb = async () => {
-    setError('');
-    try {
-      const r = await api('db/start', { method: 'POST' });
-      setHealth((h) => ({ ...h, db: r.db }));
-      waitForDb();
-    } catch (e) {
-      setError(e.message);
-    }
-  };
 
   const switchRole = async (next) => {
     setRole(next);
@@ -117,8 +92,12 @@ export default function App() {
             <span className={`dot ${dbState === 'available' ? 'ok' : dbState === 'starting' ? 'wait' : 'bad'}`} />{' '}
             {DB_LABEL[dbState] || (dbState ? `Database ${dbState}` : 'Checking database…')}
           </p>
-          {dbState === 'stopped' && <button onClick={startDb}>Start database</button>}
-          {dbState === 'starting' && <p className="muted">This page checks again every 20 seconds.</p>}
+          {dbState && dbState !== 'available' && (
+            <p className="muted">
+              The demo database is switched on by the CarePilot team for scheduled demos. Ask them to start it, then
+              reload this page.
+            </p>
+          )}
           {error && <p className="error">{error}</p>}
         </section>
 

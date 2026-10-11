@@ -37,5 +37,5 @@ def test_session_needs_db():
     assert client.post("/session", json={"role": "coordinator"}).status_code == 503
 
 
-def test_db_start_is_noop_outside_aws():
-    assert client.post("/db/start").json() == {"db": "not-managed"}
+def test_public_api_cannot_start_the_database():
+    assert client.post("/db/start").status_code in (404, 405)

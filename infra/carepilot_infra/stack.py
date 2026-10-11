@@ -1,8 +1,8 @@
 """CarePilot demo stack (Increment 0, demo profile: security deferred).
 
 Public S3 website + Lambda Function URL + public RDS PostgreSQL.
-The database is stopped when unused: an idle check every 30 minutes,
-a nightly hard stop, and on-demand start from the UI or scripts/db.sh.
+The database is off by default: the owner starts it with scripts/db.sh for a
+demo or tests; an idle check every 30 minutes and a nightly stop switch it off.
 """
 import os
 from pathlib import Path
@@ -97,7 +97,7 @@ class CarePilotStack(Stack):
             log_group=logs.LogGroup(self, "ApiLogs", retention=logs.RetentionDays.TWO_WEEKS, removal_policy=RemovalPolicy.DESTROY),
         )
         api_fn.add_to_role_policy(iam.PolicyStatement(
-            actions=["rds:DescribeDBInstances", "rds:StartDBInstance"],
+            actions=["rds:DescribeDBInstances"],  # read status only; starting is owner-only
             resources=[db.instance_arn],
         ))
         api_url = api_fn.add_function_url(

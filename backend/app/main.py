@@ -1,7 +1,7 @@
 """CarePilot API (Increment 0: walking skeleton).
 
-Endpoints prove the path browser -> Lambda URL -> Postgres -> audit ledger,
-and let a visitor wake the database, which is stopped when unused.
+Endpoints prove the path browser -> Lambda URL -> Postgres -> audit ledger.
+The database is off by default; only the owner starts it (scripts/db.sh start).
 """
 import os
 
@@ -38,12 +38,6 @@ def health():
         except Exception:  # describe call failed; still answer
             status = None
         return {"api": "ok", "db": status or "unreachable", "env": os.environ.get("APP_ENV", "local")}
-
-
-@app.post("/db/start")
-def start_database():
-    """Wake the stopped database (takes about 5 minutes). Anyone may call this in the demo profile."""
-    return {"db": db.start_instance()}
 
 
 @app.get("/roles")
