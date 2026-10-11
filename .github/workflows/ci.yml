@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - uses: actions/setup-node@v4
-        with: { node-version: "20" }
+        with: { node-version: "22" }
       - run: pip install -r backend/requirements-dev.txt -r infra/requirements.txt
       - run: DATABASE_URL=$TEST_DATABASE_URL python db/migrate.py
       - run: pytest -q tests
@@ -33,4 +33,4 @@ jobs:
         run: cd infra && npx --yes aws-cdk@2 synth > /dev/null
         env:
           CAREPILOT_DB_PASSWORD: ci-only-placeholder-password
-          CDK_DEFAULT_ACCOUNT: "111111111111"
+          CDK_DEFAULT_ACCOUNT: "090427454998"  # matches infra/cdk.context.json, so synth needs no AWS calls
