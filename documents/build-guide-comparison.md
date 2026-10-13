@@ -38,9 +38,13 @@ They cover different layers: the build guide is how to **deploy and run** the de
 
 FastAPI, pytest and httpx; an append-only audit trail enforced by database triggers; versioned config including rule thresholds; synthetic data only; coordinator, oncologist and chief roles with Priya Nair as coordinator; the same next feature set (import with exceptions, consent, plan confirmation, order cards with owner and cover).
 
-## Decisions needed
+## Decisions
 
-1. Database engine for Step A: port to PostgreSQL, or keep SQLite for student work.
-2. One audit design: e.g. keep the hash chain and add the agent/AI columns.
-3. One list of people and one caller-identification method (switcher or `X-User`).
-4. How reset works on RDS, where the database is normally off.
+Decided 13 Oct 2026 for Increment 1. Where the Step A guide differs, these win.
+
+| # | Topic | Decision |
+| --- | --- | --- |
+| 1 | Database | **PostgreSQL 16** (RDS in the demo, any local Postgres 16 for development and CI). Step A's SQLite schema is translated into numbered migrations in `db/migrations/`; no SQLite file. |
+| 2 | Audit | **Keep the hash-chained `audit_ledger`** (append-only, chain verify). Add Step A's extra fields (`mrn`, `reason_code`, `decision_inputs`, `source_link`, `trigger_event`, `rule`, `task`, `mode`, `policy_version`, `template_id`, `template_version`, `model`, `prompt_version`, `outcome`) and actor types `person`, `system`, `agent`, `ai` through a new migration. Same transaction as the action, as Step A requires. |
+| 3 | Demo reset | **Built in Increment 1** as a coordinator-only `POST /demo/reset` plus a script. It empties the demo tables and reloads the Step A seed state (25 patients, 10 appointments, 8 exceptions, 24 consents, clock 2026-11-02, 0 plans, 0 cards). Clearing the ledger is the one allowed exception to its no-delete rule; the new chain starts with a reset entry. Runs only while the database is on with the owner's approval. **No nightly automatic reset** (dropped from Increment 6). The demo clock is part of it. |
+| 4 | People and caller identity | **Open:** one list of people, and "Viewing as" switcher or `X-User` header. |
