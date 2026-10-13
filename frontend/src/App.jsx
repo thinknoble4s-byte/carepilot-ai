@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, setUser } from './api.js';
 import AuditTrail from './AuditTrail.jsx';
+import Decisions from './Decisions.jsx';
 import Journey from './Journey.jsx';
 import Workspace from './Workspace.jsx';
 
@@ -14,7 +15,7 @@ const DB_LABEL = {
 
 const TABS = {
   coordinator: ['Workspace', 'Patient journey', 'Audit trail'],
-  oncologist: ['Workspace', 'Patient journey', 'Audit trail'],
+  oncologist: ['Needs my decision', 'Workspace', 'Patient journey', 'Audit trail'],
   chief: ['Summary', 'Audit trail'],
 };
 
@@ -173,6 +174,7 @@ export default function App() {
             {tab === 'Patient journey' && (
               <Journey key={`${userId}-${journeyMrn}`} role={role} mrn={journeyMrn} onSelect={setJourneyMrn} />
             )}
+            {tab === 'Needs my decision' && <Decisions key={userId} onOpenPatient={openJourney} />}
             {tab === 'Audit trail' && <AuditTrail users={users} />}
           </>
         )

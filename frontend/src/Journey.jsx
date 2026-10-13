@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
+import HandoverPanel from './HandoverPanel.jsx';
+import Simulator from './Simulator.jsx';
 
 const SCOPES = [
   ['whatsapp_patient', 'WhatsApp to patient'],
@@ -93,6 +95,7 @@ export default function Journey({ role, mrn, onSelect }) {
   const [patients, setPatients] = useState([]);
   const [detail, setDetail] = useState(null);
   const [cards, setCards] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [today, setToday] = useState('');
   const [error, setError] = useState('');
   const canEdit = role === 'coordinator';
@@ -102,6 +105,7 @@ export default function Journey({ role, mrn, onSelect }) {
       setError('');
       setDetail(await api(`patients/${mrn}`));
       setCards(await api(`patients/${mrn}/cards`));
+      setMessages(await api(`patients/${mrn}/messages`));
     } catch (e) {
       setDetail(null);
       setError(e.message);
@@ -133,6 +137,12 @@ export default function Journey({ role, mrn, onSelect }) {
 
       {detail && (
         <>
+          <section className="card wide next-action">
+            <span className="muted">Next planned action</span>
+            <strong>{detail.next_planned_action || 'Routine follow-up'}</strong>
+            {canEdit && <StatusControls mrn={mrn} status={detail.status} onDone={load} />}
+          </section>
+
           <section className="card">
             <h2>{detail.full_name}</h2>
             <dl className="facts">
@@ -144,7 +154,16 @@ export default function Journey({ role, mrn, onSelect }) {
               <dt>Agent</dt><dd>{detail.agent_on ? 'On' : 'Off'}</dd>
             </dl>
             {detail.open_tasks.length > 0 && (
-              <p className="warn-text">Open task: {detail.open_tasks.map((t) => t.task_type).join(', ')}</p>
+              <ul className="plain">
+                {detail.open_tasks.map((t) => (
+                  <li key={t.task_id} className="warn-text">
+                    {t.reason}
+                    {t.due_date && (
+                      <span className="muted"> · {t.assigned_name}, due {t.due_date}{t.escalated_on ? ' (escalated)' : ''}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
             {detail.appointments.length > 0 && (
               <p className="muted">
@@ -194,6 +213,8 @@ export default function Journey({ role, mrn, onSelect }) {
             )}
           </section>
 
+          <HandoverPanel mrn={mrn} handover={detail.handover} tasks={detail.open_tasks} role={role} onChanged={load} />
+
           <section className="card wide">
             <h2>Order cards ({cards.length})</h2>
             {cards.length ? (
@@ -205,7 +226,7 @@ export default function Journey({ role, mrn, onSelect }) {
                   <tbody>
                     {cards.map((c) => (
                       <tr key={c.card_id}>
-                        <td>{c.item_code}</td>
+                        <td>{c.item_code}{c.item_code.startsWith('X') ? ' (instruction)' : ''}</td>
                         <td>{c.card_type}</td>
                         <td>{c.name}</td>
                         <td>{c.due_date}</td>
@@ -221,8 +242,30 @@ export default function Journey({ role, mrn, onSelect }) {
               <p className="muted">No cards yet. They are created when the plan is confirmed.</p>
             )}
           </section>
+          <Simulator mrn={mrn} messages={messages} canReply={canEdit} onChanged={load} />
         </>
       )}
     </main>
+  );
+}
+
+function StatusControls({ mrn, status, onDone }) {
+  const change = async (next) => {
+    const reason = next === 'Active' ? '' : window.prompt(`Reason for setting ${next}?`);
+    if (reason === null) return;
+    try {
+      await post(`patients/${mrn}/status`, { status: next, reason });
+      onDone();
+    } catch (e) {
+      window.alert(e.message);
+    }
+  };
+  return (
+    <div className="row">
+      <span className="muted">Status: {status}</span>
+      {status !== 'Active' && <button type="button" className="secondary small" onClick={() => change('Active')}>Resume</button>}
+      {status !== 'Paused' && <button type="button" className="secondary small" onClick={() => change('Paused')}>Pause</button>}
+      {status !== 'Agent off' && <button type="button" className="secondary small" onClick={() => change('Agent off')}>Agent off</button>}
+    </div>
   );
 }

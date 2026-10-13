@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+  "default_coordinator": "Priya Nair",
+  "default_doctor": "u_anand",
+  "covers": {
+    "Priya Nair": "Meera Joseph",
+    "Meera Joseph": "Priya Nair",
+    "Dr. Anand Rao": "Dr. Kavita Menon",
+    "Dr. Kavita Menon": "Dr. Anand Rao"
+  },
+  "working_days": {
+    "coordinator_review": 1,
+    "call_first": 1,
+    "doctor_decision": 1,
+    "doctor_instruction": 1,
+    "urgent_call": 0,
+    "booking_from_instruction": 2,
+    "booking_help": 2,
+    "cannot_attend": 2,
+    "confirm_test_booking": 2,
+    "contact_needed": 2
+  },
+  "escalation": {
+    "coordinator_review": "cover",
+    "call_first": "cover",
+    "doctor_decision": "cover",
+    "doctor_instruction": "reminder",
+    "urgent_call": "cover",
+    "booking_from_instruction": "cover",
+    "booking_help": "cover",
+    "cannot_attend": "cover",
+    "confirm_test_booking": "cover",
+    "contact_needed": "cover"
+  },
+  "help_keywords": ["help", "ಸಹಾಯ", "मदद"]
+}

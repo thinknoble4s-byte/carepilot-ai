@@ -97,3 +97,33 @@ def seed_file(name: str) -> bytes:
     from app.reference import read_seed
 
     return read_seed(name).encode()
+
+
+def confirm_plan(client, mrn: str) -> dict:
+    r = client.post(f"/patients/{mrn}/plan/confirm", headers=PRIYA, json=plan_body(mrn))
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def advance(client, days: int) -> str:
+    return client.post("/clock/advance", headers=PRIYA, json={"days": days}).json()["today"]
+
+
+def morning(client) -> dict:
+    r = client.post("/demo/morning-run", headers=PRIYA)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def outbox(mrn: str) -> list[dict]:
+    from app import db
+
+    with db.connect() as c:
+        return c.execute("SELECT * FROM outbox_message WHERE mrn = %s ORDER BY message_id", (mrn,)).fetchall()
+
+
+def last_audit(action: str) -> dict:
+    from app import db
+
+    with db.connect() as c:
+        return c.execute("SELECT * FROM audit_ledger WHERE action = %s ORDER BY id DESC LIMIT 1", (action,)).fetchone()

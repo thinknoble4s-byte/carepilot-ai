@@ -1,10 +1,13 @@
-"""Demo reset builds the same starting state every time (Step A section 4.9, plus the reset entry)."""
+"""Demo reset builds the same starting state every time (Step A section 4.9, plus the reset entry
+and the Increment 2-3 config)."""
 from datetime import date
 
 from conftest import ANAND, PRIYA
 
 SEED_STATE = {
-    "clock": date(2026, 11, 2), "users": 5, "config_versions": 2, "patients": 25, "appointments": 10,
+    "clock": date(2026, 11, 2), "users": 5,
+    "config_versions": 8,  # thresholds, plan template, autonomy policy, deadline policy, 4 message templates
+    "patients": 25, "appointments": 10,
     "open_exceptions": 8, "import_batches": 2, "consents": 24, "agent_on": 23, "tasks": 1,
     "care_plans": 0, "order_cards": 0,
     "audit_rows": 27,  # demo_reset + 1 register import + 1 appointment import + 24 consents

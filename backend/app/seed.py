@@ -12,11 +12,13 @@ import json
 from psycopg.types.json import Jsonb
 
 from . import audit, clock, consent, importer
-from .reference import DEMO_START_DATE, USERS, plan_template, read_seed
+from .reference import (DEMO_START_DATE, USERS, autonomy_policy, deadline_policy, message_templates,
+                        plan_template, read_seed)
 
 SEED_USER = "u_priya"
 
 DEMO_TABLES = (
+    "inbound_message", "outbox_message", "gap_event", "handover",
     "order_card", "care_plan", "coordinator_task", "consent", "appointment", "import_exception",
     "patient", "import_batch", "app_user", "demo_clock", "config_versions", "audit_ledger",
 )
@@ -53,6 +55,9 @@ def reset(conn, by: str | None = None) -> dict:
     for kind, name, body, signed_off_by in (
         ("rule_thresholds", "default", RULE_THRESHOLDS, "Synthetic seed (pending clinical sign-off)"),
         ("plan_template", template["template_id"], template, template["signed_off_by"]),
+        ("autonomy_policy", "default", autonomy_policy(), autonomy_policy()["signed_off_by"]),
+        ("deadline_policy", "default", deadline_policy(), deadline_policy()["signed_off_by"]),
+        *(("message_template", t["template_id"], t, t["approved_by"]) for t in message_templates()),
     ):
         conn.execute(
             """

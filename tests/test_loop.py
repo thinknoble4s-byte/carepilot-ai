@@ -1,0 +1,176 @@
+"""Increment 2: G0/G1 gap rules, the constrained agent, send-guard, outbox, buttons (no AI)."""
+from datetime import date
+
+import pytest
+
+from conftest import ANAND, PRIYA, advance, confirm_plan, last_audit, morning, outbox, scalar
+
+
+def gaps(client):
+    return client.post("/rules/gap-check", headers=PRIYA).json()
+
+
+def test_no_plan_no_gaps(seeded, client):
+    r = morning(client)
+    assert r["gap_check"]["new_gaps"] == [] and r["actions"] == []
+
+
+def test_g0_detects_the_unbooked_item_once(seeded, client):
+    confirm_plan(client, "SYN-0007")  # T1 due Mon 9 Nov: inside the 7-day window on 2 Nov
+    first = gaps(client)
+    assert [(g["rule"], g["due_date"]) for g in first["new_gaps"]] == [("G0", "2026-11-09")]
+    assert gaps(client)["new_gaps"] == []  # running again creates no duplicate
+    assert scalar("SELECT count(*) FROM gap_event") == 1
+    assert scalar("SELECT count(*) FROM audit_ledger WHERE action = 'gap_detected'") == 1
+
+
+def test_agent_sends_an_approved_reminder_and_records_why(seeded, client):
+    confirm_plan(client, "SYN-0007")
+    actions = morning(client)["actions"]
+    assert actions == [{"gap_id": 1, "mrn": "SYN-0007", "rule": "G0", "card": "T1", "action": "send_reminder",
+                        "reason_code": "g0_booking_reminder", "outcome": "sent"}]
+    sent = outbox("SYN-0007")
+    assert [(m["recipient"], m["status"], m["language"]) for m in sent] == [
+        ("patient", "sent", "Hindi"), ("caregiver", "sent", "Hindi")]
+    assert sent[0]["body"].startswith("नमस्ते Sunita जी") and "09/11/2026" in sent[0]["body"]
+    assert [b["id"] for b in sent[0]["buttons"]] == ["booked", "help_book", "cant_come"]
+    decision = last_audit("agent_decision")
+    assert (decision["actor_type"], decision["rule"], decision["task"], decision["mode"], decision["policy_version"],
+            decision["template_id"], decision["template_version"], decision["outcome"], decision["trigger_event"]) == \
+        ("agent", "G0", "booking_reminder", "live", "1.0", "booking_reminder", "1.0", "sent", "gap_event:1")
+    assert decision["reason_code"] == "g0_booking_reminder"
+    assert decision["decision_inputs"]["handover_open"] is False
+    assert client.get("/patients/SYN-0007", headers=PRIYA).json()["next_planned_action"].startswith("Await patient reply")
+    assert morning(client)["actions"] == []  # nothing is sent twice
+    assert len(outbox("SYN-0007")) == 2
+
+
+def test_same_gap_different_patient_state(seeded, client):
+    """Golden Path section 3: patient A gets the reminder, B is paused, C has an open handover."""
+    for mrn in ("SYN-0007", "SYN-0004", "SYN-0005"):
+        confirm_plan(client, mrn)
+    gaps(client)
+    client.post("/patients/SYN-0004/status", headers=PRIYA, json={"status": "Paused", "reason": "Patient asked"})
+    client.post("/patients/SYN-0005/handover", headers=PRIYA, json={"reason": "Caregiver phoned with a concern"})
+    by_mrn = {}
+    for a in client.post("/agent/run", headers=PRIYA).json()["actions"]:
+        by_mrn.setdefault(a["mrn"], set()).add((a["action"], a["reason_code"]))
+    assert by_mrn["SYN-0007"] == {("send_reminder", "g0_booking_reminder")}
+    assert by_mrn["SYN-0004"] == {("wait", "patient_paused")}
+    assert by_mrn["SYN-0005"] == {("wait", "handover_open")}
+    assert outbox("SYN-0004") == [] and outbox("SYN-0005") == []
+    assert client.post("/agent/run", headers=PRIYA).json()["actions"] == []  # waiting is not re-logged
+
+    client.post("/patients/SYN-0004/status", headers=PRIYA, json={"status": "Active"})
+    resumed = client.post("/agent/run", headers=PRIYA).json()["actions"]
+    assert {(a["mrn"], a["outcome"]) for a in resumed} == {("SYN-0004", "sent")}
+
+
+def test_send_layer_blocks_even_if_a_workflow_tries(seeded, client):
+    from app import db, messaging
+
+    client.post("/patients/SYN-0007/handover", headers=PRIYA, json={"reason": "Concern by phone"})
+    with db.connect() as c:
+        agent_try = messaging.send_message(c, mrn="SYN-0007", template_id="booking_reminder", actor_type="agent",
+                                           actor="CarePilot agent", reason_code="test")
+        ack = messaging.send_message(c, mrn="SYN-0007", template_id="handover_ack", actor_type="system",
+                                     actor="test", reason_code="test")
+        person = messaging.send_message(c, mrn="SYN-0007", template_id="booking_reminder", actor_type="person",
+                                        actor="u_priya", reason_code="test")
+        caregiver = messaging.send_message(c, mrn="SYN-0021", template_id="booking_reminder", actor_type="person",
+                                           actor="u_priya", reason_code="test", recipient="caregiver")
+        no_consent = messaging.send_message(c, mrn="SYN-0013", template_id="booking_reminder", actor_type="person",
+                                            actor="u_priya", reason_code="test")
+    assert (agent_try["status"], agent_try["blocked_reason"]) == ("blocked", "handover_open")
+    assert ack["status"] == "sent"       # the fixed acknowledgement is the one exception
+    assert person["status"] == "sent"    # a person's approved message is not an automated send
+    assert caregiver["blocked_reason"] == "no_whatsapp_consent"
+    assert no_consent["blocked_reason"] == "no_whatsapp_consent"
+    assert scalar("SELECT count(*) FROM audit_ledger WHERE action = 'message_blocked'") == 3
+
+
+def test_agent_off_and_missing_consent_route_to_the_coordinator(seeded, client):
+    confirm_plan(client, "SYN-0003")  # consent without automated_messaging
+    confirm_plan(client, "SYN-0007")
+    client.post("/patients/SYN-0007/status", headers=PRIYA, json={"status": "Agent off", "reason": "Prefers calls"})
+    actions = {(a["mrn"], a["reason_code"]) for a in morning(client)["actions"]}
+    assert actions == {("SYN-0003", "no_automated_consent"), ("SYN-0007", "agent_off")}
+    assert outbox("SYN-0003") == [] and outbox("SYN-0007") == []
+    tasks = client.get("/needs-you", headers=PRIYA).json()["tasks"]
+    contact = [t for t in tasks if t["task_type"] == "contact_needed"]
+    assert {t["mrn"] for t in contact} == {"SYN-0003", "SYN-0007"}
+    assert all(t["assigned_name"] == "Priya Nair" and t["cover_name"] == "Meera Joseph" for t in contact)
+
+
+def test_g1_missed_item_reminder_in_kannada(seeded, client):
+    confirm_plan(client, "SYN-0001")  # V1 due 20 Oct, T1 13 Oct: both missed by 2 Nov
+    actions = morning(client)["actions"]
+    assert {(a["rule"], a["card"], a["reason_code"]) for a in actions} == {
+        ("G1", "V1", "g1_missed_item_reminder"), ("G1", "T1", "g1_missed_item_reminder")}
+    assert outbox("SYN-0001")[0]["body"].startswith("ನಮಸ್ಕಾರ Meena ಅವರೇ")
+
+
+def test_booked_button_updates_the_visit_card_without_ai(seeded, client):
+    confirm_plan(client, "SYN-0007")
+    advance(client, 7)  # Mon 9 Nov: V1 (16 Nov) enters the window
+    morning(client)
+    v1_msg = next(m for m in outbox("SYN-0007") if m["recipient"] == "patient" and "16/11/2026" in m["body"])
+    r = client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "booked", "in_reply_to": v1_msg["message_id"]})
+    assert r.json()["handling"] == ["button_booked:card_booked"] and r.json()["handover_id"] is None
+    cards = {c["item_code"]: c["state"] for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json()}
+    assert cards["V1"] == "Booked"
+    change = last_audit("card_state_changed")
+    assert (change["actor_type"], change["details"]["source"]) == ("agent", "button_tap")
+    assert scalar("SELECT count(*) FROM audit_ledger WHERE actor_type = 'ai'") == 0  # no model involved
+    assert morning(client)["gap_check"]["resolved"] == 1
+
+
+def test_other_buttons_create_people_tasks(seeded, client):
+    confirm_plan(client, "SYN-0007")
+    morning(client)  # T1 reminder (a test card)
+    client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "booked"})
+    client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "help_book"})
+    client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "cant_come"})
+    tasks = {t["task_type"]: t for t in client.get("/needs-you", headers=PRIYA).json()["tasks"]}
+    assert set(tasks) >= {"confirm_test_booking", "booking_help", "cannot_attend"}
+    assert tasks["booking_help"]["due_date"] == "2026-11-04"  # 2 working days
+    assert tasks["booking_help"]["cover_name"] == "Meera Joseph"
+
+
+def test_still_unbooked_at_t3_goes_to_the_coordinator_once(seeded, client):
+    confirm_plan(client, "SYN-0007")
+    morning(client)          # T1 reminder sent on 2 Nov, due 9 Nov
+    advance(client, 4)       # Fri 6 Nov = T-3
+    assert morning(client)["gap_check"]["t3_tasks"] == 1
+    morning(client)
+    assert scalar("SELECT count(*) FROM coordinator_task WHERE task_type = 'booking_help'") == 1
+
+
+def test_shadow_mode_drafts_need_approval(seeded, client):
+    from app import db
+
+    with db.connect() as c:
+        c.execute("""UPDATE config_versions SET body = jsonb_set(body, '{tasks,booking_reminder,mode}', '"shadow"')
+                     WHERE kind = 'autonomy_policy'""")
+    confirm_plan(client, "SYN-0007")
+    assert {a["outcome"] for a in morning(client)["actions"]} == {"pending_approval"}
+    drafts = client.get("/needs-you", headers=PRIYA).json()["approvals"]
+    assert len(drafts) == 2
+    approved = client.post(f"/outbox/{drafts[0]['message_id']}/approve", headers=PRIYA).json()
+    assert (approved["status"], approved["approved_by"]) == ("sent", "u_priya")
+    assert client.post(f"/outbox/{drafts[1]['message_id']}/reject", headers=PRIYA).json()["status"] == "rejected"
+    assert client.post(f"/outbox/{drafts[1]['message_id']}/approve", headers=PRIYA).status_code == 409
+
+
+@pytest.mark.parametrize("path", ["/demo/morning-run", "/rules/gap-check", "/agent/run", "/deadlines/run",
+                                  "/simulator/SYN-0007/reply"])
+def test_only_the_coordinator_runs_the_loop(seeded, client, path):
+    assert client.post(path, headers=ANAND, json={"button": "booked"}).status_code == 403
+
+
+def test_status_change_needs_a_reason(seeded, client):
+    r = client.post("/patients/SYN-0007/status", headers=PRIYA, json={"status": "Paused"})
+    assert r.status_code == 422
+    r = client.post("/patients/SYN-0007/status", headers=PRIYA, json={"status": "Lost to follow-up", "reason": "x"})
+    assert r.status_code == 422  # closing statuses are not settable here
+    assert client.get("/clock", headers=PRIYA).json()["today"] == date(2026, 11, 2).isoformat()

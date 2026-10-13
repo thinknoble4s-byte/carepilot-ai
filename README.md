@@ -2,7 +2,11 @@
 
 Follow-up and continuity-of-care agent for cancer survivors. This repo builds the MVP Golden Path in increments (see section 10 of `architecture/carepilot_technical_architecture_aws_sarvam_vertex.html`).
 
-**Current state: Increment 1 (records and plan, Golden Path Steps 0–1).** On top of the Increment 0 skeleton (public page, "Viewing as" switcher, Lambda API, PostgreSQL with a hash-chained audit ledger, database off by default): register and appointment import with exceptions, consent, care plan confirmation with two identifiers, order cards with owner and cover, card state rules, roles (coordinator, oncologist, chief), a demo clock and demo reset. The detailed spec is `documents/step-a-student-build-guide.md`; where it differs, `documents/build-guide-comparison.md` (Decisions) wins.
+**Current state: Increments 1–3 (Golden Path Steps 0–8, no AI yet).**
+- **Increment 1, records and plan:** register and appointment import with exceptions, consent, plan confirmation with two identifiers, order cards with owner and cover, card state rules, roles (coordinator, oncologist, chief), demo clock and demo reset. Spec: `documents/step-a-student-build-guide.md`; where it differs, `documents/build-guide-comparison.md` (Decisions) wins.
+- **Increment 2, the deterministic loop:** the 07:00 gap check (G0 not booked by T-7, with a coordinator task at T-3; G1 missed item), the 07:30 agent run that checks consent, status, handover and the autonomy policy and records a reason code and the next planned action, the send-guard and outbox, approved Kannada/Hindi/English templates, a WhatsApp simulator, and button replies that update cards with no AI call.
+- **Increment 3, the human safety path:** handovers (from a free-text reply, HELP, or opened by the coordinator), all automated sends blocked while one is open, Gate 1 coordinator, Gate 2 doctor's explicit Urgent/Routine, same-day urgent call, Gate 3 instruction creating a new order card and booking message, deadlines in working days with escalation to the named cover, and closure only by a named person with a reason, after which follow-up resumes.
+- Until Sarvam arrives (Increment 4), free text has no classifier; that counts as uncertain, so it always takes the safe handover path.
 
 > **Demo profile:** synthetic data only, security deferred (no login, public endpoints, public database with a password). Do not load real patient data into this stack.
 
@@ -86,6 +90,12 @@ About US$20–25 a month with the database running all the time, mostly RDS (t4g
 cd infra && npx aws-cdk@2 destroy   # a final DB snapshot is kept; delete it in the RDS console if not needed
 ```
 
-## Next: Increment 2
+## Morning run
 
-The deterministic loop: the G0 gap check (not booked 7 days before due), send-guard, outbox, WhatsApp simulator and patient buttons, reading thresholds from `config_versions` and moving cards only through `transition_card`.
+The Golden Path runs the gap check at 07:00 and the agent at 07:30. Because the database is off by default, there is no schedule: the coordinator's **Run the morning check** button (or `POST /demo/morning-run`) runs the deadline check, the gap check and the agent in that order. Use **Advance 1 day / 7 days** to move the demo clock.
+
+Rules, the autonomy policy (live / shadow / off per task), deadlines and message wording are versioned config in `config_versions`, loaded from `backend/app/seed_data/` on demo reset. Kannada and Hindi wording are drafts for a native speaker to check.
+
+## Next: Increment 4
+
+Sarvam: the AI client layer (timeout, schema validation), Saaras v3 for voice notes, language ID, the Sarvam-30B health-matter flag and Translate. A flagged, uncertain, timed-out or failed reply opens a handover (the path built in Increment 3); an unflagged one becomes an approve-first proposal that holds reminders until the coordinator decides.

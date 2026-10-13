@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+  "note": "The agent can do nothing that is not on this table; anything not listed defaults to a person. Modes: live (acts, logged), shadow (drafts, a coordinator approves), off.",
+  "tasks": {
+    "booking_reminder": {"mode": "live", "rule": "G0", "template": "booking_reminder"},
+    "missed_item_reminder": {"mode": "live", "rule": "G1", "template": "missed_item_reminder"},
+    "log_button_reply": {"mode": "live"}
+  }
+}

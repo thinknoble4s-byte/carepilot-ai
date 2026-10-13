@@ -24,6 +24,9 @@ function Summary({ summary }) {
       <Stat label="Open exceptions" value={summary?.open_exceptions} />
       <Stat label="Plans confirmed" value={summary?.plans_confirmed} />
       <Stat label="Open tasks" value={summary?.open_tasks} />
+      <Stat label="Open handovers" value={summary?.open_handovers} />
+      <Stat label="Messages sent" value={summary?.messages_sent} />
+      <Stat label="Sends blocked" value={summary?.messages_blocked} />
       <Stat label="Demo date" value={summary?.today} />
     </div>
   );
@@ -45,6 +48,16 @@ function DemoControls({ onChanged, setMessage }) {
   };
   return (
     <div className="row">
+      <button type="button" disabled={busy}
+        onClick={() => run(() => post('demo/morning-run'), (r) =>
+          `Morning run: ${r.gap_check.new_gaps.length} new gaps, ${r.actions.length} agent decisions ` +
+          `(${r.actions.filter((a) => a.outcome === 'sent').length} reminders sent), ${r.escalations.length} escalations.`)}>
+        Run the morning check (07:00 gaps, 07:30 agent)
+      </button>
+      <button type="button" className="secondary" disabled={busy}
+        onClick={() => run(() => post('clock/advance', { days: 1 }), (r) => `Demo date is now ${r.today}.`)}>
+        Advance 1 day
+      </button>
       <button type="button" className="secondary" disabled={busy}
         onClick={() => run(() => post('clock/advance', { days: 7 }), (r) => `Demo date is now ${r.today}.`)}>
         Advance 7 days
@@ -193,11 +206,95 @@ function CardsByState({ byState }) {
   );
 }
 
+const TASK_LABEL = {
+  coordinator_review: 'Gate 1 review',
+  call_first: 'Call the patient',
+  doctor_decision: "Doctor's decision",
+  doctor_instruction: "Doctor's instruction",
+  urgent_call: 'Urgent call today',
+  booking_from_instruction: 'Book from instruction',
+  booking_help: 'Help to book',
+  cannot_attend: 'Patient cannot come',
+  confirm_test_booking: 'Confirm test date',
+  contact_needed: 'Contact needed',
+  consent_scope_missing: 'Consent scope missing',
+};
+
+function NeedsYou({ data, onOpen, onChanged }) {
+  const act = async (path, body) => {
+    try {
+      await post(path, body);
+      onChanged();
+    } catch (e) {
+      window.alert(e.message);
+    }
+  };
+  const done = (id) => {
+    const note = window.prompt('What was done?');
+    if (note !== null) act(`tasks/${id}/done`, { note });
+  };
+  return (
+    <section className="card wide">
+      <h2>Needs you</h2>
+      {data.handovers.length > 0 && (
+        <>
+          <h3>Handovers ({data.handovers.length})</h3>
+          <ul className="plain">
+            {data.handovers.map((h) => (
+              <li key={h.handover_id} className="alert-line">
+                <button type="button" className="link" onClick={() => onOpen(h.mrn)}>{h.full_name} ({h.mrn})</button>
+                {' '}· {h.stage.replaceAll('_', ' ')}{h.gate2_decision ? ` · ${h.gate2_decision}` : ''}
+                {h.patient_words && <div className="muted">“{h.patient_words}”</div>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {data.approvals.length > 0 && (
+        <>
+          <h3>Agent drafts to approve ({data.approvals.length})</h3>
+          <ul className="plain">
+            {data.approvals.map((m) => (
+              <li key={m.message_id}>
+                {m.full_name}: <span className="muted">{m.body_en}</span>
+                <div className="row">
+                  <button type="button" className="small" onClick={() => act(`outbox/${m.message_id}/approve`)}>Approve</button>
+                  <button type="button" className="secondary small" onClick={() => act(`outbox/${m.message_id}/reject`)}>Reject</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <h3>Tasks ({data.tasks.length})</h3>
+      <div className="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Task</th><th>Patient</th><th>Why</th><th>Assigned</th><th>Due</th><th /></tr>
+          </thead>
+          <tbody>
+            {data.tasks.map((t) => (
+              <tr key={t.task_id}>
+                <td>{TASK_LABEL[t.task_type] || t.task_type}</td>
+                <td><button type="button" className="link" onClick={() => onOpen(t.mrn)}>{t.full_name}</button></td>
+                <td className="muted">{t.reason}</td>
+                <td>{t.assigned_name || '—'}{t.escalated_on && <span className="chip warn">escalated</span>}</td>
+                <td>{t.due_date || '—'}</td>
+                <td>{!t.handover_id && <button type="button" className="secondary small" onClick={() => done(t.task_id)}>Done</button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export default function Workspace({ role, onOpenPatient }) {
   const [summary, setSummary] = useState(null);
   const [patients, setPatients] = useState([]);
   const [exceptions, setExceptions] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  const [needs, setNeeds] = useState(null);
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
@@ -206,7 +303,7 @@ export default function Workspace({ role, onOpenPatient }) {
       if (role !== 'chief') setPatients(await api('patients'));
       if (role === 'coordinator') {
         setExceptions(await api('exceptions'));
-        setTasks(await api('tasks'));
+        setNeeds(await api('needs-you'));
       }
     } catch (e) {
       setMessage(e.message);
@@ -228,24 +325,11 @@ export default function Workspace({ role, onOpenPatient }) {
 
       {role === 'chief' && <CardsByState byState={summary?.cards_by_state} />}
 
+      {role === 'coordinator' && needs && <NeedsYou data={needs} onOpen={onOpenPatient} onChanged={load} />}
+
       {role === 'coordinator' && (
         <>
           <ImportPanel onChanged={load} />
-          <section className="card">
-            <h2>Open tasks ({tasks.length})</h2>
-            {tasks.length ? (
-              <ul className="plain">
-                {tasks.map((t) => (
-                  <li key={t.task_id}>
-                    <button type="button" className="link" onClick={() => onOpenPatient(t.mrn)}>{t.full_name} ({t.mrn})</button>
-                    <div className="muted">{t.reason}</div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="muted">No open tasks.</p>
-            )}
-          </section>
           <Exceptions items={exceptions} onChanged={load} />
         </>
       )}

@@ -37,3 +37,26 @@ DEPARTMENTS = config()["departments"]
 CONSENT_SCOPES = config()["consent_scopes"]
 IDENTIFIER_OPTIONS = config()["identifier_options"]
 DEMO_START_DATE = date.fromisoformat(config()["demo_start_date"])
+
+
+def autonomy_policy() -> dict:
+    return _json("autonomy_policy.json")
+
+
+def deadline_policy() -> dict:
+    return _json("deadline_policy.json")
+
+
+def message_templates() -> list[dict]:
+    return _json("message_templates.json")
+
+
+# How plan items are named to patients (drafts, to be checked by a native speaker).
+ITEM_LABELS = {
+    "V1": {"English": "clinic review with your doctor", "Hindi": "डॉक्टर से क्लिनिक जाँच", "Kannada": "ವೈದ್ಯರ ತಪಾಸಣೆ"},
+    "V2": {"English": "clinic review with your doctor", "Hindi": "डॉक्टर से क्लिनिक जाँच", "Kannada": "ವೈದ್ಯರ ತಪಾಸಣೆ"},
+    "T1": {"English": "blood tests", "Hindi": "खून की जाँच", "Kannada": "ರಕ್ತ ಪರೀಕ್ಷೆ"},
+    "T2": {"English": "mammogram", "Hindi": "मैमोग्राम", "Kannada": "ಮ್ಯಾಮೊಗ್ರಾಮ್"},
+    "T3": {"English": "bone density scan (DEXA)", "Hindi": "हड्डियों की जाँच (DEXA)", "Kannada": "ಮೂಳೆ ಸಾಂದ್ರತೆ ಪರೀಕ್ಷೆ (DEXA)"},
+}
+USERS_BY_NAME = {u["name"]: u for u in USERS}
