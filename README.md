@@ -55,6 +55,15 @@ Open the printed **Demo URL**. As the coordinator you see the Workspace (patient
 
 `POST /demo/reset` (coordinator only, the **Reset demo** button) or `python db/demo_reset.py` empties the demo tables and reloads the seed data from `backend/app/seed_data/`: 25 patients, 10 appointments, 8 open exceptions, 24 consents (23 agents on, 1 task), demo date 2026-11-02, no plans or cards, and 27 audit entries starting with a `demo_reset` entry. Clearing the ledger is its only allowed exception to append-only. It needs the database running, so it is done during an approved demo session; there is no automatic nightly reset.
 
+## Local demo (no AWS, no cost)
+
+Runs the full demo on your machine with a throwaway local PostgreSQL; the AWS database is never touched.
+
+```bash
+pip install -r backend/requirements-dev.txt
+python scripts/local_demo.py      # open http://127.0.0.1:5173 ; Ctrl+C stops and deletes the local database
+```
+
 ## Local development
 
 ```bash
