@@ -1,0 +1,7 @@
+[
+  {"user_id": "u_priya", "name": "Priya Nair", "role": "coordinator"},
+  {"user_id": "u_meera", "name": "Meera Joseph", "role": "coordinator"},
+  {"user_id": "u_anand", "name": "Dr. Anand Rao", "role": "oncologist"},
+  {"user_id": "u_kavita", "name": "Dr. Kavita Menon", "role": "oncologist"},
+  {"user_id": "u_suresh", "name": "Dr. Suresh Pillai", "role": "chief"}
+]

@@ -1,0 +1,8 @@
+{
+  "demo_start_date": "2026-11-02",
+  "supported_languages": ["Kannada", "Hindi", "English"],
+  "departments": ["Oncology OPD", "Laboratory", "Radiology"],
+  "consent_scopes": ["whatsapp_patient", "whatsapp_caregiver", "automated_messaging", "outside_records", "external_care"],
+  "identifier_options": ["name", "mrn", "phone"],
+  "rule_thresholds": {"version": "1.0", "g0_days_before_due": 7, "g1_days_after_due": 2, "g4_unanswered_messages": 2, "g4_hours_each": 24}
+}

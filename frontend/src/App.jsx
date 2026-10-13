@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { api } from './api.js';
+import { api, setUser } from './api.js';
+import AuditTrail from './AuditTrail.jsx';
+import Journey from './Journey.jsx';
+import Workspace from './Workspace.jsx';
 
 const DB_LABEL = {
   available: 'Database running',
@@ -9,17 +12,31 @@ const DB_LABEL = {
   unreachable: 'Database unreachable',
 };
 
+const TABS = {
+  coordinator: ['Workspace', 'Patient journey', 'Audit trail'],
+  oncologist: ['Workspace', 'Patient journey', 'Audit trail'],
+  chief: ['Summary', 'Audit trail'],
+};
+
 const THEMES = [
   { id: 'system', label: 'Auto' },
   { id: 'light', label: 'Light' },
   { id: 'dark', label: 'Dark' },
 ];
 
-function readTheme() {
+function readStored(key, fallback) {
   try {
-    return localStorage.getItem('carepilot-theme') || 'system';
+    return localStorage.getItem(key) || fallback;
   } catch (e) {
-    return 'system';
+    return fallback;
+  }
+}
+
+function store(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    // Storage unavailable (private window): the choice still applies for this visit.
   }
 }
 
@@ -27,15 +44,11 @@ function applyTheme(theme) {
   const root = document.documentElement;
   if (theme === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', theme);
-  try {
-    localStorage.setItem('carepilot-theme', theme);
-  } catch (e) {
-    // Storage unavailable (private window): theme still applies for this visit.
-  }
+  store('carepilot-theme', theme);
 }
 
 function ThemeSwitch() {
-  const [theme, setTheme] = useState(readTheme);
+  const [theme, setTheme] = useState(() => readStored('carepilot-theme', 'system'));
   useEffect(() => applyTheme(theme), [theme]);
   return (
     <div className="theme" role="group" aria-label="Theme">
@@ -48,50 +61,51 @@ function ThemeSwitch() {
   );
 }
 
+const initialUser = readStored('carepilot-user', 'u_priya');
+setUser(initialUser);
+
 export default function App() {
   const [health, setHealth] = useState(null);
-  const [roles, setRoles] = useState([]);
-  const [role, setRole] = useState('coordinator');
-  const [audit, setAudit] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [userId, setUserId] = useState(initialUser);
+  const [tab, setTab] = useState('Workspace');
+  const [journeyMrn, setJourneyMrn] = useState('SYN-0007');
   const [error, setError] = useState('');
 
-  const loadAudit = useCallback(async () => {
-    try {
-      setAudit(await api('audit?limit=20'));
-    } catch (e) {
-      setAudit(null);
-    }
-  }, []);
+  const user = users.find((u) => u.id === userId);
+  const role = user?.role || 'coordinator';
+  const tabs = TABS[role];
+  const dbUp = health?.db === 'available';
 
   const checkHealth = useCallback(async () => {
     try {
-      const h = await api('health');
-      setHealth(h);
-      return h;
+      setHealth(await api('health'));
     } catch (e) {
       setError(`API not reachable: ${e.message}`);
-      return null;
     }
   }, []);
 
   useEffect(() => {
-    api('roles').then(setRoles).catch(() => {});
-    checkHealth().then((h) => h?.db === 'available' && loadAudit());
-  }, [checkHealth, loadAudit]);
+    api('users').then(setUsers).catch(() => {});
+    checkHealth();
+  }, [checkHealth]);
 
-  const switchRole = async (next) => {
-    setRole(next);
+  useEffect(() => {
+    if (!tabs.includes(tab)) setTab(tabs[0]);
+  }, [tabs, tab]);
+
+  const switchUser = async (next) => {
+    setUserId(next);
+    setUser(next);
+    store('carepilot-user', next);
     setError('');
-    try {
-      await api('session', { method: 'POST', body: JSON.stringify({ role: next }) });
-      loadAudit();
-    } catch (e) {
-      setError(e.message);
-    }
+    if (dbUp) api('session', { method: 'POST' }).catch(() => {});
   };
 
-  const dbState = health?.db;
-  const current = roles.find((r) => r.id === role);
+  const openJourney = (mrn) => {
+    setJourneyMrn(mrn);
+    setTab('Patient journey');
+  };
 
   return (
     <div className="app">
@@ -106,10 +120,10 @@ export default function App() {
         <div className="controls">
           <label className="viewing">
             Viewing as
-            <select value={role} onChange={(e) => switchRole(e.target.value)}>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label} — {r.person}
+            <select value={userId} onChange={(e) => switchUser(e.target.value)}>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.label} — {u.person}
                 </option>
               ))}
             </select>
@@ -123,78 +137,46 @@ export default function App() {
         routes. It never diagnoses, prescribes, scores clinical risk, interprets results or advises patients; people decide.
       </div>
 
-      <main>
-        <section className="card status">
-          <h2>System status</h2>
-          <p>
-            <span className={`dot ${health ? 'ok' : 'bad'}`} /> API {health ? 'running' : 'not reachable'}
-            {health?.env ? ` · ${health.env}` : ''}
-          </p>
-          <p>
-            <span className={`dot ${dbState === 'available' ? 'ok' : dbState === 'starting' ? 'wait' : 'bad'}`} />{' '}
-            {DB_LABEL[dbState] || (dbState ? `Database ${dbState}` : 'Checking database…')}
-          </p>
-          {dbState && dbState !== 'available' && (
-            <p className="muted">
-              The demo database is switched on by the CarePilot team for scheduled demos. Ask them to start it, then
-              reload this page.
-            </p>
-          )}
-          {error && <p className="error">{error}</p>}
-        </section>
+      <section className="card status-line">
+        <span>
+          <span className={`dot ${health ? 'ok' : 'bad'}`} /> API {health ? 'running' : 'not reachable'}
+          {health?.env ? ` · ${health.env}` : ''}
+        </span>
+        <span>
+          <span className={`dot ${dbUp ? 'ok' : health?.db === 'starting' ? 'wait' : 'bad'}`} />
+          {DB_LABEL[health?.db] || (health?.db ? `Database ${health.db}` : 'Checking database…')}
+        </span>
+        {error && <span className="error">{error}</span>}
+      </section>
 
+      {health && !dbUp ? (
         <section className="card">
-          <h2>Workspace</h2>
+          <h2>Demo is paused</h2>
           <p className="muted">
-            {current ? `${current.person} (${current.label}). ` : ''}
-            Patients, order cards and the agent's morning run arrive in Increments 1 and 2.
+            The demo database is switched on by the CarePilot team for scheduled demos. Ask them to start it, then
+            reload this page.
           </p>
         </section>
-
-        <section className="card wide">
-          <h2>Audit trail</h2>
-          {audit ? (
-            <>
-              <p className={audit.chain.valid ? 'muted' : 'error'}>
-                Hash chain {audit.chain.valid ? 'intact' : `broken at entry ${audit.chain.firstBadId}`} ·{' '}
-                {audit.chain.checked} entries checked
-              </p>
-              <div className="tablewrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>When</th>
-                      <th>Actor</th>
-                      <th>Action</th>
-                      <th>Entity</th>
-                      <th>Hash</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {audit.entries.map((e) => (
-                      <tr key={e.id}>
-                        <td>{e.id}</td>
-                        <td>{new Date(e.occurred_at).toLocaleString()}</td>
-                        <td>
-                          {e.actor_name} <span className="muted">({e.actor_type})</span>
-                        </td>
-                        <td>{e.action}</td>
-                        <td>{[e.entity_type, e.entity_id].filter(Boolean).join(' / ')}</td>
-                        <td>
-                          <code>{e.hash.slice(0, 10)}</code>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          ) : (
-            <p className="muted">Available when the database is running.</p>
-          )}
-        </section>
-      </main>
+      ) : (
+        dbUp && (
+          <>
+            <nav className="tabs" aria-label="Screens">
+              {tabs.map((t) => (
+                <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)}>
+                  {t}
+                </button>
+              ))}
+            </nav>
+            {(tab === 'Workspace' || tab === 'Summary') && (
+              <Workspace key={userId} role={role} onOpenPatient={openJourney} />
+            )}
+            {tab === 'Patient journey' && (
+              <Journey key={`${userId}-${journeyMrn}`} role={role} mrn={journeyMrn} onSelect={setJourneyMrn} />
+            )}
+            {tab === 'Audit trail' && <AuditTrail users={users} />}
+          </>
+        )
+      )}
     </div>
   );
 }

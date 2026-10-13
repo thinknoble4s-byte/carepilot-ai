@@ -1,41 +1,38 @@
 """API tests that need no database: the API must answer even when the DB is stopped."""
-import os
-import sys
-from pathlib import Path
+import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+from conftest import ANAND, PRIYA, SURESH
 
-# Point at a closed port so the DB is "unreachable" quickly.
-os.environ.update({"DB_HOST": "127.0.0.1", "DB_PORT": "1", "DB_SSLMODE": "disable", "DB_CONNECT_TIMEOUT": "1"})
-os.environ.pop("DATABASE_URL", None)
-os.environ.pop("DB_INSTANCE_ID", None)
-
-from fastapi.testclient import TestClient  # noqa: E402
-
-from app.main import app  # noqa: E402
-
-client = TestClient(app)
+pytestmark = pytest.mark.usefixtures("offline")
 
 
-def test_health_reports_db_unreachable_without_failing():
+def test_health_reports_db_unreachable_without_failing(client):
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["api"] == "ok"
     assert r.json()["db"] == "unreachable"
 
 
-def test_roles_listed_without_db():
-    ids = [role["id"] for role in client.get("/roles").json()]
-    assert ids == ["coordinator", "oncologist", "chief", "reviewer"]
+def test_users_listed_without_db(client):
+    users = client.get("/users").json()
+    assert [u["id"] for u in users] == ["u_priya", "u_meera", "u_anand", "u_kavita", "u_suresh"]
+    assert {u["role"] for u in users} == {"coordinator", "oncologist", "chief"}
 
 
-def test_unknown_role_rejected():
-    assert client.post("/session", json={"role": "admin"}).status_code == 422
+def test_unknown_or_missing_user_is_401_without_db(client):
+    assert client.post("/session").status_code == 401
+    assert client.post("/session", headers={"X-User": "admin"}).status_code == 401
+    assert client.get("/patients").status_code == 401
 
 
-def test_session_needs_db():
-    assert client.post("/session", json={"role": "coordinator"}).status_code == 503
+def test_wrong_role_is_403_without_db(client):
+    assert client.get("/patients", headers=SURESH).status_code == 403
+    assert client.post("/demo/reset", headers=ANAND).status_code == 403
 
 
-def test_public_api_cannot_start_the_database():
+def test_session_needs_db(client):
+    assert client.post("/session", headers=PRIYA).status_code == 503
+
+
+def test_public_api_cannot_start_the_database(client):
     assert client.post("/db/start").status_code in (404, 405)

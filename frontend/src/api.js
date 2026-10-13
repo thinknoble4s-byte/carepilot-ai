@@ -1,4 +1,5 @@
 let base = null;
+let currentUser = null;
 
 async function apiBase() {
   if (base) return base;
@@ -14,13 +15,33 @@ async function apiBase() {
   return base;
 }
 
-export async function api(path, options = {}) {
+// Demo profile: the "Viewing as" switcher picks the caller (X-User header), no login.
+export function setUser(userId) {
+  currentUser = userId;
+}
+
+async function request(path, options, headers) {
   const url = `${await apiBase()}${path.replace(/^\//, '')}`;
   const res = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers: { ...(currentUser ? { 'X-User': currentUser } : {}), ...headers, ...(options.headers || {}) },
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.detail || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const detail = Array.isArray(body.detail) ? body.detail.map((d) => d.msg).join('; ') : body.detail;
+    throw new Error(detail || `HTTP ${res.status}`);
+  }
   return body;
+}
+
+export function api(path, options = {}) {
+  return request(path, options, { 'Content-Type': 'application/json' });
+}
+
+export function post(path, body) {
+  return api(path, { method: 'POST', body: JSON.stringify(body ?? {}) });
+}
+
+export function upload(path, formData) {
+  return request(path, { method: 'POST', body: formData }, {});
 }

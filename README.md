@@ -2,7 +2,7 @@
 
 Follow-up and continuity-of-care agent for cancer survivors. This repo builds the MVP Golden Path in increments (see section 10 of `architecture/carepilot_technical_architecture_aws_sarvam_vertex.html`).
 
-**Current state: Increment 0 (walking skeleton).** Public demo page with a "Viewing as" role switcher, the API on a Lambda Function URL, PostgreSQL with a hash-chained audit ledger, and the database kept off except when the owner starts it.
+**Current state: Increment 1 (records and plan, Golden Path Steps 0–1).** On top of the Increment 0 skeleton (public page, "Viewing as" switcher, Lambda API, PostgreSQL with a hash-chained audit ledger, database off by default): register and appointment import with exceptions, consent, care plan confirmation with two identifiers, order cards with owner and cover, card state rules, roles (coordinator, oncologist, chief), a demo clock and demo reset. The detailed spec is `documents/step-a-student-build-guide.md`; where it differs, `documents/build-guide-comparison.md` (Decisions) wins.
 
 > **Demo profile:** synthetic data only, security deferred (no login, public endpoints, public database with a password). Do not load real patient data into this stack.
 
@@ -15,7 +15,9 @@ Follow-up and continuity-of-care agent for cancer survivors. This repo builds th
 | `backend/` | FastAPI app (`app/`), Lambda handler, `build.py` (Linux arm64 bundle, no Docker needed) |
 | `db/` | SQL migrations and `migrate.py` |
 | `frontend/` | React + Vite shell |
-| `tests/` | API tests (no DB) and audit-ledger tests (need `TEST_DATABASE_URL`) |
+| `backend/app/seed_data/` | Synthetic demo data from the Step A guide (register, appointments, consents, plan inputs, template, users) |
+| `tests/` | API tests (no DB) and Increment 1 tests (need `TEST_DATABASE_URL`; they reset that database, so never point it at one you care about) |
+| `documents/` | Build guide, Step A spec, decisions |
 | `scripts/` | `deploy.sh`, `db.sh start|stop|status` (Git Bash) |
 
 ## Database is off by default
@@ -42,11 +44,16 @@ npx aws-cdk@2 bootstrap aws://<account-id>/ap-south-1   # once per account/regio
 scripts/deploy.sh             # builds backend + frontend, deploys, prints the demo URL
 scripts/db.sh start           # the DB is off by default; wait for "available" (scripts/db.sh status)
 pip install -r backend/requirements-dev.txt
-python db/migrate.py          # creates the audit ledger and config tables
+python db/migrate.py          # creates the tables
+python db/demo_reset.py       # loads the synthetic demo data (25 patients, demo date 2026-11-02)
 scripts/db.sh stop            # switch it off again
 ```
 
-Open the printed **Demo URL**, switch roles, and each switch appears in the audit trail with an intact hash chain.
+Open the printed **Demo URL**. As the coordinator you see the Workspace (patients, exceptions, tasks, import, Advance 7 days, Reset demo) and can confirm a plan on the Patient journey; the oncologist reads; the chief sees the aggregate Summary only. Every action appears in the audit trail with an intact hash chain.
+
+## Demo reset
+
+`POST /demo/reset` (coordinator only, the **Reset demo** button) or `python db/demo_reset.py` empties the demo tables and reloads the seed data from `backend/app/seed_data/`: 25 patients, 10 appointments, 8 open exceptions, 24 consents (23 agents on, 1 task), demo date 2026-11-02, no plans or cards, and 27 audit entries starting with a `demo_reset` entry. Clearing the ledger is its only allowed exception to append-only. It needs the database running, so it is done during an approved demo session; there is no automatic nightly reset.
 
 ## Local development
 
@@ -70,6 +77,6 @@ About US$20–25 a month with the database running all the time, mostly RDS (t4g
 cd infra && npx aws-cdk@2 destroy   # a final DB snapshot is kept; delete it in the RDS console if not needed
 ```
 
-## Next: Increment 1
+## Next: Increment 2
 
-Register and appointment import with MRN matching and exceptions, plan confirmation, consent, and order cards with owner and cover (Golden Path Steps 0–1).
+The deterministic loop: the G0 gap check (not booked 7 days before due), send-guard, outbox, WhatsApp simulator and patient buttons, reading thresholds from `config_versions` and moving cards only through `transition_card`.
