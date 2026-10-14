@@ -63,25 +63,25 @@ export default function HandoverPanel({ mrn, handover, tasks, role, onChanged })
       {coordinator && open && handover.stage === 'awaiting_coordinator' && (
         <div className="row">
           {GATE1.map(([id, label]) => (
-            <button key={id} type="button" className="secondary"
+            <button key={id} type="button" className="btn"
               onClick={() => act(`handovers/${handover.handover_id}/gate1`, { choice: id })}>{label}</button>
           ))}
         </div>
       )}
       {coordinator && open && (handover.stage === 'calling' || urgentOpen) && (
-        <button type="button" className="secondary"
+        <button type="button" className="btn"
           onClick={() => ask('Call outcome?', `handovers/${handover.handover_id}/call`, 'note')}>
           {urgentOpen ? 'Record the urgent call' : 'Record the call'}
         </button>
       )}
       {coordinator && open && handover.stage === 'ready_to_close' && (
-        <button type="button"
+        <button type="button" className="btn primary"
           onClick={() => ask('Reason for closing (your name is recorded)?', `handovers/${handover.handover_id}/close`, 'reason')}>
           Close handover
         </button>
       )}
       {coordinator && !open && (
-        <button type="button" className="secondary"
+        <button type="button" className="btn"
           onClick={() => ask('Why are you opening a handover?', `patients/${mrn}/handover`, 'reason')}>
           Open a handover
         </button>

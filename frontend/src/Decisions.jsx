@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { STAGE_LABEL } from './HandoverPanel.jsx';
+import { ScreenHead } from './ui.jsx';
 
 const DEPARTMENTS = ['Oncology OPD', 'Laboratory', 'Radiology'];
 
@@ -26,7 +27,7 @@ function Gate2({ item, onDone }) {
           </label>
         ))}
       </fieldset>
-      <button type="button" disabled={!decision} onClick={submit}>Submit decision</button>
+      <button type="button" className="btn primary" disabled={!decision} onClick={submit}>Submit decision</button>
       {error && <p className="error">{error}</p>}
     </div>
   );
@@ -72,13 +73,13 @@ function Gate3({ item, onDone }) {
           <label>Within (days) <input type="number" min="1" max="365" value={order.within_days} onChange={set('within_days')} /></label>
         </div>
       )}
-      <button type="submit" disabled={!text.trim()}>Record instruction</button>
+      <button type="submit" className="btn primary" disabled={!text.trim()}>Record instruction</button>
       {error && <p className="error">{error}</p>}
     </form>
   );
 }
 
-export default function Decisions({ onOpenPatient }) {
+export default function Decisions({ onOpenPatient, user }) {
   const [queue, setQueue] = useState([]);
   const [error, setError] = useState('');
   const load = useCallback(() => {
@@ -87,10 +88,13 @@ export default function Decisions({ onOpenPatient }) {
   useEffect(() => load(), [load]);
 
   return (
+    <>
+    <ScreenHead eyebrow={`Oncologist · ${user?.person || ''}`} title="Needs my decision"
+      sub="Only what needs you: concerns patients reported (confirmed by the coordinator) and differences between sources flagged for the care team. One tap records your decision; the instruction itself stays in your hospital record." />
+    <div className="v4-guard">Route, don't judge: CarePilot applies no thresholds, grades or risk scores to what patients report.</div>
     <main>
       <section className="card wide">
-        <h2>Needs my decision ({queue.length})</h2>
-        <p className="muted">You see the patient's own words and their source. CarePilot does not suggest urgency.</p>
+        <h2>Concerns waiting for a decision ({queue.length})</h2>
         {error && <p className="error">{error}</p>}
         {queue.length === 0 && <p className="muted">Nothing waiting for you.</p>}
       </section>
@@ -112,5 +116,6 @@ export default function Decisions({ onOpenPatient }) {
         </section>
       ))}
     </main>
+    </>
   );
 }

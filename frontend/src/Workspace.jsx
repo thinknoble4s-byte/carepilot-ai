@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { api, post, upload } from './api.js';
+import { api, post } from './api.js';
+import { GUARD, ScreenHead } from './ui.jsx';
 
 const CONSENT_LABEL = {
   automated_ok: 'Automated messaging allowed',
@@ -32,137 +33,12 @@ function Summary({ summary }) {
   );
 }
 
-function DemoControls({ onChanged, setMessage }) {
-  const [busy, setBusy] = useState(false);
-  const run = async (fn, done) => {
-    setBusy(true);
-    try {
-      const r = await fn();
-      setMessage(done(r));
-      onChanged();
-    } catch (e) {
-      setMessage(e.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="row">
-      <button type="button" disabled={busy}
-        onClick={() => run(() => post('demo/morning-run'), (r) =>
-          `Morning run: ${r.gap_check.new_gaps.length} new gaps, ${r.actions.length} agent decisions ` +
-          `(${r.actions.filter((a) => a.outcome === 'sent').length} reminders sent), ${r.escalations.length} escalations.`)}>
-        Run the morning check (07:00 gaps, 07:30 agent)
-      </button>
-      <button type="button" className="secondary" disabled={busy}
-        onClick={() => run(() => post('clock/advance', { days: 1 }), (r) => `Demo date is now ${r.today}.`)}>
-        Advance 1 day
-      </button>
-      <button type="button" className="secondary" disabled={busy}
-        onClick={() => run(() => post('clock/advance', { days: 7 }), (r) => `Demo date is now ${r.today}.`)}>
-        Advance 7 days
-      </button>
-      <button type="button" className="secondary" disabled={busy}
-        onClick={() => {
-          if (!window.confirm('Reset the demo? All demo data and the audit trail go back to the starting state.')) return;
-          run(() => post('demo/reset'), (r) => `Demo reset: ${r.patients} patients, ${r.open_exceptions} open exceptions, demo date ${r.clock}.`);
-        }}>
-        Reset demo
-      </button>
-    </div>
-  );
-}
-
-function ImportPanel({ onChanged }) {
-  const [sourceType, setSourceType] = useState('register');
-  const [file, setFile] = useState(null);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!file) return;
-    const form = new FormData();
-    form.append('source_type', sourceType);
-    form.append('file', file);
-    setError('');
-    try {
-      setResult(await upload('imports', form));
-      onChanged();
-    } catch (err) {
-      setResult(null);
-      setError(err.message);
-    }
-  };
-
-  return (
-    <section className="card">
-      <h2>Import a file</h2>
-      <form className="stack" onSubmit={submit}>
-        <label>
-          File type
-          <select value={sourceType} onChange={(e) => setSourceType(e.target.value)}>
-            <option value="register">Patient register</option>
-            <option value="appointments">Appointment list</option>
-          </select>
-        </label>
-        <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files[0] || null)} />
-        <button type="submit" disabled={!file}>Import</button>
-      </form>
-      {result && (
-        <p className="muted">
-          {result.rows_read} rows read · {result.rows_created} created · {result.rows_skipped_identical} already
-          present · {result.rows_exception} exceptions
-        </p>
-      )}
-      {error && <p className="error">{error}</p>}
-    </section>
-  );
-}
-
-function Exceptions({ items, onChanged }) {
-  const dismiss = async (id) => {
-    const reason = window.prompt('Reason for dismissing this exception?');
-    if (reason === null) return;
-    try {
-      await post(`exceptions/${id}/dismiss`, { reason });
-      onChanged();
-    } catch (e) {
-      window.alert(e.message);
-    }
-  };
-  return (
-    <section className="card wide">
-      <h2>Open exceptions ({items.length})</h2>
-      <p className="muted">Rows that could not be used. Nothing is created from them until someone fixes the source.</p>
-      <div className="tablewrap">
-        <table>
-          <thead>
-            <tr><th>File</th><th>Line</th><th>Reason</th><th>Row</th><th /></tr>
-          </thead>
-          <tbody>
-            {items.map((x) => (
-              <tr key={x.exception_id}>
-                <td>{x.source_type}</td>
-                <td>{x.row_number}</td>
-                <td><code>{x.reason_code}</code></td>
-                <td><code>{x.raw_row}</code></td>
-                <td><button type="button" className="secondary small" onClick={() => dismiss(x.exception_id)}>Dismiss</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
 function Patients({ items, onOpen }) {
   return (
     <section className="card wide">
       <h2>Patients ({items.length})</h2>
       <div className="tablewrap">
-        <table className="clickable">
+        <table className="dtab clickable">
           <thead>
             <tr><th>MRN</th><th>Name</th><th>Language</th><th>Consent</th><th>Agent</th><th>Plan</th><th>Next due</th></tr>
           </thead>
@@ -172,7 +48,7 @@ function Patients({ items, onOpen }) {
                 <td><code>{p.mrn}</code></td>
                 <td>{p.full_name}</td>
                 <td>{p.preferred_language}</td>
-                <td><span className={`chip ${p.consent_status === 'automated_ok' ? 'ok' : 'warn'}`}>{CONSENT_LABEL[p.consent_status]}</span></td>
+                <td><span className={`pill ${p.consent_status === 'automated_ok' ? 'good' : 'warn'}`}>{CONSENT_LABEL[p.consent_status]}</span></td>
                 <td>{p.agent_on ? 'On' : 'Off'}</td>
                 <td>{p.has_plan ? 'Confirmed' : <span className="muted">Needs plan</span>}</td>
                 <td>{p.next_due || '—'}</td>
@@ -185,13 +61,22 @@ function Patients({ items, onOpen }) {
   );
 }
 
-function CardsByState({ byState }) {
-  const rows = Object.entries(byState || {});
+export function CardsByState() {
+  const [summary, setSummary] = useState(null);
+  useEffect(() => {
+    api('summary').then(setSummary).catch(() => {});
+  }, []);
+  const rows = Object.entries(summary?.cards_by_state || {});
   return (
+    <main>
+      <section className="card wide">
+        <h2>Programme today</h2>
+        <Summary summary={summary} />
+      </section>
     <section className="card">
       <h2>Order cards by state</h2>
       {rows.length ? (
-        <table>
+        <table className="dtab">
           <tbody>
             {rows.map(([state, n]) => (
               <tr key={state}><td>{state}</td><td>{n}</td></tr>
@@ -203,6 +88,7 @@ function CardsByState({ byState }) {
       )}
       <p className="muted">Aggregates only: no names, phone numbers or MRNs.</p>
     </section>
+    </main>
   );
 }
 
@@ -258,8 +144,8 @@ function NeedsYou({ data, onOpen, onChanged }) {
               <li key={m.message_id}>
                 {m.full_name}: <span className="muted">{m.body_en}</span>
                 <div className="row">
-                  <button type="button" className="small" onClick={() => act(`outbox/${m.message_id}/approve`)}>Approve</button>
-                  <button type="button" className="secondary small" onClick={() => act(`outbox/${m.message_id}/reject`)}>Reject</button>
+                  <button type="button" className="btn sm primary" onClick={() => act(`outbox/${m.message_id}/approve`)}>Approve</button>
+                  <button type="button" className="btn sm" onClick={() => act(`outbox/${m.message_id}/reject`)}>Reject</button>
                 </div>
               </li>
             ))}
@@ -268,7 +154,7 @@ function NeedsYou({ data, onOpen, onChanged }) {
       )}
       <h3>Tasks ({data.tasks.length})</h3>
       <div className="tablewrap">
-        <table>
+        <table className="dtab">
           <thead>
             <tr><th>Task</th><th>Patient</th><th>Why</th><th>Assigned</th><th>Due</th><th /></tr>
           </thead>
@@ -278,9 +164,9 @@ function NeedsYou({ data, onOpen, onChanged }) {
                 <td>{TASK_LABEL[t.task_type] || t.task_type}</td>
                 <td><button type="button" className="link" onClick={() => onOpen(t.mrn)}>{t.full_name}</button></td>
                 <td className="muted">{t.reason}</td>
-                <td>{t.assigned_name || '—'}{t.escalated_on && <span className="chip warn">escalated</span>}</td>
+                <td>{t.assigned_name || '—'}{t.escalated_on && <span className="pill warn">escalated</span>}</td>
                 <td>{t.due_date || '—'}</td>
-                <td>{!t.handover_id && <button type="button" className="secondary small" onClick={() => done(t.task_id)}>Done</button>}</td>
+                <td>{!t.handover_id && <button type="button" className="btn sm" onClick={() => done(t.task_id)}>Done</button>}</td>
               </tr>
             ))}
           </tbody>
@@ -290,51 +176,39 @@ function NeedsYou({ data, onOpen, onChanged }) {
   );
 }
 
-export default function Workspace({ role, onOpenPatient }) {
+export default function Workspace({ onOpenPatient, user }) {
   const [summary, setSummary] = useState(null);
   const [patients, setPatients] = useState([]);
-  const [exceptions, setExceptions] = useState([]);
   const [needs, setNeeds] = useState(null);
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
     try {
       setSummary(await api('summary'));
-      if (role !== 'chief') setPatients(await api('patients'));
-      if (role === 'coordinator') {
-        setExceptions(await api('exceptions'));
-        setNeeds(await api('needs-you'));
-      }
+      setPatients(await api('patients'));
+      setNeeds(await api('needs-you'));
     } catch (e) {
       setMessage(e.message);
     }
-  }, [role]);
+  }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
   return (
-    <main>
-      <section className="card wide">
-        <h2>{role === 'chief' ? 'Summary' : 'Workspace'}</h2>
-        <Summary summary={summary} />
-        {role === 'coordinator' && <DemoControls onChanged={load} setMessage={setMessage} />}
-        {message && <p className="muted">{message}</p>}
-      </section>
-
-      {role === 'chief' && <CardsByState byState={summary?.cards_by_state} />}
-
-      {role === 'coordinator' && needs && <NeedsYou data={needs} onOpen={onOpenPatient} onChanged={load} />}
-
-      {role === 'coordinator' && (
-        <>
-          <ImportPanel onChanged={load} />
-          <Exceptions items={exceptions} onChanged={load} />
-        </>
-      )}
-
-      {role !== 'chief' && <Patients items={patients} onOpen={onOpenPatient} />}
-    </main>
+    <>
+      <ScreenHead eyebrow={`Care coordinator · ${user?.person || ''}`} title="Workspace"
+        sub="Everyone on follow-up. The CarePilot agent runs the repetitive coordination work around the clock; you see what needs a person — exceptions, escalations and conversations — and what the agent has already done. Click a patient to open them." />
+      {GUARD}
+      <main>
+        <section className="card wide">
+          <Summary summary={summary} />
+          {message && <p className="error">{message}</p>}
+        </section>
+        {needs && <NeedsYou data={needs} onOpen={onOpenPatient} onChanged={load} />}
+        <Patients items={patients} onOpen={onOpenPatient} />
+      </main>
+    </>
   );
 }

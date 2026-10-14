@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
+import { ScreenHead } from './ui.jsx';
 
-export default function AuditTrail({ users }) {
+export default function AuditTrail({ users, role }) {
   const [audit, setAudit] = useState(null);
   const [error, setError] = useState('');
   const names = Object.fromEntries(users.map((u) => [u.id, u.person]));
@@ -13,9 +14,11 @@ export default function AuditTrail({ users }) {
   }, []);
 
   return (
+    <>
+    <ScreenHead eyebrow={role === 'oncologist' ? 'Oncologist · read only' : 'Governance'} title="Audit trail"
+      sub="Every action on every patient — by the CarePilot agent, by people, by the system and by AI — with who did it and when." />
     <main>
       <section className="card wide">
-        <h2>Audit trail</h2>
         {error && <p className="error">{error}</p>}
         {audit && (
           <>
@@ -24,7 +27,7 @@ export default function AuditTrail({ users }) {
               {audit.chain.checked} entries checked · latest 50 shown
             </p>
             <div className="tablewrap">
-              <table>
+              <table className="dtab">
                 <thead>
                   <tr><th>#</th><th>When</th><th>Actor</th><th>Action</th><th>Patient</th><th>Entity</th><th>Hash</th></tr>
                 </thead>
@@ -49,5 +52,6 @@ export default function AuditTrail({ users }) {
         )}
       </section>
     </main>
+    </>
   );
 }

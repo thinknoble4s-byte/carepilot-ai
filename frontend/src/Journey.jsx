@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import HandoverPanel from './HandoverPanel.jsx';
 import Simulator from './Simulator.jsx';
+import { ScreenHead } from './ui.jsx';
 
 const SCOPES = [
   ['whatsapp_patient', 'WhatsApp to patient'],
@@ -47,7 +48,7 @@ function ConsentForm({ mrn, today, onDone }) {
         ))}
       </fieldset>
       <label>Recorded on <input type="date" value={recordedOn} onChange={(e) => setRecordedOn(e.target.value)} /></label>
-      <button type="submit">Record consent</button>
+      <button type="submit" className="btn primary">Record consent</button>
       {error && <p className="error">{error}</p>}
     </form>
   );
@@ -85,7 +86,7 @@ function PlanForm({ mrn, onDone }) {
           </label>
         ))}
       </fieldset>
-      <button type="submit">Confirm plan and create order cards</button>
+      <button type="submit" className="btn primary">Confirm plan and create order cards</button>
       {error && <p className="error">{error}</p>}
     </form>
   );
@@ -122,6 +123,9 @@ export default function Journey({ role, mrn, onSelect }) {
   }, [load]);
 
   return (
+    <>
+    <ScreenHead eyebrow={canEdit ? 'Patient journey' : 'Oncologist · read only'} title="Patient journey"
+      sub="The longitudinal story of care: diagnosis, treatment, follow-up and care elsewhere. Every event links to its source; anything without an origin is shown as a gap, not assumed. Every step is on the Audit trail." />
     <main>
       <section className="card wide">
         <label className="viewing">
@@ -178,7 +182,7 @@ export default function Journey({ role, mrn, onSelect }) {
               <>
                 <p>
                   {detail.consent.scopes.map((s) => (
-                    <span key={s} className={`chip ${s === 'automated_messaging' ? 'ok' : ''}`}>{SCOPE_LABEL[s] || s}</span>
+                    <span key={s} className={`pill ${s === 'automated_messaging' ? 'good' : 'gray'}`}>{SCOPE_LABEL[s] || s}</span>
                   ))}
                 </p>
                 <p className="muted">
@@ -219,7 +223,7 @@ export default function Journey({ role, mrn, onSelect }) {
             <h2>Order cards ({cards.length})</h2>
             {cards.length ? (
               <div className="tablewrap">
-                <table>
+                <table className="dtab">
                   <thead>
                     <tr><th>Item</th><th>Type</th><th>Name</th><th>Due</th><th>State</th><th>Owner</th><th>Cover</th></tr>
                   </thead>
@@ -246,6 +250,7 @@ export default function Journey({ role, mrn, onSelect }) {
         </>
       )}
     </main>
+    </>
   );
 }
 
@@ -263,9 +268,9 @@ function StatusControls({ mrn, status, onDone }) {
   return (
     <div className="row">
       <span className="muted">Status: {status}</span>
-      {status !== 'Active' && <button type="button" className="secondary small" onClick={() => change('Active')}>Resume</button>}
-      {status !== 'Paused' && <button type="button" className="secondary small" onClick={() => change('Paused')}>Pause</button>}
-      {status !== 'Agent off' && <button type="button" className="secondary small" onClick={() => change('Agent off')}>Agent off</button>}
+      {status !== 'Active' && <button type="button" className="btn sm" onClick={() => change('Active')}>Resume</button>}
+      {status !== 'Paused' && <button type="button" className="btn sm" onClick={() => change('Paused')}>Pause</button>}
+      {status !== 'Agent off' && <button type="button" className="btn sm" onClick={() => change('Agent off')}>Agent off</button>}
     </div>
   );
 }

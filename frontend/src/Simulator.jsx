@@ -38,7 +38,7 @@ export default function Simulator({ mrn, messages, canReply, onChanged }) {
             <div className="meta">
               {m.direction === 'out' ? `To ${m.party} · ${m.template_id}` : `From ${m.party}`} · {m.day}
               {STATUS_LABEL[m.status] && (
-                <span className="chip warn">
+                <span className="pill warn">
                   {STATUS_LABEL[m.status]}
                   {m.blocked_reason ? `: ${m.blocked_reason}` : ''}
                 </span>
@@ -51,7 +51,7 @@ export default function Simulator({ mrn, messages, canReply, onChanged }) {
             {m.direction === 'out' && m.status === 'sent' && m.buttons?.length > 0 && (
               <div className="row">
                 {m.buttons.map((b) => (
-                  <button key={b.id} type="button" className="secondary small" disabled={!canReply}
+                  <button key={b.id} type="button" className="btn sm" disabled={!canReply}
                     title={b.label_en} onClick={() => send({ button: b.id, in_reply_to: m.id })}>
                     {b.label}
                   </button>
@@ -64,8 +64,8 @@ export default function Simulator({ mrn, messages, canReply, onChanged }) {
       {canReply && (
         <form className="row reply" onSubmit={(e) => { e.preventDefault(); if (text.trim()) send({ text }); }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a reply as the patient" />
-          <button type="submit" disabled={!text.trim()}>Send as patient</button>
-          <button type="button" className="secondary" onClick={() => send({ text: 'HELP' })}>HELP</button>
+          <button type="submit" className="btn primary" disabled={!text.trim()}>Send as patient</button>
+          <button type="button" className="btn" onClick={() => send({ text: 'HELP' })}>HELP</button>
         </form>
       )}
       {error && <p className="error">{error}</p>}
