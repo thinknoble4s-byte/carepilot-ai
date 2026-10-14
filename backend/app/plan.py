@@ -89,13 +89,13 @@ def confirm_plan(conn, user_id, mrn, template_id, therapy, treatment_end_date, i
     plan = conn.execute(
         """
         INSERT INTO care_plan (mrn, template_id, template_version, therapy, treatment_end_date,
-                               identifiers_checked, confirmed_by)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                               identifiers_checked, confirmed_by, confirmed_on)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING care_plan_id, mrn, template_id, template_version, therapy, treatment_end_date,
                   identifiers_checked, confirmed_by, confirmed_at
         """,
         (mrn, template["template_id"], template["version"], str(therapy).strip(), end,
-         list(dict.fromkeys(ids)), user_id),
+         list(dict.fromkeys(ids)), user_id, today),
     ).fetchone()
     tmpl = {"template_id": template["template_id"], "template_version": template["version"]}
     audit.append(

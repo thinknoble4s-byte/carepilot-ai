@@ -1,121 +1,103 @@
+// R4 — Needs my decision (prototype v7.2 scrDecide).
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
-import { STAGE_LABEL } from './HandoverPanel.jsx';
-import { ScreenHead } from './ui.jsx';
+import { openInstruction } from './Modals.jsx';
+import { Dl, fmt, ScreenHead, useUI } from './ui.jsx';
 
-const DEPARTMENTS = ['Oncology OPD', 'Laboratory', 'Radiology'];
-
-function Gate2({ item, onDone }) {
-  const [decision, setDecision] = useState(null); // nothing pre-selected
-  const [error, setError] = useState('');
-  const submit = async () => {
-    try {
-      await post(`handovers/${item.handover_id}/gate2`, { decision });
-      onDone();
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-  return (
-    <div className="stack">
-      <fieldset>
-        <legend>Your decision (required, nothing is pre-selected)</legend>
-        {['urgent', 'routine'].map((d) => (
-          <label key={d} className="check">
-            <input type="radio" name={`d-${item.handover_id}`} checked={decision === d} onChange={() => setDecision(d)} />
-            {d === 'urgent' ? 'Urgent' : 'Routine'}
-          </label>
-        ))}
-      </fieldset>
-      <button type="button" className="btn primary" disabled={!decision} onClick={submit}>Submit decision</button>
-      {error && <p className="error">{error}</p>}
-    </div>
-  );
-}
-
-function Gate3({ item, onDone }) {
-  const [text, setText] = useState('');
-  const [withOrder, setWithOrder] = useState(true);
-  const [order, setOrder] = useState({ name: 'Surgical-site review', department: 'Oncology OPD', card_type: 'visit', within_days: 7 });
-  const [error, setError] = useState('');
-  const submit = async (e) => {
-    e.preventDefault();
-    try {
-      await post(`handovers/${item.handover_id}/instruction`, { text, order: withOrder ? order : null });
-      onDone();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-  const set = (k) => (e) => setOrder({ ...order, [k]: k === 'within_days' ? Number(e.target.value) : e.target.value });
-  return (
-    <form className="stack" onSubmit={submit}>
-      <label>Instruction (recorded in the simulated hospital record)
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="e.g. Surgical-site review within 7 days" />
-      </label>
-      <label className="check">
-        <input type="checkbox" checked={withOrder} onChange={(e) => setWithOrder(e.target.checked)} /> Create a new order card
-      </label>
-      {withOrder && (
-        <div className="grid2">
-          <label>Name <input value={order.name} onChange={set('name')} /></label>
-          <label>Department
-            <select value={order.department} onChange={set('department')}>
-              {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
-            </select>
-          </label>
-          <label>Type
-            <select value={order.card_type} onChange={set('card_type')}>
-              <option value="visit">Visit</option>
-              <option value="test">Test</option>
-            </select>
-          </label>
-          <label>Within (days) <input type="number" min="1" max="365" value={order.within_days} onChange={set('within_days')} /></label>
-        </div>
-      )}
-      <button type="submit" className="btn primary" disabled={!text.trim()}>Record instruction</button>
-      {error && <p className="error">{error}</p>}
-    </form>
-  );
-}
-
-export default function Decisions({ onOpenPatient, user }) {
+export default function Decisions() {
+  const ui = useUI();
   const [queue, setQueue] = useState([]);
+  const [recent, setRecent] = useState([]);
   const [error, setError] = useState('');
   const load = useCallback(() => {
     api('doctor/queue').then(setQueue).catch((e) => setError(e.message));
+    api('decisions/recent').then(setRecent).catch(() => {});
   }, []);
   useEffect(() => load(), [load]);
 
+  // One explicit tap records the decision; nothing is pre-selected and CarePilot suggests nothing.
+  const decide = async (item, decision) => {
+    try {
+      await post(`handovers/${item.handover_id}/gate2`, { decision });
+      ui.toast(decision === 'urgent' ? 'Urgent — the coordinator calls the patient today' : 'Routine — recorded');
+      ui.refresh();
+    } catch (e) {
+      ui.toast(e.message);
+    }
+  };
+  const open = queue.filter((q) => q.stage === 'awaiting_doctor');
+  const pending = queue.filter((q) => q.stage === 'awaiting_instruction');
+
   return (
     <>
-    <ScreenHead eyebrow={`Oncologist · ${user?.person || ''}`} title="Needs my decision"
-      sub="Only what needs you: concerns patients reported (confirmed by the coordinator) and differences between sources flagged for the care team. One tap records your decision; the instruction itself stays in your hospital record." />
-    <div className="v4-guard">Route, don't judge: CarePilot applies no thresholds, grades or risk scores to what patients report.</div>
-    <main>
-      <section className="card wide">
-        <h2>Concerns waiting for a decision ({queue.length})</h2>
-        {error && <p className="error">{error}</p>}
-        {queue.length === 0 && <p className="muted">Nothing waiting for you.</p>}
-      </section>
-      {queue.map((item) => (
-        <section key={item.handover_id} className="card wide alert">
-          <h2>
-            <button type="button" className="link" onClick={() => onOpenPatient(item.mrn)}>{item.full_name}</button>{' '}
-            <span className="muted">({item.mrn}, {item.preferred_language})</span>
-          </h2>
-          <p><strong>{STAGE_LABEL[item.stage]}</strong>{item.due_date ? ` · due ${item.due_date}` : ''}</p>
-          <blockquote>
-            {item.patient_words}
-            {item.translation && <div className="en">English: {item.translation}</div>}
-            <div className="en">Source: {item.source}</div>
-          </blockquote>
-          {item.call_note && <p className="muted">Coordinator's call: {item.call_note}</p>}
-          {item.gate2_decision && <p>Your decision: <strong>{item.gate2_decision}</strong></p>}
-          {item.stage === 'awaiting_doctor' ? <Gate2 item={item} onDone={load} /> : <Gate3 item={item} onDone={load} />}
-        </section>
+      <ScreenHead eyebrow={`Oncologist · ${ui.user?.person || ''}`} title="Needs my decision"
+        sub="Only what needs you: concerns patients reported (confirmed by the coordinator) and differences between sources flagged for the care team. One tap records your decision; the instruction itself stays in your hospital record." />
+      <div className="v4-guard">Route, don't judge: CarePilot applies no thresholds, grades or risk scores to what patients report.</div>
+      {error && <div className="card"><div className="error">{error}</div></div>}
+      <div className="card-title" style={{ margin: '6px 0 8px' }}>Concerns waiting for a decision ({open.length})</div>
+      {open.map((c) => (
+        <div key={c.handover_id} className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div className="v4-name">
+              <a role="button" tabIndex={0} onClick={() => ui.nav('plan', c.mrn)}>{c.full_name}</a>{' '}
+              <span className="v4-meta">· {c.mrn} · {c.preferred_language}</span>
+            </div>
+            <Dl due={c.due_date} label="Decision" today={ui.today} />
+          </div>
+          <div className="fb" style={{ marginTop: 8, fontSize: 13 }}>
+            <b>Patient said</b> ({c.preferred_language}): "{c.patient_words}"
+            {c.translation && <div className="small-note">English: {c.translation}</div>}
+          </div>
+          <div className="small-note" style={{ marginTop: 4 }}>
+            Source: {c.source} · confirmed by {ui.name(c.gate1_by)}{c.call_note ? ` · coordinator's call: "${c.call_note}"` : ''}. CarePilot does not grade concerns — you decide.
+          </div>
+          <div className="btn-row">
+            <button type="button" className="btn warn" onClick={() => decide(c, 'urgent')}>Urgent — call today</button>
+            <button type="button" className="btn" onClick={() => decide(c, 'routine')}>Routine</button>
+            <button type="button" className="btn ghost" onClick={() => ui.nav('plan', c.mrn)}>Open patient</button>
+          </div>
+        </div>
       ))}
-    </main>
+      {!open.length && <div className="card"><div className="empty">Nothing waiting. As the coordinator, send a patient's concern to the doctor to see it arrive here.</div></div>}
+
+      {pending.length > 0 && (
+        <div className="card">
+          <div className="card-title">Decided — waiting for your instruction in the record</div>
+          {pending.map((c) => (
+            <div key={c.handover_id} className="v4-item req">
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <div className="t">{c.full_name} — {c.gate2_decision === 'urgent' ? 'Urgent' : 'Routine'}</div>
+                <Dl due={c.due_date} label="Instruction" today={ui.today} />
+              </div>
+              <div className="d">Write your instruction in the hospital record as usual — CarePilot picks it up and creates the order card.</div>
+              <div className="btn-row">
+                <button type="button" className="btn sm" onClick={() => openInstruction(ui, c)}>Demo: instruction appears in the EMR</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-title">Sources disagree — flagged for the care team (0)</div>
+        <div className="small-note">Nothing flagged. Comparing outside prescriptions with the hospital list arrives with document intake (a later increment).</div>
+      </div>
+
+      {recent.length > 0 && (
+        <div className="card">
+          <div className="card-title">Recent decisions</div>
+          <div className="v4-scroll">
+            <table className="v4-table">
+              <thead><tr><th>Patient</th><th>Decision</th><th>Instruction</th></tr></thead>
+              <tbody>{recent.map((d) => (
+                <tr key={d.handover_id}><td>{d.full_name}</td>
+                  <td>{d.gate2_decision === 'urgent' ? 'Urgent' : 'Routine'} · {fmt(d.gate2_on)}</td>
+                  <td>{d.instruction || 'Awaiting instruction'}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </>
   );
 }

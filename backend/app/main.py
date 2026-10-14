@@ -13,8 +13,8 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from . import (agent, audit, clock, consent, db, gateway, handover, importer, messaging, patients, plan, rules, seed,
-               tasks, views)
+from . import (agent, audit, clock, consent, db, gateway, handover, importer, messaging, patients, plan, programme,
+               rules, seed, tasks, timeline, views, worklist)
 from .auth import ANY_ROLE, CLINICAL, COORDINATOR, current_user, require_role
 from .errors import DomainError
 from .reference import ROLE_LABELS, USERS
@@ -81,8 +81,12 @@ def select_user(user: dict = Depends(current_user)):
 
 
 @app.get("/audit")
-def audit_trail(limit: int = 20):
-    return in_tx(lambda conn: {"entries": audit.recent(conn, min(max(limit, 1), 200)), "chain": audit.verify(conn)})
+def audit_trail(limit: int = 20, mrn: str | None = None, kind: str | None = None, days: int | None = None,
+                q: str | None = None):
+    limit = min(max(limit, 1), 400)
+    if not (mrn or kind or days or q):
+        return in_tx(lambda conn: {"entries": audit.recent(conn, limit), "chain": audit.verify(conn)})
+    return in_tx(lambda conn: audit.search(conn, mrn=mrn, kind=kind, days=days, q=q, limit=limit))
 
 
 @app.get("/clock")
@@ -111,11 +115,19 @@ def demo_reset(user: dict = Depends(require_role(*COORDINATOR))):
 async def upload(
     file: UploadFile = File(...),
     source_type: Literal["register", "appointments"] = Form(...),
+    preview: bool = False,
     user: dict = Depends(require_role(*COORDINATOR)),
 ):
     data = await file.read()
     run = importer.import_register if source_type == "register" else importer.import_appointments
-    return in_tx(run, user["user_id"], data, file.filename)
+
+    def go(conn):
+        if not preview:
+            return run(conn, user["user_id"], data, file.filename)
+        with conn.transaction(force_rollback=True):  # preview: show what would happen, keep nothing
+            return {**run(conn, user["user_id"], data, file.filename), "preview": True}
+
+    return in_tx(go)
 
 
 @app.get("/exceptions")
@@ -218,8 +230,8 @@ def deadlines_run(_user: dict = Depends(require_role(*COORDINATOR))):
 @app.post("/demo/morning-run")
 def morning_run(_user: dict = Depends(require_role(*COORDINATOR))):
     def run(conn):
-        return {"escalations": tasks.run_deadlines(conn), "gap_check": rules.run_gap_check(conn),
-                "actions": agent.run_agent(conn)}
+        return {"pauses_ended": patients.resume_expired(conn), "escalations": tasks.run_deadlines(conn),
+                "gap_check": rules.run_gap_check(conn), "actions": agent.run_agent(conn)}
 
     return in_tx(run)
 
@@ -354,3 +366,84 @@ class CloseIn(BaseModel):
 @app.post("/handovers/{handover_id}/close")
 def close_handover(handover_id: int, body: CloseIn, user: dict = Depends(require_role(*COORDINATOR))):
     return in_tx(handover.close, handover_id, user, body.reason)
+
+
+# ---------------------------------------------------------------------------
+# Screens matching prototype v7.2: worklist, timeline, calls, pause, Care Plan, indicators
+# ---------------------------------------------------------------------------
+@app.get("/worklist")
+def get_worklist(_user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(worklist.build)
+
+
+@app.get("/department-lists")
+def department_lists(_user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(worklist.department_lists)
+
+
+@app.get("/patients/{mrn}/timeline")
+def patient_timeline(mrn: str, _user: dict = Depends(require_role(*CLINICAL))):
+    return in_tx(timeline.build, mrn)
+
+
+class CallIn(BaseModel):
+    who: str = "patient"
+    outcome: str
+    note: str | None = None
+
+
+@app.post("/patients/{mrn}/calls", status_code=201)
+def log_call(mrn: str, body: CallIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(patients.log_call, mrn, user["user_id"], body.who, body.outcome, body.note)
+
+
+class PauseIn(BaseModel):
+    until: str
+    reason: str | None = None
+
+
+@app.post("/patients/{mrn}/pause")
+def pause_patient(mrn: str, body: PauseIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(patients.pause, mrn, user["user_id"], body.until, body.reason)
+
+
+@app.post("/patients/{mrn}/remind", status_code=201)
+def remind_patient(mrn: str, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(patients.send_reminder, mrn, user["user_id"])
+
+
+@app.get("/decisions/recent")
+def recent_decisions(_user: dict = Depends(require_role(*CLINICAL))):
+    return in_tx(timeline.recent_decisions)
+
+
+@app.get("/care-plan")
+def care_plan(_user: dict = Depends(require_role(*CLINICAL))):
+    return in_tx(programme.care_plan)
+
+
+@app.get("/kpis")
+def kpis(_user: dict = Depends(require_role(*ANY_ROLE))):
+    return in_tx(programme.kpis)
+
+
+@app.get("/patients/{mrn}/assessment")
+def patient_assessment(mrn: str, _user: dict = Depends(require_role(*CLINICAL))):
+    """The patient's worklist status and reasons (also for the oncologist's read-only view)."""
+    def run(conn):
+        data = worklist.build(conn)
+        row = next((r for r in data["patients"] if r["mrn"] == mrn), None)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Patient {mrn} not found")
+        return {**row, "today": data["today"]}
+
+    return in_tx(run)
+
+
+class ModeIn(BaseModel):
+    mode: str
+
+
+@app.post("/care-plan/autonomy/{task}")
+def set_task_mode(task: str, body: ModeIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(programme.set_task_mode, task, body.mode, user["user_id"])

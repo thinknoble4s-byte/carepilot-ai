@@ -11,7 +11,8 @@ def create_task(conn, *, mrn: str, task_type: str, reason: str, owner_name: str 
                 actor_type: str, actor: str, handover_id=None, card_id=None, gap_id=None,
                 dedupe_key: str | None = None) -> dict:
     rules = policy.deadlines(conn)
-    owner = owner_name or rules["default_coordinator"]
+    named = conn.execute("SELECT coordinator FROM patient WHERE mrn = %s", (mrn,)).fetchone()
+    owner = owner_name or (named and named["coordinator"]) or rules["default_coordinator"]
     days = rules["working_days"].get(task_type)
     due = policy.add_working_days(clock.get_today(conn), days) if days is not None else None
     task = conn.execute(

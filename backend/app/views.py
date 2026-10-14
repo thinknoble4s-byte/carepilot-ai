@@ -5,7 +5,7 @@ from .errors import NotFound
 def list_patients(conn) -> list[dict]:
     return conn.execute(
         """
-        SELECT p.mrn, p.full_name, p.preferred_language, p.status, p.agent_on,
+        SELECT p.mrn, p.full_name, p.preferred_language, p.status, p.agent_on, p.coordinator,
                CASE WHEN c.scopes IS NULL THEN 'none'
                     WHEN 'automated_messaging' = ANY (c.scopes) THEN 'automated_ok'
                     ELSE 'no_automated_messaging' END AS consent_status,
@@ -24,7 +24,7 @@ def patient_detail(conn, mrn: str) -> dict:
     patient = conn.execute(
         """
         SELECT mrn, full_name, phone, caregiver_name, caregiver_phone, preferred_language, status, agent_on,
-               next_planned_action, batch_id, created_at
+               next_planned_action, coordinator, pause_until, pause_reason, batch_id, created_at
         FROM patient WHERE mrn = %s
         """,
         (mrn,),
@@ -124,6 +124,10 @@ def messages(conn, mrn: str) -> list[dict]:
         SELECT 'in', inbound_id, created_at, received_on, from_role, text, NULL, NULL, NULL, NULL, NULL, NULL,
                button, handling
         FROM inbound_message WHERE mrn = %(mrn)s
+        UNION ALL
+        SELECT 'call', call_id, created_at, called_on, who, note, NULL, NULL, outcome, NULL, NULL, called_by,
+               NULL, NULL
+        FROM call_log WHERE mrn = %(mrn)s
         ORDER BY created_at
         """,
         {"mrn": mrn},

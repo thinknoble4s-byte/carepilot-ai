@@ -18,7 +18,7 @@ from .reference import (DEMO_START_DATE, USERS, autonomy_policy, deadline_policy
 SEED_USER = "u_priya"
 
 DEMO_TABLES = (
-    "inbound_message", "outbox_message", "gap_event", "handover",
+    "call_log", "inbound_message", "outbox_message", "gap_event", "handover",
     "order_card", "care_plan", "coordinator_task", "consent", "appointment", "import_exception",
     "patient", "import_batch", "app_user", "demo_clock", "config_versions", "audit_ledger",
 )
@@ -70,6 +70,9 @@ def reset(conn, by: str | None = None) -> dict:
     # Audited, as the coordinator: the two imports and every consent record.
     importer.import_register(conn, SEED_USER, read_seed("register.csv").encode(), "register.csv")
     importer.import_appointments(conn, SEED_USER, read_seed("appointments.csv").encode(), "appointments.csv")
+    # Each patient has a named coordinator (odd MRNs Priya Nair, even MRNs Meera Joseph).
+    conn.execute("""UPDATE patient SET coordinator = CASE WHEN substring(mrn from 5)::int % 2 = 1
+                    THEN 'Priya Nair' ELSE 'Meera Joseph' END""")
     for row in csv.DictReader(io.StringIO(read_seed("consent_records.csv"))):
         consent.record_consent(conn, row["recorded_by"], row["mrn"], row["consent_reference"],
                                row["scopes"].split(";"), row["recorded_on"])

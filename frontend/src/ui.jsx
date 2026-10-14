@@ -1,7 +1,10 @@
 // Shared building blocks that mirror the prototype (v7.2): screen heading, pop-up, notification, dates.
 import React, { createContext, useContext } from 'react';
 
-export const UI = createContext({ toast: () => {}, showModal: () => {}, closeModal: () => {}, refresh: () => {} });
+export const UI = createContext({
+  toast: () => {}, showModal: () => {}, closeModal: () => {}, refresh: () => {}, nav: () => {}, today: null, role: null, user: null,
+  name: (id) => id,
+});
 export const useUI = () => useContext(UI);
 
 // The prototype's fmt(): "22 Sept 2026".
@@ -78,3 +81,82 @@ export function Placeholder({ what, when }) {
     </div>
   );
 }
+
+// Worklist statuses (prototype STATUS): [pill colour, label].
+export const STATUS = {
+  action: ['bad', 'Coordinator action required'], noresp: ['warn', 'No response'], overdue: ['warn', 'Overdue'],
+  verify: ['ai', 'Awaiting verification'], approval: ['ai', 'Approval waiting'], agent: ['hybrid', 'Agent handling'],
+  duesoon: ['brand', 'Due soon'], watch: ['hybrid', 'Early warning'], ontrack: ['good', 'On track'],
+  paused: ['gray', 'Paused'], closed: ['gray', 'Closed'],
+};
+
+export function Chip({ k }) {
+  const s = STATUS[k] || ['gray', k];
+  return <span className={`pill ${s[0]}`}><span className="dot" />{s[1]}</span>;
+}
+
+export function Pill({ tone, children }) {
+  return <span className={`pill ${tone}`}><span className="dot" />{children}</span>;
+}
+
+const days = (a, b) => Math.round((new Date(`${a}T00:00:00`) - new Date(`${b}T00:00:00`)) / 864e5);
+
+// The prototype's deadline label: "⏱ Due by 10 Nov 2026" / "Due today" / "Overdue since …".
+export function Dl({ due, label, today }) {
+  if (!due) return null;
+  const d = days(String(due).slice(0, 10), String(today || due).slice(0, 10));
+  const cls = d < 0 ? 'bad' : d === 0 ? 'warn' : '';
+  const text = label
+    ? `${label}${d < 0 ? ` overdue since ${fmt(due)}` : d === 0 ? ' due today' : ` due by ${fmt(due)}`}`
+    : d < 0 ? `Overdue since ${fmt(due)}` : d === 0 ? 'Due today' : `Due by ${fmt(due)}`;
+  return <span className={`dl ${cls}`}>⏱ {text}</span>;
+}
+
+export function Reason({ r, today }) {
+  return (
+    <div className={r.tag === 'watch' ? 'early' : r.tag === 'agent' ? 'byagent' : ''}>
+      {r.tag === 'agent' && <><span className="v4-k agent mini">Agent</span> </>}
+      {r.txt}
+      {r.due && <> <Dl due={r.due} today={today} /></>}
+    </div>
+  );
+}
+
+export function patientStatusPill(status, pauseUntil) {
+  if (status === 'Paused') return <Pill tone="gray">Paused{pauseUntil ? ` until ${fmt(pauseUntil)}` : ''}</Pill>;
+  if (status === 'Agent off') return <Pill tone="hybrid">On follow-up · agent off</Pill>;
+  if (status === 'Lost to follow-up') return <Pill tone="bad">Lost to follow-up</Pill>;
+  if (status === 'Followed up elsewhere') return <Pill tone="gray">Followed up elsewhere</Pill>;
+  return <Pill tone="brand">On follow-up</Pill>;
+}
+
+// Plain-language audit lines (the ledger stores codes).
+const ACTION_TEXT = {
+  demo_reset: 'Demo reset to the starting state', register_imported: 'Imported the follow-up register',
+  appointments_imported: 'Imported the appointment list', exception_dismissed: 'Dismissed an import exception',
+  consent_recorded: 'Recorded consent', plan_confirmed: 'Confirmed the follow-up plan',
+  cards_generated: 'Created order cards from the plan', clock_advanced: 'Advanced the demo date',
+  card_state_changed: 'Moved an order card', gap_detected: 'Morning gap check raised a gap',
+  agent_decision: 'Agent decision', message_sent: 'Sent an approved message', message_blocked: 'Send-guard blocked a message',
+  message_drafted: 'Drafted a message for approval', message_approved: 'Approved a drafted message',
+  message_rejected: 'Rejected a drafted message', reply_received: 'Reply received on WhatsApp',
+  handover_opened: 'Handover opened; automated messages stopped', handover_reply_added: 'Reply added to the open handover',
+  gate1_decided: 'Gate 1 decision', gate2_decided: "Doctor's decision (Gate 2)", instruction_recorded: "Doctor's instruction (Gate 3)",
+  patient_called: 'Call recorded on the handover', handover_closed: 'Handover closed', task_created: 'Task created',
+  task_done: 'Task done', task_escalated: 'Deadline missed: escalated to cover', task_reminder_sent: 'Deadline missed: reminder sent',
+  patient_status_changed: 'Follow-up status changed', pause_ended: 'Pause ended; follow-up resumed', call_logged: 'Call logged',
+  'session.user_selected': 'Switched user', 'config.activated': 'Configuration activated',
+};
+
+export function describe(e) {
+  const d = e.details || {};
+  const extra = [
+    e.rule && `rule ${e.rule}`, e.reason_code && `reason ${e.reason_code}`, e.outcome && `outcome ${e.outcome}`,
+    d.task_type && d.task_type.replaceAll('_', ' '), d.from && d.to && `${d.from} → ${d.to}`, d.reason && `"${d.reason}"`,
+    d.note && `"${d.note}"`, d.text && `"${d.text}"`, d.button && `button ${d.button}`,
+  ].filter(Boolean);
+  return `${ACTION_TEXT[e.action] || e.action}${extra.length ? ` — ${extra.join(' · ')}` : ''}`;
+}
+
+export const KIND = { agent: 'agent', person: 'human', system: 'system', ai: 'ai', ai_suggestion: 'ai' };
+export const KIND_LABEL = { agent: 'Agent', human: 'Human', system: 'System', ai: 'AI suggestion' };

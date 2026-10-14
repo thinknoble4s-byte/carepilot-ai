@@ -1,0 +1,111 @@
+"""Patient journey timeline (prototype v7.2 'Patient journey').
+
+Every event carries its source and its origin. An item that nothing on file
+explains (for example an appointment with no order card behind it) is shown
+as an origin gap, never assumed. Trust tiers: Hospital A (in-house),
+patient-reported, CarePilot (raised by the rules or the agent).
+"""
+from .errors import NotFound
+from .reference import USERS_BY_ID
+
+
+def _who(user_id) -> str:
+    return USERS_BY_ID.get(user_id, {}).get("name", user_id)
+
+
+def _ev(day, label, kind, tier, src, origin, rule=None):
+    return {"date": day, "label": label, "kind": kind, "tier": tier, "src": src, "origin": origin, "rule": rule}
+
+
+def build(conn, mrn: str) -> dict:
+    p = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
+    if p is None:
+        raise NotFound(f"Patient {mrn} not found")
+    plan = conn.execute("SELECT * FROM care_plan WHERE mrn = %s", (mrn,)).fetchone()
+    events = []
+    consent = conn.execute("SELECT * FROM consent WHERE mrn = %s ORDER BY consent_id", (mrn,)).fetchall()
+    for c in consent:
+        events.append(_ev(c["recorded_on"], f"Consent recorded ({c['consent_reference']}): {', '.join(c['scopes'])}",
+                          "milestone", "hosp", f"Consent record {c['consent_reference']}", "Coordinator, consent form"))
+    if plan:
+        events.append(_ev(plan["treatment_end_date"], f"Active treatment completed ({plan['therapy']})", "milestone",
+                          "hosp", "Care plan confirmation", f"Confirmed by {_who(plan['confirmed_by'])}"))
+        events.append(_ev(plan["confirmed_on"] or plan["treatment_end_date"],
+                          f"Follow-up plan {plan['template_id']} v{plan['template_version']} "
+                          f"confirmed; identifiers checked: {', '.join(plan['identifiers_checked'])}", "milestone",
+                          "hosp", "Care plan confirmation", f"Confirmed by {_who(plan['confirmed_by'])}"))
+
+    cards = conn.execute("SELECT * FROM order_card WHERE mrn = %s ORDER BY due_date", (mrn,)).fetchall()
+    for c in cards:
+        origin = (f"Doctor's instruction (handover #{c['handover_id']})" if c["origin"] == "instruction"
+                  else f"Plan {plan['template_id']} item {c['item_code']}" if plan else None)
+        events.append(_ev(c["due_date"], f"{c['name']} due — {c['state']}", "routine", "hosp",
+                          f"Order card {c['item_code']}", origin))
+
+    appts = conn.execute("SELECT * FROM appointment WHERE mrn = %s ORDER BY appointment_date", (mrn,)).fetchall()
+    for a in appts:
+        match = next((c for c in cards if c["department"] == a["department"]
+                      and abs((c["due_date"] - a["appointment_date"]).days) <= 30), None)
+        events.append(_ev(a["appointment_date"], f"Appointment: {a['department']}", "routine", "hosp",
+                          f"Appointment list (batch #{a['batch_id']})",
+                          f"Order card {match['item_code']}" if match else None))
+
+    for g in conn.execute(
+            """SELECT g.*, c.item_code, c.name FROM gap_event g JOIN order_card c USING (card_id)
+               WHERE g.mrn = %s ORDER BY gap_id""", (mrn,)).fetchall():
+        what = "not booked 7 days before due" if g["rule"] == "G0" else "missed: not attended by due date + 2 days"
+        events.append(_ev(g["detected_on"], f"{g['name']} — {what}", "gap", "carepilot", "Morning gap check",
+                          "Raised automatically by the morning gap check", g["rule"]))
+
+    for m in conn.execute("SELECT * FROM outbox_message WHERE mrn = %s ORDER BY message_id", (mrn,)).fetchall():
+        who = "CarePilot agent" if m["actor_type"] == "agent" else "System" if m["actor_type"] == "system" else m["actor"]
+        status = {"sent": "sent", "blocked": f"blocked ({m['blocked_reason']})", "pending_approval": "drafted",
+                  "rejected": "rejected"}[m["status"]]
+        origin = (f"Gap event #{m['gap_id']}" if m["gap_id"] else f"Handover #{m['handover_id']}" if m["handover_id"]
+                  else f"Sent by {_who(who)}")
+        events.append(_ev(m["created_on"], f"WhatsApp to {m['recipient']}: {m['template_id'].replace('_', ' ')} — {status}",
+                          "routine", "carepilot" if m["actor_type"] in ("agent", "system") else "hosp",
+                          "WhatsApp (simulated)", origin))
+    for i in conn.execute("SELECT * FROM inbound_message WHERE mrn = %s ORDER BY inbound_id", (mrn,)).fetchall():
+        said = f"tapped \"{i['button'].replace('_', ' ')}\"" if i["button"] else ""
+        if i["text"]:
+            said += (" and wrote: " if said else "wrote: ") + f"\"{i['text']}\""
+        events.append(_ev(i["received_on"], f"Reply from {i['from_role']}: {said}", "routine", "patient",
+                          f"WhatsApp reply #{i['inbound_id']}",
+                          f"Reply to message #{i['in_reply_to']}" if i["in_reply_to"] else "Unprompted message"))
+    for c in conn.execute("SELECT * FROM call_log WHERE mrn = %s ORDER BY call_id", (mrn,)).fetchall():
+        events.append(_ev(c["called_on"], f"Call to {c['who']}: {c['outcome']}" + (f" — {c['note']}" if c["note"] else ""),
+                          "routine", "hosp", "Call log", f"Logged by {_who(c['called_by'])}"))
+    for h in conn.execute("SELECT * FROM handover WHERE mrn = %s ORDER BY handover_id", (mrn,)).fetchall():
+        events.append(_ev(h["opened_on"], f"Handover opened ({h['trigger'].replace('_', ' ')}); automated messages stopped",
+                          "routine", "carepilot", h["source"] or "Handover", f"Handover #{h['handover_id']}"))
+        if h["gate1_on"]:
+            events.append(_ev(h["gate1_on"], f"Gate 1 — coordinator: {h['gate1_choice'].replace('_', ' ')}", "routine",
+                              "hosp", f"Handover #{h['handover_id']}", f"Decided by {_who(h['gate1_by'])}"))
+        if h["gate2_on"]:
+            events.append(_ev(h["gate2_on"], f"Gate 2 — doctor's decision: {h['gate2_decision']}", "milestone", "hosp",
+                              f"Handover #{h['handover_id']}", f"Decided by {_who(h['gate2_by'])}"))
+        if h["instruction_on"]:
+            events.append(_ev(h["instruction_on"], f"Gate 3 — instruction: {h['instruction']}", "milestone", "hosp",
+                              "Hospital record (simulated)", f"Recorded by {_who(h['instruction_by'])}"))
+        if h["closed_on"]:
+            events.append(_ev(h["closed_on"], f"Handover closed: {h['closed_reason']}", "routine", "hosp",
+                              f"Handover #{h['handover_id']}", f"Closed by {_who(h['closed_by'])}"))
+
+    events.sort(key=lambda e: (e["date"], e["kind"] != "milestone"))
+    routine = [e for e in events if e["kind"] == "routine"]
+    return {"mrn": mrn, "full_name": p["full_name"], "status": p["status"],
+            "therapy": plan["therapy"] if plan else None, "events": events,
+            "traced": sum(1 for e in routine if e["origin"]), "need_origin": len(routine),
+            "milestones": sum(1 for e in events if e["kind"] == "milestone")}
+
+
+def recent_decisions(conn) -> list[dict]:
+    return conn.execute(
+        """
+        SELECT h.handover_id, h.mrn, p.full_name, h.gate2_decision, h.gate2_on, h.gate2_by, h.instruction,
+               h.instruction_on, h.stage
+        FROM handover h JOIN patient p USING (mrn) WHERE h.gate2_decision IS NOT NULL
+        ORDER BY h.gate2_on DESC, h.handover_id DESC LIMIT 20
+        """
+    ).fetchall()

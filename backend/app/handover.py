@@ -83,16 +83,18 @@ def gate1(conn, handover_id: int, user: dict, choice: str | None) -> dict:
         task = tasks.create_task(conn, mrn=h["mrn"], task_type="doctor_decision", owner_name=doctor["name"],
                                  handover_id=handover_id, reason="Gate 2: decide Urgent or Routine",
                                  actor_type="person", actor=user["user_id"])
-        h = _stage(conn, h, "awaiting_doctor", gate1_choice=choice, gate1_by=user["user_id"], doctor=doctor["user_id"])
+        h = _stage(conn, h, "awaiting_doctor", gate1_choice=choice, gate1_by=user["user_id"], doctor=doctor["user_id"],
+                   gate1_on=clock.get_today(conn))
         next_action = f"Doctor decision (Gate 2) by {_due(task)}, {doctor['name']}"
     elif choice == "call_first":
         task = tasks.create_task(conn, mrn=h["mrn"], task_type="call_first", handover_id=handover_id,
                                  reason="Call the patient before deciding", actor_type="person",
                                  actor=user["user_id"])
-        h = _stage(conn, h, "calling", gate1_choice=choice, gate1_by=user["user_id"])
+        h = _stage(conn, h, "calling", gate1_choice=choice, gate1_by=user["user_id"], gate1_on=clock.get_today(conn))
         next_action = f"Coordinator to call the patient by {_due(task)}"
     else:
-        h = _stage(conn, h, "ready_to_close", gate1_choice=choice, gate1_by=user["user_id"])
+        h = _stage(conn, h, "ready_to_close", gate1_choice=choice, gate1_by=user["user_id"],
+                   gate1_on=clock.get_today(conn))
         next_action = "Coordinator to close the handover with a reason"
     audit.append(conn, actor_type="person", actor_name=user["user_id"], action="gate1_decided", entity_type="handover",
                  entity_id=str(handover_id), mrn=h["mrn"], outcome=choice)
@@ -110,6 +112,7 @@ def record_call(conn, handover_id: int, user: dict, note: str | None) -> dict:
         (handover_id,)).fetchone()
     if urgent:
         tasks.complete_task(conn, urgent["task_id"], user["user_id"], note.strip())
+        conn.execute("UPDATE handover SET called_on = %s WHERE handover_id = %s", (clock.get_today(conn), handover_id))
         kind, next_action = "urgent_call", None
     elif h["stage"] == "calling":
         tasks.complete_open(conn, handover_id, "call_first", user["user_id"], note.strip())
@@ -143,7 +146,8 @@ def gate2(conn, handover_id: int, user: dict, decision: str | None) -> dict:
         call = tasks.create_task(conn, mrn=h["mrn"], task_type="urgent_call", handover_id=handover_id,
                                  reason="Urgent: call the patient today", actor_type="person", actor=user["user_id"])
         next_action = f"Urgent call to the patient today ({call['assigned_name']}); {next_action}"
-    h = _stage(conn, h, "awaiting_instruction", gate2_decision=decision, gate2_by=user["user_id"])
+    h = _stage(conn, h, "awaiting_instruction", gate2_decision=decision, gate2_by=user["user_id"],
+               gate2_on=clock.get_today(conn))
     audit.append(conn, actor_type="person", actor_name=user["user_id"], action="gate2_decided", entity_type="handover",
                  entity_id=str(handover_id), mrn=h["mrn"], outcome=decision)
     set_next_action(conn, h["mrn"], next_action)
@@ -192,7 +196,7 @@ def record_instruction(conn, handover_id: int, user: dict, text: str | None, ord
                                handover_id=handover_id)
     tasks.complete_open(conn, handover_id, "doctor_instruction", user["user_id"], text.strip())
     h = _stage(conn, h, "ready_to_close", instruction=text.strip(), instruction_by=user["user_id"],
-               instruction_card=card["card_id"] if card else None)
+               instruction_card=card["card_id"] if card else None, instruction_on=clock.get_today(conn))
     audit.append(conn, actor_type="person", actor_name=user["user_id"], action="instruction_recorded",
                  entity_type="handover", entity_id=str(handover_id), mrn=h["mrn"],
                  details={"instruction": text.strip(), "card_id": card["card_id"] if card else None,

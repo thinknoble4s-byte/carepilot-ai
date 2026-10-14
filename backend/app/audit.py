@@ -56,3 +56,38 @@ def recent(conn, limit: int = 20) -> list[dict]:
 def verify(conn) -> dict:
     row = conn.execute("SELECT * FROM audit_ledger_verify()").fetchone()
     return {"valid": row["first_bad_id"] is None, "checked": row["checked"], "firstBadId": row["first_bad_id"]}
+
+
+KINDS = {"agent": ("agent",), "person": ("person",), "system": ("system",), "ai": ("ai", "ai_suggestion")}
+
+
+def search(conn, *, mrn: str | None = None, kind: str | None = None, days: int | None = None,
+           q: str | None = None, limit: int = 400) -> dict:
+    """Filter the ledger by patient, actor kind, recency and text; counts per kind for the same filter."""
+    where, params = ["action <> 'session.user_selected'"], {}
+    if mrn:
+        where.append("mrn = %(mrn)s")
+        params["mrn"] = mrn
+    if days:
+        where.append("occurred_at >= now() - make_interval(days => %(days)s)")
+        params["days"] = int(days)
+    if q:
+        where.append("(action || ' ' || actor_name || ' ' || coalesce(entity_type, '') || ' ' || details::text) "
+                     "ILIKE %(q)s")
+        params["q"] = f"%{q}%"
+    counts = {r["actor_type"]: r["n"] for r in conn.execute(
+        f"SELECT actor_type, count(*) AS n FROM audit_ledger WHERE {' AND '.join(where)} GROUP BY actor_type",
+        params).fetchall()}
+    if kind in KINDS:
+        where.append("actor_type = ANY(%(kinds)s)")
+        params["kinds"] = list(KINDS[kind])
+    entries = conn.execute(
+        f"""
+        SELECT id, occurred_at, actor_type, actor_name, action, entity_type, entity_id, mrn, reason_code, rule,
+               outcome, details, hash
+        FROM audit_ledger WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT %(limit)s
+        """,
+        {**params, "limit": limit},
+    ).fetchall()
+    return {"entries": entries, "chain": verify(conn),
+            "counts": {k: sum(counts.get(t, 0) for t in v) for k, v in KINDS.items()}}

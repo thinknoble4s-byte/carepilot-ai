@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, post, setUser } from './api.js';
 import AuditTrail from './AuditTrail.jsx';
+import CarePlan from './CarePlan.jsx';
 import Decisions from './Decisions.jsx';
+import Indicators from './Indicators.jsx';
 import Intake from './Intake.jsx';
-import Journey from './Journey.jsx';
-import Workspace, { CardsByState } from './Workspace.jsx';
-import { fmt, Modal, Placeholder, Scope, ScreenHead, UI } from './ui.jsx';
+import PatientPage from './PatientPage.jsx';
+import Timeline from './Timeline.jsx';
+import Worklist from './Worklist.jsx';
+import { fmt, Modal, Scope, UI } from './ui.jsx';
 
 // Tabs per role, as in prototype v7.2: [id, label, count key].
 const TABS = {
@@ -87,7 +90,8 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [userId, setUserId] = useState(initialUser);
   const [screen, setScreen] = useState(null);
-  const [journeyMrn, setJourneyMrn] = useState('SYN-0007');
+  const [pid, setPid] = useState('SYN-0007');
+  const [auditMrn, setAuditMrn] = useState('');
   const [today, setToday] = useState(null);
   const [counts, setCounts] = useState({});
   const [version, setVersion] = useState(0);
@@ -98,7 +102,8 @@ export default function App() {
   const user = users.find((u) => u.id === userId);
   const role = user?.role || 'coordinator';
   const dbUp = health?.db === 'available';
-  const current = screen && TABS[role].some((t) => t[0] === screen) ? screen : HOME[role];
+  const allowed = (s) => TABS[role].some((t) => t[0] === s) || (s === 'plan' && role !== 'chief');
+  const current = screen && allowed(screen) ? screen : HOME[role];
 
   const toast = useCallback((text) => {
     setToastText(text);
@@ -123,12 +128,25 @@ export default function App() {
     loadShell();
   }, [loadShell]);
 
+  const nav = useCallback((next, mrn) => {
+    if (next === 'audit') setAuditMrn(mrn || '');
+    else if (mrn) setPid(mrn);
+    setScreen(next);
+    setModal(null);
+    window.scrollTo(0, 0);
+  }, []);
+
   const ui = useMemo(() => ({
     toast,
     showModal: (title, sub, body, wide) => setModal({ title, sub, body, wide }),
     closeModal: () => setModal(null),
     refresh,
-  }), [toast, refresh]);
+    nav,
+    today,
+    role,
+    user,
+    name: (id) => users.find((u) => u.id === id)?.person || id,
+  }), [toast, refresh, nav, today, role, user, users]);
 
   useEffect(() => {
     api('users').then(setUsers).catch(() => {});
@@ -164,12 +182,6 @@ export default function App() {
     }
   };
 
-  const openPatient = (mrn) => {
-    setJourneyMrn(mrn);
-    setScreen('journey');
-    window.scrollTo(0, 0);
-  };
-
   let body;
   if (!health) body = <div className="card"><div className="empty">Connecting…</div></div>;
   else if (!dbUp) {
@@ -182,30 +194,15 @@ export default function App() {
         </div>
       </div>
     );
-  } else if (current === 'worklist') body = <Workspace key={version} onOpenPatient={openPatient} user={user} />;
-  else if (current === 'decide') body = <Decisions key={version} onOpenPatient={openPatient} user={user} />;
-  else if (current === 'journey') {
-    body = <Journey key={`${version}-${userId}-${journeyMrn}`} role={role} mrn={journeyMrn} onSelect={setJourneyMrn} />;
-  } else if (current === 'intake') body = <Intake key={version} />;
-  else if (current === 'audit') body = <AuditTrail key={version} users={users} role={role} />;
-  else if (role === 'chief') {
-    body = (
-      <>
-        <ScreenHead eyebrow={`Chief of hospital · ${user?.person || ''}`} title="Performance Indicators"
-          sub="How well the follow-up programme keeps survivors connected. Aggregates only — no patient names or records on this screen." />
-        <CardsByState key={version} />
-        <Placeholder what="The indicators with baseline and pilot values" when="R6 of the screen rebuild (measured values arrive in Increment 6)" />
-      </>
-    );
-  } else {
-    body = (
-      <>
-        <ScreenHead eyebrow="Configured by the clinical lead · read only here" title="Care Plan"
-          sub="The breast cancer follow-up plan and how CarePilot runs it: what is tracked, when it acts, who owns each step, and what the agent may do." />
-        <Placeholder what="The read-only Care Plan (schedule, gap rules, deadlines, autonomy policy, approved templates)" when="R6 of the screen rebuild" />
-      </>
-    );
-  }
+  } else if (!user) body = <div className="card"><div className="empty">Loading…</div></div>;
+  else if (current === 'worklist') body = <Worklist key={version} />;
+  else if (current === 'plan') body = <PatientPage key={`${version}-${pid}`} mrn={pid} />;
+  else if (current === 'decide') body = <Decisions key={version} />;
+  else if (current === 'journey') body = <Timeline key={`${version}-${pid}`} mrn={pid} />;
+  else if (current === 'intake') body = <Intake key={version} />;
+  else if (current === 'audit') body = <AuditTrail key={`${version}-${auditMrn}`} mrn={auditMrn} users={users} />;
+  else if (role === 'chief') body = <Indicators key={version} />;
+  else body = <CarePlan key={version} />;
 
   return (
     <UI.Provider value={ui}>
@@ -231,8 +228,8 @@ export default function App() {
         </div>
         <div className="navtabs">
           {TABS[role].map(([id, label, countKey]) => (
-            <button key={id} type="button" className={`navtab ${current === id ? 'active' : ''}`}
-              onClick={() => { setScreen(id); window.scrollTo(0, 0); }}>
+            <button key={id} type="button" className={`navtab ${current === id || (current === 'plan' && id === HOME[role]) ? 'active' : ''}`}
+              onClick={() => nav(id)}>
               {label}{countKey && counts[countKey] ? <> <span className="n">{counts[countKey]}</span></> : null}
             </button>
           ))}
