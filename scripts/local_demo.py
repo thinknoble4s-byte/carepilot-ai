@@ -23,12 +23,16 @@ PAGE_PORT, API_PORT = 5173, 8000
 
 
 def build_frontend() -> None:
-    if (DIST / "index.html").exists():
+    """Build the page when it is missing or older than the frontend code (e.g. after a git pull)."""
+    built = DIST / "index.html"
+    sources = [p for p in (ROOT / "frontend").rglob("*")
+               if p.is_file() and "node_modules" not in p.parts and "dist" not in p.parts]
+    if built.exists() and max(p.stat().st_mtime for p in sources) <= built.stat().st_mtime:
         return
     npm = shutil.which("npm")
     if not npm:
         sys.exit("frontend/dist is missing and npm is not installed: install Node.js 20+ first")
-    print("Building the page (first run only) ...")
+    print("Building the page (first run, or the frontend code changed) ...")
     subprocess.run([npm, "ci"], cwd=ROOT / "frontend", check=True)
     subprocess.run([npm, "run", "build"], cwd=ROOT / "frontend", check=True)
 
