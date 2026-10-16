@@ -53,11 +53,13 @@ def transition_card(conn, card_id: int, new_state: str, actor_type: str, actor: 
         """
         UPDATE order_card
         SET state = %(state)s,
-            appointment_date = CASE WHEN %(state)s = 'Scheduled' THEN %(when)s::date ELSE appointment_date END
+            appointment_date = CASE WHEN %(state)s IN ('Scheduled', 'Booked') AND %(when)s::date IS NOT NULL
+                                    THEN %(when)s::date ELSE appointment_date END,
+            booking_source = CASE WHEN %(state)s = 'Booked' THEN %(source)s ELSE booking_source END
         WHERE card_id = %(card_id)s
         RETURNING card_id, mrn, item_code, card_type, state, appointment_date
         """,
-        {"state": new_state, "when": ctx.get("appointment_date"), "card_id": card_id},
+        {"state": new_state, "when": ctx.get("appointment_date"), "card_id": card_id, "source": ctx.get("source")},
     ).fetchone()
     audit.append(
         conn, actor_type=actor_type, actor_name=actor, action="card_state_changed",

@@ -1,7 +1,7 @@
 // R7 — Audit trail (prototype v7.2 scrAudit): patient, date range, actor type and text filters.
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
-import { describe, KIND, KIND_LABEL, ScreenHead, useUI } from './ui.jsx';
+import { describe, fmt, KIND, KIND_LABEL, ScreenHead, useUI } from './ui.jsx';
 
 const RANGES = [[1, 'Since yesterday'], [7, 'Last 7 days'], [30, 'Last 30 days'], [0, 'All dates']];
 
@@ -67,7 +67,7 @@ export default function AuditTrail({ mrn: initialMrn, users }) {
         </div>
         <div className="small-note" style={{ marginTop: 8 }}>
           {mrn ? <><b>{byMrn[mrn] || mrn}</b> · </> : 'All patients · '}
-          {RANGES.find((r) => r[0] === days)?.[1]} (real time of each action) · {c.agent} agent actions, {c.person} human decisions or overrides,
+          {RANGES.find((r) => r[0] === days)?.[1]} (filtered on the real time of each action; each entry shows its demo date and time) · {c.agent} agent actions, {c.person} human decisions or overrides,
           {' '}{c.system} system checks, {c.ai} AI suggestions
           {data && <> · hash chain {data.chain.valid ? <b>intact</b> : <span className="error">broken at entry {data.chain.firstBadId}</span>} ({data.chain.checked} entries checked)</>}
         </div>
@@ -79,7 +79,8 @@ export default function AuditTrail({ mrn: initialMrn, users }) {
             const k = KIND[e.actor_type] || 'system';
             return (
               <div key={e.id} className="e aud-e">
-                <div className="ts">#{e.id} · {new Date(e.occurred_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                <div className="ts">#{e.id} · demo {e.demo_date ? fmt(e.demo_date) : '—'}{e.demo_time ? ` ${e.demo_time}` : ''}
+                  <div className="small-note">{new Date(e.occurred_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</div></div>
                 <div><span className={`v4-k ${k}`}>{KIND_LABEL[k]}</span></div>
                 <div>{e.mrn ? <a role="button" tabIndex={0} onClick={() => ui.nav('plan', e.mrn)}>{byMrn[e.mrn] || e.mrn}</a> : 'All patients'}</div>
                 <div><b>{names[e.actor_name] || e.actor_name}</b> — {describe(e)}

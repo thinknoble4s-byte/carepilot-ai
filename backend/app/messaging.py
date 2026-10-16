@@ -51,31 +51,42 @@ def guard(conn, patient: dict, template_id: str, recipient: str, actor_type: str
     return None, inputs
 
 
-def render(tmpl: dict, patient: dict, language: str, card: dict | None, due: date | None) -> tuple[str, str]:
-    def fill(lang: str) -> str:
-        item = ""
-        if card:
-            item = ITEM_LABELS.get(card["item_code"], {}).get(lang) or card["name"].lower()
-        return tmpl["text"][lang].format(first_name=patient["full_name"].split()[0], item=item,
-                                         due=due.strftime("%d/%m/%Y") if due else "")
-
-    lang = language if language in tmpl["text"] else "English"
-    return fill(lang), fill("English")
+def render(tmpl: dict, patient: dict, card: dict | None) -> str:
+    """Fill an approved template. Placeholders: {patient_name}, {first_name}, {item}, {due}, {due_date}."""
+    lang = tmpl["language"]
+    item = ""
+    if card:
+        item = ITEM_LABELS.get(card["item_code"], {}).get(lang) or card["name"].lower()
+    due = card["due_date"].strftime(tmpl.get("date_format") or "%d/%m/%Y") if card else ""
+    text = tmpl["text"].format(patient_name=patient["full_name"], first_name=patient["full_name"].split()[0],
+                               item=item, due=due, due_date=due)
+    return f"{text}\n\n{tmpl['closing']}" if tmpl.get("closing") else text
 
 
 def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: str, reason_code: str,
                  recipient: str = "patient", card_id: int | None = None, gap_id: int | None = None,
                  handover_id: int | None = None, mode: str = "live") -> dict:
+    """Send one approved template through the send-guard. The sender refuses a template that is not
+    approved and effective for the patient's language (held_template_missing): no fallback language."""
     patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
     if patient is None:
         raise NotFound(f"Patient {mrn} not found")
-    tmpl = policy.template(conn, template_id)
+    lang = patient["preferred_language"]
+    tmpl = policy.template(conn, template_id, lang)
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s", (card_id,)).fetchone() if card_id else None
-    body, body_en = render(tmpl, patient, patient["preferred_language"], card, card["due_date"] if card else None)
     blocked, inputs = guard(conn, patient, template_id, recipient, actor_type)
+    if tmpl is None and not blocked:
+        blocked = "held_template_missing"
+    if tmpl is not None:
+        body = render(tmpl, patient, card)
+        english = tmpl if lang == "English" else policy.template(conn, template_id, "English")
+        body_en = render(english, patient, card) if english else body
+        buttons = tmpl["buttons"]
+    else:
+        body = body_en = ""
+        buttons = []
     status = "blocked" if blocked else ("pending_approval" if mode == "shadow" else "sent")
-    lang = patient["preferred_language"] if patient["preferred_language"] in tmpl["text"] else "English"
-    buttons = [{"id": b["id"], "label": b.get(lang, b["English"]), "label_en": b["English"]} for b in tmpl["buttons"]]
+    version = tmpl["version"] if tmpl else "none"
     msg = conn.execute(
         """
         INSERT INTO outbox_message (mrn, recipient, to_phone, language, template_id, template_version, body, body_en,
@@ -85,15 +96,15 @@ def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: st
         RETURNING *
         """,
         (mrn, recipient, patient["phone"] if recipient == "patient" else patient["caregiver_phone"], lang,
-         tmpl["template_id"], tmpl["version"], body, body_en, Jsonb(buttons), card_id, gap_id, handover_id,
+         template_id, version, body, body_en, Jsonb(buttons), card_id, gap_id, handover_id,
          actor_type, actor, reason_code, status, blocked, clock.get_today(conn)),
     ).fetchone()
     audit.append(
         conn, actor_type=actor_type, actor_name=actor,
         action={"sent": "message_sent", "blocked": "message_blocked", "pending_approval": "message_drafted"}[status],
         entity_type="outbox_message", entity_id=str(msg["message_id"]), mrn=mrn, reason_code=blocked or reason_code,
-        template_id=tmpl["template_id"], template_version=tmpl["version"], mode=mode, outcome=status,
-        decision_inputs=inputs, details={"recipient": recipient, "card_id": card_id, "gap_id": gap_id},
+        template_id=template_id, template_version=version, mode=mode, outcome=status,
+        decision_inputs=inputs, details={"recipient": recipient, "card_id": card_id, "gap_id": gap_id, "language": lang},
     )
     return msg
 

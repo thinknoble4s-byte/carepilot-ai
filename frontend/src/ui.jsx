@@ -146,6 +146,9 @@ const ACTION_TEXT = {
   task_done: 'Task done', task_escalated: 'Deadline missed: escalated to cover', task_reminder_sent: 'Deadline missed: reminder sent',
   patient_status_changed: 'Follow-up status changed', pause_ended: 'Pause ended; follow-up resumed', call_logged: 'Call logged',
   'session.user_selected': 'Switched user', 'config.activated': 'Configuration activated',
+  card_created: 'Order card created from the plan', gap_check_run: '07:00 gap check run', reminder_run: '07:30 reminder run',
+  duplicate_suppressed: 'Duplicate suppressed (already on file)', clock_set: 'Set the demo date',
+  policy_mode_changed: 'Agent task mode changed',
 };
 
 export function describe(e) {
@@ -160,3 +163,11 @@ export function describe(e) {
 
 export const KIND = { agent: 'agent', person: 'human', system: 'system', ai: 'ai', ai_suggestion: 'ai' };
 export const KIND_LABEL = { agent: 'Agent', human: 'Human', system: 'System', ai: 'AI suggestion' };
+
+// A card's reminder gap: open, reminder sent, blocked (with the reason code), resolved.
+export function GapState({ status, reason, rule }) {
+  if (!status) return <span className="small-note">—</span>;
+  const tone = { open: 'brand', reminder_sent: 'good', blocked: 'bad', resolved: 'gray' }[status] || 'gray';
+  const label = { open: 'open', reminder_sent: 'reminder sent', blocked: 'blocked', resolved: 'resolved' }[status] || status;
+  return <Pill tone={tone}>{rule} {label}{reason ? ` — ${reason}` : ''}</Pill>;
+}

@@ -50,6 +50,11 @@ def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | N
                           "in_reply_to": target["message_id"] if target else None})
 
     handling, ho = [], None
+    if not policy.settings(conn)["act_on_replies"]:
+        # Use Case 1: the reply is kept in the message history and CarePilot takes no action.
+        conn.execute("UPDATE inbound_message SET handling = 'saved_no_action' WHERE inbound_id = %s",
+                     (inbound["inbound_id"],))
+        return {"inbound_id": inbound["inbound_id"], "handling": ["saved_no_action"], "handover_id": None}
     if button:
         handling.append(_apply_button(conn, mrn, button, target, inbound["inbound_id"]))
     if text:

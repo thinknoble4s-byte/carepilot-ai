@@ -90,15 +90,14 @@ def test_confirm_creates_plan_cards_and_two_audit_rows(seeded, client):
     assert len(r.json()["cards"]) == 5
     assert scalar("SELECT count(*) FROM care_plan") == 1
     assert scalar("SELECT count(*) FROM order_card") == 5
-    assert scalar("SELECT count(*) FROM audit_ledger") == audits + 2
+    assert scalar("SELECT count(*) FROM audit_ledger") == audits + 6  # plan confirmed + one entry per card
     from app import db
 
     with db.connect() as c:
-        last = c.execute("SELECT action, actor_type, actor_name, mrn FROM audit_ledger ORDER BY id DESC LIMIT 2").fetchall()
-    assert last == [
-        {"action": "cards_generated", "actor_type": "system", "actor_name": "system", "mrn": "SYN-0007"},
-        {"action": "plan_confirmed", "actor_type": "person", "actor_name": "u_priya", "mrn": "SYN-0007"},
-    ]
+        last = c.execute("SELECT action, actor_type, actor_name, mrn FROM audit_ledger ORDER BY id DESC LIMIT 6").fetchall()
+    assert last[-1] == {"action": "plan_confirmed", "actor_type": "person", "actor_name": "u_priya", "mrn": "SYN-0007"}
+    assert [r["action"] for r in last[:5]] == ["card_created"] * 5
+    assert all((r["actor_type"], r["mrn"]) == ("system", "SYN-0007") for r in last[:5])
     cards = client.get("/patients/SYN-0007/cards", headers=PRIYA).json()
     assert [(c["item_code"], c["due_date"]) for c in cards][:2] == [("V1", "2026-11-16"), ("T1", "2026-11-09")]
 
@@ -110,6 +109,7 @@ def test_confirm_creates_plan_cards_and_two_audit_rows(seeded, client):
     ("SYN-0007", {"therapy": "  "}, 422),
     ("SYN-0007", {"treatment_end_date": "2026-12-01"}, 422),  # after the demo clock's today
     ("SYN-0007", {"treatment_end_date": "2026-02-30"}, 422),
+    ("SYN-0007", {"treatment_end_date": None}, 422),
     ("SYN-0999", {}, 404),
     ("SYN-0007", {"template_id": "XYZ"}, 404),
 ])
@@ -136,7 +136,7 @@ def test_failure_after_plan_insert_keeps_nothing(seeded, client, monkeypatch):
     real = audit_module.append
 
     def fail_on_cards(conn, **kwargs):
-        if kwargs["action"] == "cards_generated":
+        if kwargs["action"] == "card_created":
             raise RuntimeError("audit unavailable")
         return real(conn, **kwargs)
 
@@ -155,7 +155,7 @@ def test_confirm_all_25(seeded, client):
         assert confirm(client, mrn).status_code == 201, mrn
     assert scalar("SELECT count(*) FROM care_plan") == 25
     assert scalar("SELECT count(*) FROM order_card") == 125
-    assert scalar("SELECT count(*) FROM audit_ledger") == audits + 50
+    assert scalar("SELECT count(*) FROM audit_ledger") == audits + 150
     stored = scalar("""SELECT count(*) FROM order_card oc
                        WHERE extract(isodow FROM oc.due_date) > 5""")
     assert stored == 0

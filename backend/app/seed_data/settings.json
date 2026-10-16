@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "note": "Step A / Golden Path: visit and test cards (including cards from a doctor's instruction), rules G0 and G1, caregiver copy when consented, button replies update cards and free text opens a handover, tasks for people.",
+  "gap_rules": [
+    "G0",
+    "G1"
+  ],
+  "reminder_cards": "all",
+  "caregiver_copy": true,
+  "act_on_replies": true,
+  "people_tasks": true,
+  "clinic_name": "Hospital A"
+}

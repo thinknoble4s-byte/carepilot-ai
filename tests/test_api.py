@@ -15,7 +15,8 @@ def test_health_reports_db_unreachable_without_failing(client):
 
 def test_users_listed_without_db(client):
     users = client.get("/users").json()
-    assert [u["id"] for u in users] == ["u_priya", "u_meera", "u_anand", "u_kavita", "u_suresh"]
+    assert [u["id"] for u in users] == ["u_priya", "u_meera", "u_anand", "u_kavita", "u_suresh",
+                                        "u_anita", "u_ravi", "u_sekhar"]
     assert {u["role"] for u in users} == {"coordinator", "oncologist", "chief"}
 
 

@@ -28,7 +28,7 @@ def test_agent_sends_an_approved_reminder_and_records_why(seeded, client):
     confirm_plan(client, "SYN-0007")
     actions = morning(client)["actions"]
     assert actions == [{"gap_id": 1, "mrn": "SYN-0007", "rule": "G0", "card": "T1", "action": "send_reminder",
-                        "reason_code": "g0_booking_reminder", "outcome": "sent"}]
+                        "reason_code": "gap_actionable", "outcome": "sent"}]
     sent = outbox("SYN-0007")
     assert [(m["recipient"], m["status"], m["language"]) for m in sent] == [
         ("patient", "sent", "Hindi"), ("caregiver", "sent", "Hindi")]
@@ -37,8 +37,8 @@ def test_agent_sends_an_approved_reminder_and_records_why(seeded, client):
     decision = last_audit("agent_decision")
     assert (decision["actor_type"], decision["rule"], decision["task"], decision["mode"], decision["policy_version"],
             decision["template_id"], decision["template_version"], decision["outcome"], decision["trigger_event"]) == \
-        ("agent", "G0", "booking_reminder", "live", "1.0", "booking_reminder", "1.0", "sent", "gap_event:1")
-    assert decision["reason_code"] == "g0_booking_reminder"
+        ("agent", "G0", "booking_reminder", "live", "1.0", "booking_reminder", "1.0", "send", "gap_event:1")
+    assert decision["reason_code"] == "gap_actionable"
     assert decision["decision_inputs"]["handover_open"] is False
     assert client.get("/patients/SYN-0007", headers=PRIYA).json()["next_planned_action"].startswith("Await patient reply")
     assert morning(client)["actions"] == []  # nothing is sent twice
@@ -55,11 +55,11 @@ def test_same_gap_different_patient_state(seeded, client):
     by_mrn = {}
     for a in client.post("/agent/run", headers=PRIYA).json()["actions"]:
         by_mrn.setdefault(a["mrn"], set()).add((a["action"], a["reason_code"]))
-    assert by_mrn["SYN-0007"] == {("send_reminder", "g0_booking_reminder")}
-    assert by_mrn["SYN-0004"] == {("wait", "patient_paused")}
-    assert by_mrn["SYN-0005"] == {("wait", "handover_open")}
+    assert by_mrn["SYN-0007"] == {("send_reminder", "gap_actionable")}
+    assert by_mrn["SYN-0004"] == {("block", "held_not_active")}
+    assert by_mrn["SYN-0005"] == {("block", "held_handover_open")}
     assert outbox("SYN-0004") == [] and outbox("SYN-0005") == []
-    assert client.post("/agent/run", headers=PRIYA).json()["actions"] == []  # waiting is not re-logged
+    assert client.post("/agent/run", headers=PRIYA).json()["actions"] == []  # a blocked gap is not re-logged
 
     client.post("/patients/SYN-0004/status", headers=PRIYA, json={"status": "Active"})
     resumed = client.post("/agent/run", headers=PRIYA).json()["actions"]
@@ -94,7 +94,7 @@ def test_agent_off_and_missing_consent_route_to_the_coordinator(seeded, client):
     confirm_plan(client, "SYN-0007")
     client.post("/patients/SYN-0007/status", headers=PRIYA, json={"status": "Agent off", "reason": "Prefers calls"})
     actions = {(a["mrn"], a["reason_code"]) for a in morning(client)["actions"]}
-    assert actions == {("SYN-0003", "no_automated_consent"), ("SYN-0007", "agent_off")}
+    assert actions == {("SYN-0003", "held_no_consent"), ("SYN-0007", "held_agent_off")}
     assert outbox("SYN-0003") == [] and outbox("SYN-0007") == []
     tasks = client.get("/needs-you", headers=PRIYA).json()["tasks"]
     contact = [t for t in tasks if t["task_type"] == "contact_needed"]
@@ -106,7 +106,7 @@ def test_g1_missed_item_reminder_in_kannada(seeded, client):
     confirm_plan(client, "SYN-0001")  # V1 due 20 Oct, T1 13 Oct: both missed by 2 Nov
     actions = morning(client)["actions"]
     assert {(a["rule"], a["card"], a["reason_code"]) for a in actions} == {
-        ("G1", "V1", "g1_missed_item_reminder"), ("G1", "T1", "g1_missed_item_reminder")}
+        ("G1", "V1", "gap_actionable"), ("G1", "T1", "gap_actionable")}
     assert outbox("SYN-0001")[0]["body"].startswith("ನಮಸ್ಕಾರ Meena ಅವರೇ")
 
 

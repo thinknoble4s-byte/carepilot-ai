@@ -62,9 +62,19 @@ def health():
 
 @app.get("/users")
 def users():
-    """Synthetic users for the "Viewing as" switcher."""
+    """Synthetic users for the "Viewing as" switcher: the people in the loaded demo data set
+    (every known synthetic user while the database is off)."""
+    rows = USERS
+    try:
+        with db.connect() as conn:
+            loaded = conn.execute("SELECT user_id, name, role FROM app_user ORDER BY role, user_id").fetchall()
+        if loaded:
+            order = {"coordinator": 0, "oncologist": 1, "chief": 2}
+            rows = sorted(loaded, key=lambda u: (order[u["role"]], u["user_id"]))
+    except psycopg.Error:
+        pass
     return [{"id": u["user_id"], "person": u["name"], "role": u["role"], "label": ROLE_LABELS[u["role"]]}
-            for u in USERS]
+            for u in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -103,9 +113,27 @@ def advance_clock(body: AdvanceIn, user: dict = Depends(require_role(*COORDINATO
     return {"today": in_tx(clock.advance, body.days, user["user_id"])}
 
 
+class ResetIn(BaseModel):
+    scenario: str = seed.DEFAULT_SCENARIO
+
+
 @app.post("/demo/reset")
-def demo_reset(user: dict = Depends(require_role(*COORDINATOR))):
-    return in_tx(seed.reset, user["user_id"])
+def demo_reset(body: ResetIn | None = None, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(seed.reset, user["user_id"], (body or ResetIn()).scenario)
+
+
+class SetDateIn(BaseModel):
+    date: str
+
+
+@app.post("/clock/set")
+def set_clock(body: SetDateIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return {"today": in_tx(clock.set_forward, body.date, user["user_id"])}
+
+
+@app.get("/cards")
+def all_cards(_user: dict = Depends(require_role(*CLINICAL))):
+    return in_tx(views.all_cards)
 
 
 # ---------------------------------------------------------------------------
@@ -169,15 +197,16 @@ def template(template_id: str, _user: dict = Depends(require_role(*CLINICAL))):
 
 class PlanIn(BaseModel):
     template_id: str
-    therapy: str
-    treatment_end_date: str
-    identifiers_checked: list[str]
+    therapy: str | None = None
+    treatment_end_date: str | None = None
+    identifiers_checked: list[str] = []
+    due_dates: dict[str, str] | None = None  # for templates whose due dates are entered
 
 
 @app.post("/patients/{mrn}/plan/confirm", status_code=201)
 def confirm_plan(mrn: str, body: PlanIn, user: dict = Depends(require_role(*COORDINATOR))):
     return in_tx(plan.confirm_plan, user["user_id"], mrn, body.template_id, body.therapy,
-                 body.treatment_end_date, body.identifiers_checked)
+                 body.treatment_end_date, body.identifiers_checked, body.due_dates)
 
 
 # ---------------------------------------------------------------------------

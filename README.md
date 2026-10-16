@@ -7,6 +7,8 @@ Follow-up and continuity-of-care agent for cancer survivors. This repo builds th
 - **Increment 2, the deterministic loop:** the 07:00 gap check (G0 not booked by T-7, with a coordinator task at T-3; G1 missed item), the 07:30 agent run that checks consent, status, handover and the autonomy policy and records a reason code and the next planned action, the send-guard and outbox, approved Kannada/Hindi/English templates, a WhatsApp simulator, and button replies that update cards with no AI call.
 - **Increment 3, the human safety path:** handovers (from a free-text reply, HELP, or opened by the coordinator), all automated sends blocked while one is open, Gate 1 coordinator, Gate 2 doctor's explicit Urgent/Routine, same-day urgent call, Gate 3 instruction creating a new order card and booking message, deadlines in working days with escalation to the named cover, and closure only by a named person with a reason, after which follow-up resumes.
 - Until Sarvam arrives (Increment 4), free text has no classifier; that counts as uncertain, so it always takes the safe handover path.
+- **Use Case 1** (`usecase-docs/CarePilot_UseCase1_Outbound_Messaging_v1.1.docx`) is the **default demo data**: TP001–TP003 at Sanjeevini Clinic, Anita (owner) and Ravi (cover), one "Review visit" whose due date the coordinator enters, rule G0 only, one message to the patient, replies saved without action, no tasks. **Reset demo** offers it or the Golden Path data (Sunita Verma and the 24 Step A patients, everything switched on). The differences are switches stored with each data set (`scenario_settings`), not separate code; tests UC1-T1 to UC1-T4 are in `tests/test_usecase1.py`.
+- Permanent rules from Use Case 1: gaps go open → reminder_sent or blocked (with reason code gap_actionable / held_no_consent / held_not_active / held_agent_off / held_template_missing), and blocked gaps are checked again each run; the 07:30 run re-reads the card; one reminder per gap is enforced by the database; repeat runs log a suppressed duplicate; the sender refuses a language without an approved template; every audit entry carries the demo date and job time (07:00 / 07:30). The demo bar has **Set date**, **Run 07:00 gap check** and **Run 07:30 reminders**.
 - **Screens match prototype v7.2** (`prototype/carepilot_ai_prototype_v7.2.html`; its stylesheet is copied verbatim into `frontend/src/prototype.css`): Workspace worklist with statuses and reasons, the patient page, Patient journey timeline with origin tracing, Needs my decision, Intake & verification (upload → preview → apply), Care Plan, Performance Indicators and a filterable Audit trail, each fed by real records. Panels that need data not built yet (documents, medicines, refills, measured KPIs) say so instead of showing invented values.
 
 > **Demo profile:** synthetic data only, security deferred (no login, public endpoints, public database with a password). Do not load real patient data into this stack.
@@ -50,7 +52,7 @@ scripts/deploy.sh             # builds backend + frontend, deploys, prints the d
 scripts/db.sh start           # the DB is off by default; wait for "available" (scripts/db.sh status)
 pip install -r backend/requirements-dev.txt
 python db/migrate.py          # creates the tables
-python db/demo_reset.py       # loads the synthetic demo data (25 patients, demo date 2026-11-02)
+python db/demo_reset.py       # loads Use Case 1 data (add `step_a` for the Golden Path data)
 scripts/db.sh stop            # switch it off again
 ```
 

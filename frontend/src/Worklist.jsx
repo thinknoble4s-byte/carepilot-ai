@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { openCall, openDeptLists, openHandover, openMessages, openPause } from './Modals.jsx';
-import { Chip, fmt, GUARD, Reason, ScreenHead, useUI } from './ui.jsx';
+import { Chip, fmt, GapState, GUARD, Reason, ScreenHead, useUI } from './ui.jsx';
 
 const FILTERS = [['action', 'Coordinator action required'], ['noresp', 'No response'], ['overdue', 'Overdue'],
   ['verify', 'Awaiting verification'], ['duesoon', 'Due soon'], ['watch', 'Early warning'], ['ontrack', 'On track']];
@@ -16,8 +16,10 @@ export default function Worklist() {
   const [mine, setMine] = useState('mine');
   const me = ui.user?.person;
 
+  const [allCards, setAllCards] = useState([]);
   const load = useCallback(() => {
     api('worklist').then(setData).catch((e) => setError(e.message));
+    api('cards').then(setAllCards).catch(() => {});
   }, []);
   useEffect(() => load(), [load]);
 
@@ -199,6 +201,29 @@ export default function Worklist() {
           </>
         ) : <div className="small-note">No patients are fully with the agent right now.</div>}
       </div>
+      <div className="card-title" style={{ margin: '18px 0 8px' }}>Order cards — all patients ({allCards.length})</div>
+      <div className="card">
+        <div className="card-desc">Every card created from a confirmed plan or a doctor's instruction, with its reminder gap. A card stays Due until a booking event.</div>
+        <div className="v4-scroll">
+          <table className="v4-table">
+            <thead><tr><th>Patient</th><th>Card</th><th>Due</th><th>State</th><th>Owner / cover</th><th>Origin</th><th>Reminder gap</th></tr></thead>
+            <tbody>
+              {allCards.map((c) => (
+                <tr key={c.card_id}>
+                  <td><a role="button" tabIndex={0} onClick={() => open(c.mrn)}>{c.full_name}</a> <span className="small-note">{c.mrn}</span></td>
+                  <td>{c.name}</td><td>{fmt(c.due_date)}</td>
+                  <td><span className={`tag ${c.state === 'Due' ? '' : 'verified'}`}>{c.state}{c.booking_source ? ` (${c.booking_source.replaceAll('_', ' ')})` : ''}</span></td>
+                  <td>{c.owner_name}<div className="small-note">cover {c.cover_name}</div></td>
+                  <td>{c.origin === 'plan_item' ? 'Plan item' : "Doctor's instruction"}</td>
+                  <td><GapState status={c.gap_status} reason={c.gap_reason} rule={c.gap_rule} /></td>
+                </tr>
+              ))}
+              {!allCards.length && <tr><td colSpan={7} className="small-note">No order cards yet. Cards are created when a coordinator confirms a plan.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <details className="card agent-card" id="agentdone">
         <summary className="card-title" style={{ cursor: 'pointer', margin: 0 }}>Everything the agent did since yesterday evening ({data.feed.length} actions)</summary>
         <div className="card-desc" style={{ marginTop: 8 }}>Routine coordination within the autonomy policy. Every action is on the patient's audit trail; switch the agent off for any patient from their patient view.</div>

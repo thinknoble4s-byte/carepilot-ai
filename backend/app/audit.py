@@ -2,9 +2,13 @@
 (db/migrations/001_init.sql, 002_records_and_plan.sql), so every writer gets it
 for free. Write the entry on the same connection as the change it records, so
 both commit or roll back together."""
+from contextvars import ContextVar
 from typing import Literal
 
 from psycopg.types.json import Jsonb
+
+# The demo time of the job being run ("07:00" gap check, "07:30" reminder run); None for other actions.
+DEMO_TIME: ContextVar[str | None] = ContextVar("demo_time", default=None)
 
 ActorType = Literal["person", "system", "agent", "ai", "ai_suggestion"]
 
@@ -31,6 +35,9 @@ def append(
         raise TypeError(f"Unknown audit fields: {sorted(unknown)}")
     if extra.get("decision_inputs") is not None:
         extra["decision_inputs"] = Jsonb(extra["decision_inputs"])
+    clock = conn.execute("SELECT today FROM demo_clock WHERE id = 1").fetchone()
+    extra["demo_date"] = clock["today"] if clock else None
+    extra["demo_time"] = DEMO_TIME.get()
     cols = ["actor_type", "actor_name", "action", "entity_type", "entity_id", "details", *extra]
     values = [actor_type, actor_name, action, entity_type, entity_id, Jsonb(details or {}), *extra.values()]
     return conn.execute(
@@ -46,7 +53,8 @@ def append(
 def recent(conn, limit: int = 20) -> list[dict]:
     return conn.execute(
         """
-        SELECT id, occurred_at, actor_type, actor_name, action, entity_type, entity_id, mrn, details, hash
+        SELECT id, occurred_at, demo_date, demo_time, actor_type, actor_name, action, entity_type, entity_id, mrn,
+               reason_code, rule, outcome, details, hash
         FROM audit_ledger ORDER BY id DESC LIMIT %s
         """,
         (limit,),
@@ -83,8 +91,8 @@ def search(conn, *, mrn: str | None = None, kind: str | None = None, days: int |
         params["kinds"] = list(KINDS[kind])
     entries = conn.execute(
         f"""
-        SELECT id, occurred_at, actor_type, actor_name, action, entity_type, entity_id, mrn, reason_code, rule,
-               outcome, details, hash
+        SELECT id, occurred_at, demo_date, demo_time, actor_type, actor_name, action, entity_type, entity_id, mrn,
+               reason_code, rule, outcome, details, hash
         FROM audit_ledger WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT %(limit)s
         """,
         {**params, "limit": limit},

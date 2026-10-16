@@ -75,6 +75,27 @@ function readUser() {
   }
 }
 
+function ResetChoice({ onReset }) {
+  return (
+    <div className="grid-2">
+      <div className="card-flat">
+        <div className="card-title">Use Case 1 data (default)</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>TP001–TP003 at Sanjeevini Clinic; Anita (owner) and Ravi (cover); one
+          "Review visit" with the due date entered. G0 only, plan visit cards only, one message to the patient, replies saved
+          without action, no tasks.</div>
+        <div className="btn-row"><button type="button" className="btn primary" onClick={() => onReset('uc1')}>Reset to Use Case 1</button></div>
+      </div>
+      <div className="card-flat">
+        <div className="card-title">Golden Path data</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>The 25 Step A patients (Sunita Verma is the demo patient); Priya and
+          Meera. Everything switched on: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
+          tasks for people.</div>
+        <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('step_a')}>Reset to Golden Path</button></div>
+      </div>
+    </div>
+  );
+}
+
 const initialUser = readUser();
 setUser(initialUser);
 
@@ -156,6 +177,20 @@ export default function App() {
   useEffect(() => {
     if (dbUp) loadShell();
   }, [dbUp, loadShell, userId]);
+
+  // The loaded data set decides who can be picked; fall back to its first coordinator.
+  useEffect(() => {
+    if (users.length && !users.some((u) => u.id === userId)) {
+      const first = users.find((u) => u.role === 'coordinator') || users[0];
+      setUserId(first.id);
+      setUser(first.id);
+    }
+  }, [users, userId]);
+
+  const [dateInput, setDateInput] = useState('');
+  useEffect(() => { if (today) setDateInput(String(today).slice(0, 10)); }, [today]);
+
+  const reloadUsers = () => api('users').then(setUsers).catch(() => {});
 
   const switchUser = (next) => {
     setUserId(next);
@@ -240,10 +275,22 @@ export default function App() {
               <span>Demo date <b>{fmt(today)}</b></span>
               {role === 'coordinator' && (
                 <>
+                  <span className="demo-date-set">
+                    <input type="date" aria-label="Demo date" value={dateInput} onChange={(e) => setDateInput(e.target.value)} />
+                    <button type="button" className="scope-btn" disabled={busy || !dateInput || dateInput === String(today).slice(0, 10)}
+                      onClick={() => demo(() => post('clock/set', { date: dateInput }), (r) => `Demo date set to ${fmt(r.today)}`)}>
+                      Set date
+                    </button>
+                  </span>
                   <button type="button" className="scope-btn" disabled={busy}
-                    onClick={() => demo(() => post('demo/morning-run'), (r) =>
-                      `Morning check: ${r.gap_check.new_gaps.length} new gaps, ${r.actions.filter((a) => a.outcome === 'sent').length} reminders sent, ${r.escalations.length} escalations`)}>
-                    Run morning check (rules + agent)
+                    onClick={() => demo(() => post('rules/gap-check'), (r) =>
+                      `07:00 gap check: ${r.new_gaps.length} new gap${r.new_gaps.length === 1 ? '' : 's'}${r.suppressed ? `, ${r.suppressed} duplicate${r.suppressed === 1 ? '' : 's'} suppressed` : ''}`)}>
+                    Run 07:00 gap check
+                  </button>
+                  <button type="button" className="scope-btn" disabled={busy}
+                    onClick={() => demo(() => post('agent/run'), (r) =>
+                      `07:30 reminders: ${r.actions.filter((a) => a.outcome === 'sent').length} sent, ${r.actions.filter((a) => a.outcome === 'blocked').length} blocked`)}>
+                    Run 07:30 reminders
                   </button>
                   <button type="button" className="scope-btn" disabled={busy}
                     onClick={() => demo(() => post('clock/advance', { days: 1 }), (r) => `Demo date is now ${fmt(r.today)}`)}>
@@ -254,8 +301,8 @@ export default function App() {
                     Advance 7 days
                   </button>
                   <button type="button" className="scope-btn" disabled={busy}
-                    onClick={() => window.confirm('Reset the demo? All demo data and the audit trail go back to the starting state.')
-                      && demo(() => post('demo/reset'), (r) => `Demo reset: ${r.patients} patients, demo date ${fmt(r.clock)}`)}>
+                    onClick={() => ui.showModal('Reset demo', 'All demo data and the audit trail go back to a starting state. Choose the data set.',
+                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${r.scenario === 'uc1' ? 'Use Case 1' : 'Golden Path'}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
                     Reset demo
                   </button>
                 </>

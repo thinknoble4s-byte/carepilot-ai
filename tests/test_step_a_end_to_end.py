@@ -4,7 +4,7 @@ from conftest import ANAND, PRIYA, SURESH, plan_body, seed_file
 
 def test_increment_1_end_to_end(seeded, client):
     # 1. Reset, then check the summary.
-    reset = client.post("/demo/reset", headers=PRIYA).json()
+    reset = client.post("/demo/reset", headers=PRIYA, json={"scenario": "step_a"}).json()
     summary = client.get("/summary", headers=PRIYA).json()
     assert (summary["patients"], summary["agent_on"], summary["open_exceptions"], summary["plans_confirmed"]) == \
         (25, 23, 8, 0)
@@ -35,7 +35,7 @@ def test_increment_1_end_to_end(seeded, client):
     assert "Sunita" not in chief.text and "SYN-" not in chief.text
 
     # 7. Reset again: same fingerprint, fresh chain.
-    again = client.post("/demo/reset", headers=PRIYA).json()
+    again = client.post("/demo/reset", headers=PRIYA, json={"scenario": "step_a"}).json()
     assert again["fingerprint"] == reset["fingerprint"]
     assert again["audit_rows"] == 27
     assert client.get("/audit").json()["chain"]["valid"]

@@ -2,7 +2,7 @@
 automated_messaging; otherwise a coordinator task is created."""
 from datetime import date
 
-from . import audit
+from . import audit, policy
 from .errors import Invalid, NotFound
 from .reference import CONSENT_SCOPES
 
@@ -36,7 +36,7 @@ def record_consent(conn, user_id: str, mrn: str, consent_reference: str, scopes,
     agent_on = AUTOMATED in scopes
     conn.execute("UPDATE patient SET agent_on = %s WHERE mrn = %s", (agent_on, mrn))
     task_id = None
-    if not agent_on:
+    if not agent_on and policy.settings(conn)["people_tasks"]:
         task_id = conn.execute(
             """
             INSERT INTO coordinator_task (mrn, task_type, reason)

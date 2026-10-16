@@ -183,10 +183,15 @@ function Messages({ patient }) {
   const [thread, setThread] = useState([]);
   const [english, setEnglish] = useState(true);
   const [text, setText] = useState('');
+  const [settings, setSettings] = useState(null);
   const [act, error] = useAct();
   const load = useCallback(() => {
     api(`patients/${patient.mrn}/messages`).then(setThread).catch(() => {});
   }, [patient.mrn]);
+  useEffect(() => {
+    api('care-plan').then((c) => setSettings(c.settings)).catch(() => {});
+  }, []);
+  const actOnReplies = settings?.act_on_replies !== false;
   useEffect(() => load(), [load]);
   const reply = async (body) => {
     if (await act(() => post(`simulator/${patient.mrn}/reply`, body), (r) => `Reply handled: ${r.handling.join('; ')}`, true)) {
@@ -210,7 +215,7 @@ function Messages({ patient }) {
           </div>
         </div>
         <div className="v31-phone">
-          <div className="v31-ph-head"><b>Hospital A · Oncology</b><span>WhatsApp · to {patient.full_name} · simulated</span></div>
+          <div className="v31-ph-head"><b>{settings?.clinic_name || 'Hospital A'}</b><span>WhatsApp · to {patient.full_name} · simulated</span></div>
           <div className="v31-chat">
             {thread.length === 0 && <div className="v31-empty">No messages yet. Messages go out only from approved templates.</div>}
             {thread.map((m) => (
@@ -234,13 +239,19 @@ function Messages({ patient }) {
             ))}
           </div>
         </div>
-        <div className="small-note" style={{ marginTop: 8 }}>Kannada and Hindi wording are drafts — to be checked by a native speaker.</div>
+        {thread.some((m) => m.language && m.language !== 'English') && (
+          <div className="small-note" style={{ marginTop: 8 }}>Kannada and Hindi wording are drafts — to be checked by a native speaker.</div>
+        )}
       </div>
       <div>
         {coordinator ? (
           <>
             <div className="card-title">Demo: reply as the patient</div>
-            <div className="small-note">Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI. Free text has no classifier until Sarvam (Increment 4), so it always opens a handover — the safe path.</div>
+            <div className="small-note">
+              {actOnReplies
+                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI. Free text has no classifier until Sarvam (Increment 4), so it always opens a handover — the safe path.'
+                : 'Use Case 1: a reply (button, text or HELP) is saved in the message history and CarePilot takes no action. Reply handling arrives with Use Case 2.'}
+            </div>
             {lastSent && (
               <>
                 <label className="v3-field" htmlFor="msgTo">Replying to</label>

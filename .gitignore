@@ -11,3 +11,6 @@ infra/outputs.json
 prototype/video/.venv/
 prototype/video/build/
 prototype/video/*.mp4
+
+# Office lock files
+~$*

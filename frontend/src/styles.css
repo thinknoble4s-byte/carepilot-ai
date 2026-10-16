@@ -69,3 +69,7 @@ blockquote { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--line
 .reply { margin-top: 10px; }
 .reply input { flex: 1 1 220px; width: auto; }
 .demo-bar button:disabled { opacity: 0.55; }
+.demo-date-set { display: inline-flex; gap: 6px; align-items: center; }
+.demo-date-set input { padding: 3px 8px; font-size: 12.5px; }
+.demo-date-set button, .demo-bar .scope-btn { white-space: nowrap; }
+.v31-kn { white-space: pre-line; }

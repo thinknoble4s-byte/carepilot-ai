@@ -10,6 +10,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from . import clock, policy
+from .agent import HELD_TEXT
 
 PRIORITY = ["action", "noresp", "overdue", "verify", "approval", "agent", "duesoon", "watch"]
 CLOSED = ("Lost to follow-up", "Followed up elsewhere")
@@ -46,6 +47,7 @@ def build(conn) -> dict:
         """
         SELECT p.*, c.scopes,
                (SELECT treatment_end_date FROM care_plan cp WHERE cp.mrn = p.mrn) AS treatment_end,
+               (SELECT care_plan_id FROM care_plan cp WHERE cp.mrn = p.mrn) AS plan_id,
                (SELECT therapy FROM care_plan cp WHERE cp.mrn = p.mrn) AS therapy
         FROM patient p
         LEFT JOIN LATERAL (SELECT scopes FROM consent WHERE consent.mrn = p.mrn ORDER BY consent_id DESC LIMIT 1) c
@@ -61,7 +63,9 @@ def build(conn) -> dict:
     cards = _group(conn.execute("SELECT * FROM order_card WHERE state = 'Due' ORDER BY due_date").fetchall())
     reminded = {r["card_id"]: r["acted_on"] for r in conn.execute(
         """SELECT card_id, max(acted_on) AS acted_on FROM gap_event
-           WHERE status = 'acted' AND outcome = 'sent' GROUP BY card_id""").fetchall()}
+           WHERE status = 'reminder_sent' AND outcome = 'sent' GROUP BY card_id""").fetchall()}
+    blocked = {r["card_id"]: r["blocked_reason"] for r in conn.execute(
+        "SELECT card_id, blocked_reason FROM gap_event WHERE status = 'blocked'").fetchall()}
     outbox = _group(conn.execute("SELECT * FROM outbox_message ORDER BY message_id").fetchall())
     inbound = _group(conn.execute("SELECT * FROM inbound_message ORDER BY inbound_id").fetchall())
     calls = _group(conn.execute("SELECT * FROM call_log ORDER BY call_id").fetchall())
@@ -156,6 +160,12 @@ def build(conn) -> dict:
                 continue
             if c["card_id"] in task_cards:
                 continue  # a person already has a task for this card
+            if c["card_id"] in blocked:
+                code = blocked[c["card_id"]]
+                if code == "held_not_active":
+                    continue  # shown as paused or closed
+                add("action", f"{name} — reminder blocked: {HELD_TEXT.get(code, code)} ({code})", True)
+                continue
             d = (today - c["due_date"]).days
             sent_on = reminded.get(c["card_id"])
             fresh = sent_on is not None and (today - sent_on).days < 2
@@ -177,7 +187,7 @@ def build(conn) -> dict:
             elif -d <= 14:
                 add("duesoon", f"{name} due in {-d} days")
 
-        if p["treatment_end"] is None:
+        if p["plan_id"] is None:
             add("verify", "Follow-up plan not confirmed yet — confirm it to create the order cards")
         if not p["scopes"]:
             add("action", "No consent on record — record consent before any messaging", True)

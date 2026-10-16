@@ -52,11 +52,11 @@ def test_every_automated_send_is_blocked_while_open(seeded, client):
     reply(client, text=PAIN)                    # handover before any reminder
     before = len(outbox("SYN-0007"))            # just the acknowledgement
     actions = morning(client)["actions"]
-    assert {(a["action"], a["reason_code"]) for a in actions} == {("wait", "handover_open")}
+    assert {(a["action"], a["reason_code"]) for a in actions} == {("block", "held_handover_open")}
     advance(client, 7)
     morning(client)
     assert len(outbox("SYN-0007")) == before
-    assert "on hold" in client.get("/patients/SYN-0007", headers=PRIYA).json()["next_planned_action"]
+    assert "Reminder held: handover open" in client.get("/patients/SYN-0007", headers=PRIYA).json()["next_planned_action"]
 
 
 def test_help_keyword_reaches_a_person(seeded, client):

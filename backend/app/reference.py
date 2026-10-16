@@ -28,7 +28,21 @@ def plan_template() -> dict:
     return _json("care_plan_template.json")
 
 
-USERS: list[dict] = _json("users.json")
+STEP_A_USERS: list[dict] = _json("users.json")
+
+
+def uc1() -> dict:
+    """Use Case 1 seed: patients, people, plan template, template, settings (seed_data/uc1)."""
+    return _json("uc1/scenario.json")
+
+
+def step_a_settings() -> dict:
+    return _json("settings.json")
+
+
+# Everyone who can be picked in "Viewing as" across the demo data sets (synthetic users).
+USERS: list[dict] = STEP_A_USERS + [u for u in _json("uc1/scenario.json")["users"]
+                                    if u["user_id"] not in {s["user_id"] for s in STEP_A_USERS}]
 USERS_BY_ID = {u["user_id"]: u for u in USERS}
 ROLE_LABELS = {"coordinator": "Care coordinator", "oncologist": "Oncologist", "chief": "Chief of hospital"}
 
@@ -48,7 +62,18 @@ def deadline_policy() -> dict:
 
 
 def message_templates() -> list[dict]:
-    return _json("message_templates.json")
+    """Step A templates, one record per template and language (as approved and stored)."""
+    rows = []
+    for t in _json("message_templates.json"):
+        for lang, text in t["text"].items():
+            rows.append({
+                "template_id": t["template_id"], "language": lang, "version": t["version"],
+                "approved_by": t["approved_by"], "effective_from": t["effective_from"], "note": t.get("note"),
+                "date_format": "%d/%m/%Y", "text": text, "closing": None,
+                "buttons": [{"id": b["id"], "label": b.get(lang, b["English"]), "label_en": b["English"]}
+                            for b in t["buttons"]],
+            })
+    return rows
 
 
 # How plan items are named to patients (drafts, to be checked by a native speaker).

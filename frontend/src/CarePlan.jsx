@@ -44,7 +44,9 @@ export default function CarePlan() {
       ui.toast(e.message);
     }
   };
-  const when = (i) => `month ${i.months}${i.days ? ` ${i.days > 0 ? '+' : '−'} ${Math.abs(i.days)} days` : ''}`;
+  const when = (i) => (t.due_date_entered ? 'Due date entered by the coordinator at confirmation'
+    : `month ${i.months}${i.days ? ` ${i.days > 0 ? '+' : '−'} ${Math.abs(i.days)} days` : ''}`);
+  const st = cfg.settings;
   const unit = (n) => (n === 0 ? 'Same day' : `${n} working day${n > 1 ? 's' : ''}`);
 
   let body;
@@ -77,7 +79,8 @@ export default function CarePlan() {
           <div className="v4-scroll"><table className="v4-table">
             <thead><tr><th /><th>Gap</th><th>Rule and action</th><th /></tr></thead>
             <tbody>{GAP_RULES.map(([id, name, rule, built]) => (
-              <tr key={id}><td><b>{id}</b></td><td>{name}</td><td>{rule}</td><td><Built yes={built} /></td></tr>
+              <tr key={id}><td><b>{id}</b></td><td>{name}</td><td>{rule}</td>
+                <td>{built ? (st.gap_rules.includes(id) ? <span className="tag verified">Live</span> : <span className="tag">Off in this data set</span>) : <Built yes={false} />}</td></tr>
             ))}</tbody>
           </table></div>
           <div className="small-note" style={{ marginTop: 6 }}>Thresholds from the signed-off config: T-{cfg.rule_thresholds[0]?.body.g0_booking_days_before_due} for G0, grace {cfg.rule_thresholds[0]?.body.visit_grace_days} days for G1.</div>
@@ -131,6 +134,17 @@ export default function CarePlan() {
             ))}</tbody>
           </table></div>
         </div>
+        <div className="card">
+          <div className="card-title">Switches for this demo data set ({st.scenario === 'uc1' ? 'Use Case 1' : 'Golden Path'})</div>
+          <div className="card-desc">{st.note}</div>
+          <table className="v4-table"><tbody>
+            <tr><td>Gap rules that run</td><td>{st.gap_rules.join(', ')}</td></tr>
+            <tr><td>Cards that get reminders</td><td>{st.reminder_cards === 'all' ? 'Visit and test cards, including cards from a doctor\'s instruction' : 'Visit cards from the plan only'}</td></tr>
+            <tr><td>Copy to the caregiver</td><td>{st.caregiver_copy ? 'On (when the caregiver has consented)' : 'Off — one message per visit, to the patient'}</td></tr>
+            <tr><td>Act on replies</td><td>{st.act_on_replies ? 'On — buttons update cards; free text and HELP open a handover' : 'Off — replies are saved in the message history, no action'}</td></tr>
+            <tr><td>Tasks for people</td><td>{st.people_tasks ? 'On — T-3 booking help, contact needed, consent scope missing' : 'Off'}</td></tr>
+          </tbody></table>
+        </div>
         <div className="card"><div className="card-title">Agent prepares, coordinator approves</div>
           <div className="v4-table" style={{ lineHeight: 1.8 }}>
             <div>Reminders while a task is in shadow mode</div>
@@ -151,12 +165,11 @@ export default function CarePlan() {
   } else if (tab === 'msgs') {
     body = cfg.message_templates.map((m) => (
       <div key={m.name} className="card">
-        <div className="card-title">{m.body.template_id.replaceAll('_', ' ')} <span className="small-note">v{m.body.version} · {m.body.approved_by}</span></div>
+        <div className="card-title">{m.body.template_id.replaceAll('_', ' ')} · {m.body.language}{' '}
+          <span className="small-note">v{m.body.version} · {m.body.approved_by} · effective {fmt(m.body.effective_from)}</span></div>
         {m.body.note && <div className="card-desc">{m.body.note}</div>}
-        {Object.entries(m.body.text).map(([lang, text]) => (
-          <div key={lang} className="v31-tpl"><b>{lang}:</b> {text}</div>
-        ))}
-        {m.body.buttons.length > 0 && <div className="rbtns">{m.body.buttons.map((b) => <span key={b.id} className="rbtn">{b.English} · {b.Hindi} · {b.Kannada}</span>)}</div>}
+        <div className="v31-tpl" style={{ whiteSpace: 'pre-line' }}>{m.body.text}{m.body.closing ? `\n\n${m.body.closing}` : ''}</div>
+        {m.body.buttons.length > 0 && <div className="rbtns">{m.body.buttons.map((b) => <span key={b.id} className="rbtn">{b.label}</span>)}</div>}
       </div>
     ));
   } else {

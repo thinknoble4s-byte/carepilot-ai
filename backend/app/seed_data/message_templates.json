@@ -5,15 +5,31 @@
     "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
     "note": "Kannada and Hindi are drafts, to be checked by a native speaker.",
     "buttons": [
-      {"id": "booked", "English": "Booked", "Hindi": "बुक कर लिया", "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"},
-      {"id": "help_book", "English": "Please help me book", "Hindi": "बुक करने में मदद करें", "Kannada": "ಬುಕ್ ಮಾಡಲು ಸಹಾಯ ಮಾಡಿ"},
-      {"id": "cant_come", "English": "I can't come", "Hindi": "नहीं आ पाऊँगी", "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"}
+      {
+        "id": "booked",
+        "English": "Booked",
+        "Hindi": "बुक कर लिया",
+        "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
+      },
+      {
+        "id": "help_book",
+        "English": "Please help me book",
+        "Hindi": "बुक करने में मदद करें",
+        "Kannada": "ಬುಕ್ ಮಾಡಲು ಸಹಾಯ ಮಾಡಿ"
+      },
+      {
+        "id": "cant_come",
+        "English": "I can't come",
+        "Hindi": "नहीं आ पाऊँगी",
+        "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"
+      }
     ],
     "text": {
       "English": "Namaste {first_name}. It is time to book your {item}, due on {due}. Please book and reply with a button below. Reply HELP to reach a person. — Hospital A (automated assistant)",
       "Hindi": "नमस्ते {first_name} जी। आपकी {item} की तारीख {due} है। कृपया अपनी विज़िट बुक करें और नीचे दिए बटन से जवाब दें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
       "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನಿಮ್ಮ {item} ದಿನಾಂಕ {due}. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಭೇಟಿಯನ್ನು ಬುಕ್ ಮಾಡಿ ಮತ್ತು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
-    }
+    },
+    "effective_from": "2026-10-05"
   },
   {
     "template_id": "missed_item_reminder",
@@ -21,15 +37,31 @@
     "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
     "note": "Kannada and Hindi are drafts, to be checked by a native speaker.",
     "buttons": [
-      {"id": "booked", "English": "Booked", "Hindi": "बुक कर लिया", "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"},
-      {"id": "help_book", "English": "Please help me book", "Hindi": "बुक करने में मदद करें", "Kannada": "ಬುಕ್ ಮಾಡಲು ಸಹಾಯ ಮಾಡಿ"},
-      {"id": "cant_come", "English": "I can't come", "Hindi": "नहीं आ पाऊँगी", "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"}
+      {
+        "id": "booked",
+        "English": "Booked",
+        "Hindi": "बुक कर लिया",
+        "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
+      },
+      {
+        "id": "help_book",
+        "English": "Please help me book",
+        "Hindi": "बुक करने में मदद करें",
+        "Kannada": "ಬುಕ್ ಮಾಡಲು ಸಹಾಯ ಮಾಡಿ"
+      },
+      {
+        "id": "cant_come",
+        "English": "I can't come",
+        "Hindi": "नहीं आ पाऊँगी",
+        "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"
+      }
     ],
     "text": {
       "English": "Namaste {first_name}. We have no booking yet for your {item}, which was due on {due}. Please book and reply with a button below. Reply HELP to reach a person. — Hospital A (automated assistant)",
       "Hindi": "नमस्ते {first_name} जी। आपकी {item} की तारीख {due} थी और यह अभी बाकी है। कृपया इसे बुक करें और नीचे दिए बटन से जवाब दें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
       "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನಿಮ್ಮ {item} ದಿನಾಂಕ {due} ಆಗಿತ್ತು, ಇನ್ನೂ ಬಾಕಿ ಇದೆ. ದಯವಿಟ್ಟು ಬುಕ್ ಮಾಡಿ ಮತ್ತು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
-    }
+    },
+    "effective_from": "2026-10-05"
   },
   {
     "template_id": "handover_ack",
@@ -41,7 +73,8 @@
       "English": "Thank you. A member of our care team will contact you tomorrow morning. — Hospital A (automated assistant)",
       "Hindi": "धन्यवाद। हमारी देखभाल टीम का एक सदस्य कल सुबह आपसे संपर्क करेगा। — अस्पताल A (स्वचालित सहायक)",
       "Kannada": "ಧನ್ಯವಾದಗಳು. ನಮ್ಮ ಆರೈಕೆ ತಂಡದ ಸದಸ್ಯರೊಬ್ಬರು ನಾಳೆ ಬೆಳಿಗ್ಗೆ ನಿಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸುತ್ತಾರೆ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
-    }
+    },
+    "effective_from": "2026-10-05"
   },
   {
     "template_id": "instruction_booking",
@@ -49,14 +82,30 @@
     "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
     "note": "Sent when a doctor's instruction creates a new order card. Kannada and Hindi are drafts.",
     "buttons": [
-      {"id": "booked", "English": "Booked", "Hindi": "बुक कर लिया", "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"},
-      {"id": "help_book", "English": "Please help me book", "Hindi": "बुक करने में मदद करें", "Kannada": "ಬುಕ್ ಮಾಡಲು ಸಹಾಯ ಮಾಡಿ"},
-      {"id": "cant_come", "English": "I can't come", "Hindi": "नहीं आ पाऊँगी", "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"}
+      {
+        "id": "booked",
+        "English": "Booked",
+        "Hindi": "बुक कर लिया",
+        "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
+      },
+      {
+        "id": "help_book",
+        "English": "Please help me book",
+        "Hindi": "बुक करने में मदद करें",
+        "Kannada": "ಬುಕ್ ಮಾಡಲು ಸಹಾಯ ಮಾಡಿ"
+      },
+      {
+        "id": "cant_come",
+        "English": "I can't come",
+        "Hindi": "नहीं आ पाऊँगी",
+        "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"
+      }
     ],
     "text": {
       "English": "Namaste {first_name}. Your doctor has asked for a {item} by {due}. Please book it and reply with a button below. — Hospital A",
       "Hindi": "नमस्ते {first_name} जी। आपके डॉक्टर ने {due} तक {item} के लिए कहा है। कृपया इसे बुक करें और नीचे दिए बटन से जवाब दें। — अस्पताल A",
       "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನಿಮ್ಮ ವೈದ್ಯರು {due} ಒಳಗೆ {item} ಮಾಡಿಸಲು ಹೇಳಿದ್ದಾರೆ. ದಯವಿಟ್ಟು ಬುಕ್ ಮಾಡಿ ಮತ್ತು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. — ಆಸ್ಪತ್ರೆ A"
-    }
+    },
+    "effective_from": "2026-10-05"
   }
 ]

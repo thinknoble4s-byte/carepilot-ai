@@ -22,6 +22,7 @@ def care_plan(conn) -> dict:
         "autonomy_policy": by_kind.get("autonomy_policy", []),
         "deadline_policy": by_kind.get("deadline_policy", []),
         "message_templates": by_kind.get("message_template", []),
+        "settings": policy.settings(conn),
     }
 
 

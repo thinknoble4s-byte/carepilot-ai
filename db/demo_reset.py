@@ -1,4 +1,7 @@
-"""Demo reset from the command line: rebuild the Step A seed state.
+"""Demo reset from the command line: rebuild a seed state.
+
+    python db/demo_reset.py            # Use Case 1 data (default)
+    python db/demo_reset.py step_a     # Golden Path / Step A data
 
 Same as POST /demo/reset. The database must be running, and starting it needs
 the owner's approval (scripts/db.sh start). Connection settings as db/migrate.py.
@@ -19,7 +22,7 @@ def main() -> int:
     from app import db, seed
 
     with db.connect() as conn:
-        result = seed.reset(conn)
+        result = seed.reset(conn, scenario=sys.argv[1] if len(sys.argv) > 1 else seed.DEFAULT_SCENARIO)
     print(json.dumps(result, default=str, indent=2))
     return 0
 

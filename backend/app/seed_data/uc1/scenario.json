@@ -1,0 +1,195 @@
+{
+  "scenario": "uc1",
+  "title": "Use Case 1 — Outbound messaging: G0 booking reminder (T-7)",
+  "source": "usecase-docs/CarePilot_UseCase1_Outbound_Messaging_v1.1.docx (v1.1, 14 October 2026)",
+  "demo_start_date": "2026-11-02",
+  "users": [
+    {
+      "user_id": "u_anita",
+      "name": "Anita",
+      "role": "coordinator"
+    },
+    {
+      "user_id": "u_ravi",
+      "name": "Ravi",
+      "role": "coordinator"
+    },
+    {
+      "user_id": "u_sekhar",
+      "name": "Dr. Sekhar",
+      "role": "oncologist"
+    },
+    {
+      "user_id": "u_suresh",
+      "name": "Dr. Suresh Pillai",
+      "role": "chief"
+    }
+  ],
+  "patients": [
+    {
+      "mrn": "TP001",
+      "full_name": "Kavya Rao",
+      "phone": "+919000000101",
+      "preferred_language": "English",
+      "consent": {
+        "consent_reference": "CONS-TP001",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": null,
+      "note": "Active, agent on, automated-messaging consent, visit card created by hand in step 1"
+    },
+    {
+      "mrn": "TP002",
+      "full_name": "Meena Iyer",
+      "phone": "+919000000102",
+      "preferred_language": "English",
+      "consent": {
+        "consent_reference": "CONS-TP002",
+        "scopes": [
+          "whatsapp_patient"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": {
+        "due_dates": {
+          "RV": "2026-11-16"
+        }
+      },
+      "note": "Same as TP001 but no automated-messaging consent"
+    },
+    {
+      "mrn": "TP003",
+      "full_name": "Ramesh Kumar",
+      "phone": "+919000000103",
+      "preferred_language": "English",
+      "consent": {
+        "consent_reference": "CONS-TP003",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": {
+        "due_dates": {
+          "RV": "2026-11-16"
+        },
+        "booked": {
+          "source": "coordinator",
+          "appointment_date": "2026-11-16"
+        }
+      },
+      "note": "Same as TP001 but the visit card is already Booked"
+    }
+  ],
+  "coordinator": "Anita",
+  "plan_template": {
+    "template_id": "UC1-REVIEW",
+    "version": "1.0",
+    "name": "Use Case 1 review plan (one visit; due date entered at confirmation)",
+    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "effective_from": "2026-10-14",
+    "due_date_entered": true,
+    "identifiers_required": false,
+    "therapy_required": false,
+    "items": [
+      {
+        "item_code": "RV",
+        "type": "visit",
+        "name": "Review visit",
+        "department": "Review clinic"
+      }
+    ],
+    "departments": {
+      "Review clinic": {
+        "owner": "Anita",
+        "cover": "Ravi"
+      }
+    }
+  },
+  "deadline_policy": {
+    "version": "1.0",
+    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "default_coordinator": "Anita",
+    "default_doctor": "u_sekhar",
+    "covers": {
+      "Anita": "Ravi",
+      "Ravi": "Anita",
+      "Dr. Sekhar": "Dr. Sekhar"
+    },
+    "working_days": {
+      "coordinator_review": 1,
+      "call_first": 1,
+      "doctor_decision": 1,
+      "doctor_instruction": 1,
+      "urgent_call": 0,
+      "booking_from_instruction": 2,
+      "booking_help": 2,
+      "cannot_attend": 2,
+      "confirm_test_booking": 2,
+      "contact_needed": 2
+    },
+    "escalation": {
+      "coordinator_review": "cover",
+      "call_first": "cover",
+      "doctor_decision": "cover",
+      "doctor_instruction": "reminder",
+      "urgent_call": "cover",
+      "booking_from_instruction": "cover",
+      "booking_help": "cover",
+      "cannot_attend": "cover",
+      "confirm_test_booking": "cover",
+      "contact_needed": "cover"
+    },
+    "help_keywords": [
+      "help",
+      "ಸಹಾಯ",
+      "मदद"
+    ]
+  },
+  "message_templates": [
+    {
+      "template_id": "booking_reminder",
+      "language": "English",
+      "version": "1.1",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead)",
+      "effective_from": "2026-10-14",
+      "date_format": "%d-%b",
+      "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. We understand that you have not yet booked your appointment with Dr. Sekhar for your review due on {due_date}. Please select one of the options below.",
+      "closing": "If you have any concerns, please write to us or feel free to leave a voice message.",
+      "buttons": [
+        {
+          "id": "booked",
+          "label": "Booked (I have already booked)",
+          "label_en": "Booked (I have already booked)"
+        },
+        {
+          "id": "help_book",
+          "label": "Please help me book (our team will help me)",
+          "label_en": "Please help me book (our team will help me)"
+        },
+        {
+          "id": "cant_come",
+          "label": "I can't come",
+          "label_en": "I can't come"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "version": "1.0",
+    "note": "Use Case 1 is the simplest slice: visit cards from the plan only, rule G0 only, one message per visit to the patient, replies saved without action, no tasks for people.",
+    "gap_rules": [
+      "G0"
+    ],
+    "reminder_cards": "plan_visits",
+    "caregiver_copy": false,
+    "act_on_replies": false,
+    "people_tasks": false,
+    "clinic_name": "Sanjeevini Clinic"
+  }
+}

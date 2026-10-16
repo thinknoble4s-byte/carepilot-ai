@@ -26,17 +26,24 @@ def due_date(end: date, months: int, days: int) -> date:
     return d
 
 
-def generate_cards(template: dict, treatment_end_date: date) -> list[dict]:
-    """Pure: same template and date, same cards. No database, clock or randomness."""
+def generate_cards(template: dict, treatment_end_date: date | None = None,
+                   due_dates: dict | None = None) -> list[dict]:
+    """Pure: same template and dates, same cards. No database, clock or randomness.
+    A template either calculates due dates from the treatment end date (months, days, weekend rule)
+    or, with due_date_entered, takes the date the coordinator entered for each item."""
     cards = []
     for item in template["items"]:
         dept = template["departments"][item["department"]]
+        if template.get("due_date_entered"):
+            due = (due_dates or {})[item["item_code"]]
+        else:
+            due = due_date(treatment_end_date, item["months"], item["days"]).isoformat()
         cards.append({
             "item_code": item["item_code"],
             "card_type": item["type"],
             "name": item["name"],
             "department": item["department"],
-            "due_date": due_date(treatment_end_date, item["months"], item["days"]).isoformat(),
+            "due_date": due,
             "state": "Due",
             "owner_name": dept["owner"],
             "cover_name": dept["cover"],
@@ -65,7 +72,8 @@ def _parse_date(value) -> date | None:
     return None
 
 
-def confirm_plan(conn, user_id, mrn, template_id, therapy, treatment_end_date, identifiers_checked) -> dict:
+def confirm_plan(conn, user_id, mrn, template_id, therapy=None, treatment_end_date=None,
+                 identifiers_checked=None, due_dates=None) -> dict:
     # Checks in order; the first failure wins and nothing is written.
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s FOR UPDATE", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
@@ -73,16 +81,29 @@ def confirm_plan(conn, user_id, mrn, template_id, therapy, treatment_end_date, i
     if template is None:
         raise NotFound(f"Template {template_id} not found")
     ids = identifiers_checked if isinstance(identifiers_checked, list) else []
-    if len(set(ids)) < 2 or any(i not in IDENTIFIER_OPTIONS for i in ids):
-        raise Invalid("Check at least two different identifiers from: " + ", ".join(IDENTIFIER_OPTIONS))
-    if not therapy or not str(therapy).strip():
+    if template.get("identifiers_required", True):
+        if len(set(ids)) < 2 or any(i not in IDENTIFIER_OPTIONS for i in ids):
+            raise Invalid("Check at least two different identifiers from: " + ", ".join(IDENTIFIER_OPTIONS))
+    elif any(i not in IDENTIFIER_OPTIONS for i in ids):
+        raise Invalid("Unknown identifier")
+    if template.get("therapy_required", True) and (not therapy or not str(therapy).strip()):
         raise Invalid("therapy is required")
-    end = _parse_date(treatment_end_date)
-    if end is None:
-        raise Invalid("treatment_end_date must be a real date (YYYY-MM-DD)")
     today = clock.get_today(conn)
-    if end > today:
-        raise Invalid(f"treatment_end_date {end} is after today ({today})")
+    end, entered = None, {}
+    if template.get("due_date_entered"):
+        for item in template["items"]:
+            due = _parse_date((due_dates or {}).get(item["item_code"]))
+            if due is None:
+                raise Invalid(f"Enter a real due date (YYYY-MM-DD) for {item['name']}")
+            if due < today:
+                raise Invalid(f"The due date for {item['name']} is before today ({today})")
+            entered[item["item_code"]] = due.isoformat()
+    else:
+        end = _parse_date(treatment_end_date)
+        if end is None:
+            raise Invalid("treatment_end_date must be a real date (YYYY-MM-DD)")
+        if end > today:
+            raise Invalid(f"treatment_end_date {end} is after today ({today})")
     if conn.execute("SELECT 1 FROM care_plan WHERE mrn = %s", (mrn,)).fetchone():
         raise Conflict(f"Patient {mrn} already has a confirmed plan")
 
@@ -94,15 +115,15 @@ def confirm_plan(conn, user_id, mrn, template_id, therapy, treatment_end_date, i
         RETURNING care_plan_id, mrn, template_id, template_version, therapy, treatment_end_date,
                   identifiers_checked, confirmed_by, confirmed_at
         """,
-        (mrn, template["template_id"], template["version"], str(therapy).strip(), end,
+        (mrn, template["template_id"], template["version"], str(therapy).strip() if therapy else None, end,
          list(dict.fromkeys(ids)), user_id, today),
     ).fetchone()
     tmpl = {"template_id": template["template_id"], "template_version": template["version"]}
     audit.append(
         conn, actor_type="person", actor_name=user_id, action="plan_confirmed",
         entity_type="care_plan", entity_id=str(plan["care_plan_id"]), mrn=mrn, **tmpl,
-        details={"therapy": plan["therapy"], "treatment_end_date": end.isoformat(),
-                 "identifiers_checked": plan["identifiers_checked"]},
+        details={"therapy": plan["therapy"], "treatment_end_date": end.isoformat() if end else None,
+                 "due_dates_entered": entered or None, "identifiers_checked": plan["identifiers_checked"]},
     )
     cards = [
         conn.execute(
@@ -116,12 +137,14 @@ def confirm_plan(conn, user_id, mrn, template_id, therapy, treatment_end_date, i
             """,
             {**card, "mrn": mrn, "care_plan_id": plan["care_plan_id"]},
         ).fetchone()
-        for card in generate_cards(template, end)
+        for card in generate_cards(template, end, entered)
     ]
-    audit.append(
-        conn, actor_type="system", actor_name="system", action="cards_generated",
-        entity_type="care_plan", entity_id=str(plan["care_plan_id"]), mrn=mrn, **tmpl,
-        details={"count": len(cards),
-                 "cards": [{"item_code": c["item_code"], "due_date": c["due_date"].isoformat()} for c in cards]},
-    )
+    for c in cards:  # one entry per card, saved with the cards and the plan
+        audit.append(
+            conn, actor_type="system", actor_name="system", action="card_created",
+            entity_type="order_card", entity_id=str(c["card_id"]), mrn=mrn, **tmpl,
+            details={"care_plan_id": plan["care_plan_id"], "card": c["item_code"], "name": c["name"],
+                     "due_date": c["due_date"].isoformat(), "owner": c["owner_name"], "cover": c["cover_name"],
+                     "origin": c["origin"]},
+        )
     return {"care_plan": plan, "cards": cards}

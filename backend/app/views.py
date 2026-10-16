@@ -74,9 +74,13 @@ def patient_cards(conn, mrn: str) -> list[dict]:
         raise NotFound(f"Patient {mrn} not found")
     return conn.execute(
         """
-        SELECT card_id, item_code, card_type, name, department, due_date, state, appointment_date,
-               owner_name, cover_name
-        FROM order_card WHERE mrn = %s ORDER BY card_id
+        SELECT c.card_id, c.item_code, c.card_type, c.name, c.department, c.due_date, c.state, c.appointment_date,
+               c.booking_source, c.owner_name, c.cover_name, c.origin, c.care_plan_id,
+               g.rule AS gap_rule, g.status AS gap_status, g.blocked_reason AS gap_reason, g.detected_on AS gap_detected_on,
+               g.acted_on AS gap_acted_on
+        FROM order_card c
+        LEFT JOIN LATERAL (SELECT * FROM gap_event WHERE card_id = c.card_id ORDER BY gap_id DESC LIMIT 1) g ON true
+        WHERE c.mrn = %s ORDER BY c.card_id
         """,
         (mrn,),
     ).fetchall()
@@ -187,3 +191,17 @@ def handover_detail(conn, handover_id: int) -> dict:
         """,
         (handover_id,),
     ).fetchall()}
+
+
+def all_cards(conn) -> list[dict]:
+    """Every order card across patients, with its latest gap (state and reason): the Workspace card list."""
+    return conn.execute(
+        """
+        SELECT c.card_id, c.mrn, p.full_name, c.item_code, c.card_type, c.name, c.due_date, c.state, c.booking_source,
+               c.owner_name, c.cover_name, c.origin, g.rule AS gap_rule, g.status AS gap_status,
+               g.blocked_reason AS gap_reason
+        FROM order_card c JOIN patient p USING (mrn)
+        LEFT JOIN LATERAL (SELECT * FROM gap_event WHERE card_id = c.card_id ORDER BY gap_id DESC LIMIT 1) g ON true
+        ORDER BY c.due_date, p.full_name, c.card_id
+        """
+    ).fetchall()

@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { openCall, openHandover, openMessages, openPause } from './Modals.jsx';
-import { Chip, Dl, fmt, patientStatusPill, Pill, Reason, ScreenHead, useUI } from './ui.jsx';
+import { Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, useUI } from './ui.jsx';
 
 const LIFE = { visit: ['Due', 'Booked', 'Attended'], test: ['Due', 'Ordered', 'Scheduled', 'Completed', 'Report received', 'Report verified'] };
 const SCOPES = [['whatsapp_patient', 'WhatsApp to patient'], ['whatsapp_caregiver', 'WhatsApp to caregiver'],
@@ -42,7 +42,9 @@ function OrderCard({ card, today, task }) {
         <div className="t">{card.item_code} — {card.name}</div>{state}
       </div>
       <div className="d">Owner: <b>{card.owner_name}</b> · cover: {card.cover_name} · {card.department}</div>
-      <div className="d">Origin: {instruction ? "Doctor's instruction (hospital record)" : 'Follow-up plan BC-SURV-1'}</div>
+      <div className="d">Origin: {instruction ? "Doctor's instruction (hospital record)" : `Plan item (plan #${card.care_plan_id}, item ${card.item_code})`}
+        {card.booking_source ? ` · booked via ${card.booking_source.replaceAll('_', ' ')}` : ''}</div>
+      {card.gap_status && <div className="d">Reminder gap: <GapState status={card.gap_status} reason={card.gap_reason} rule={card.gap_rule} /></div>}
       <Stepper card={card} />
       {task && <div className="d"><Dl due={task.due_date} label={`Booking by ${task.assigned_name}`} today={today} /></div>}
     </div>
@@ -111,36 +113,69 @@ function ConcernCard({ h, tasks, today, role, patient }) {
 
 function PlanForm({ mrn }) {
   const ui = useUI();
+  const [templates, setTemplates] = useState([]);
+  const [tid, setTid] = useState('');
   const [therapy, setTherapy] = useState('');
   const [endDate, setEndDate] = useState('');
   const [ids, setIds] = useState([]);
+  const [due, setDue] = useState({});
   const [error, setError] = useState('');
+  useEffect(() => {
+    api('care-plan').then((c) => {
+      const list = c.plan_templates.map((t) => t.body);
+      setTemplates(list);
+      if (list.length) setTid(list[0].template_id);
+    }).catch(() => {});
+  }, []);
+  const t = templates.find((x) => x.template_id === tid);
   const submit = async () => {
     try {
-      await post(`patients/${mrn}/plan/confirm`, { template_id: 'BC-SURV-1', therapy, treatment_end_date: endDate, identifiers_checked: ids });
+      await post(`patients/${mrn}/plan/confirm`, t?.due_date_entered
+        ? { template_id: tid, due_dates: due, identifiers_checked: ids }
+        : { template_id: tid, therapy, treatment_end_date: endDate, identifiers_checked: ids });
       ui.toast('Plan confirmed — order cards created');
       ui.refresh();
     } catch (e) {
       setError(e.message);
     }
   };
+  if (!t) return null;
   return (
     <div className="card">
-      <div className="card-title">Confirm the follow-up plan</div>
-      <div className="card-desc">Template BC-SURV-1, breast cancer survivorship follow-up (mock, not clinical advice). No order cards exist until the plan is confirmed against two identifiers.</div>
-      <div className="grid-2">
-        <div><label className="v3-field" htmlFor="pfT">Therapy</label>
-          <input id="pfT" className="v3-in" value={therapy} onChange={(e) => setTherapy(e.target.value)} placeholder="e.g. Surgery and endocrine therapy" /></div>
-        <div><label className="v3-field" htmlFor="pfE">Treatment end date</label>
-          <input id="pfE" type="date" className="v3-in" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
-      </div>
-      <label className="v3-field">Identifiers I checked against the patient record (two needed)</label>
-      <div className="btn-row" style={{ marginTop: 0 }}>
-        {[['name', 'Name'], ['mrn', 'MRN'], ['phone', 'Phone']].map(([id, label]) => (
-          <label key={id} className="v4-check"><input type="checkbox" checked={ids.includes(id)} onChange={() => setIds(toggle(ids, id))} /> {label}</label>
-        ))}
-      </div>
-      <div className="btn-row"><button type="button" className="btn primary" onClick={submit}>Confirm plan and create order cards</button></div>
+      <div className="card-title">Care plan — confirm the follow-up plan</div>
+      <div className="card-desc">No order cards exist until the plan is confirmed. Confirming records your name, the date and time, and the template version.</div>
+      <label className="v3-field" htmlFor="pfX">Care plan template</label>
+      <select id="pfX" className="v3-in" value={tid} onChange={(e) => setTid(e.target.value)}>
+        {templates.map((x) => <option key={x.template_id} value={x.template_id}>{x.name} ({x.template_id} v{x.version})</option>)}
+      </select>
+      {t.due_date_entered ? (
+        t.items.map((i) => (
+          <div key={i.item_code}>
+            <label className="v3-field" htmlFor={`due-${i.item_code}`}>{i.name} — due date</label>
+            <input id={`due-${i.item_code}`} type="date" className="v3-in" value={due[i.item_code] || ''}
+              onChange={(e) => setDue({ ...due, [i.item_code]: e.target.value })} />
+            <div className="small-note">Owner {t.departments[i.department].owner} · cover {t.departments[i.department].cover}</div>
+          </div>
+        ))
+      ) : (
+        <div className="grid-2">
+          <div><label className="v3-field" htmlFor="pfT">Therapy</label>
+            <input id="pfT" className="v3-in" value={therapy} onChange={(e) => setTherapy(e.target.value)} placeholder="e.g. Surgery and endocrine therapy" /></div>
+          <div><label className="v3-field" htmlFor="pfE">Treatment end date</label>
+            <input id="pfE" type="date" className="v3-in" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
+        </div>
+      )}
+      {t.identifiers_required !== false && (
+        <>
+          <label className="v3-field">Identifiers I checked against the patient record (two needed)</label>
+          <div className="btn-row" style={{ marginTop: 0 }}>
+            {[['name', 'Name'], ['mrn', 'MRN'], ['phone', 'Phone']].map(([id, label]) => (
+              <label key={id} className="v4-check"><input type="checkbox" checked={ids.includes(id)} onChange={() => setIds(toggle(ids, id))} /> {label}</label>
+            ))}
+          </div>
+        </>
+      )}
+      <div className="btn-row"><button type="button" className="btn primary" onClick={submit}>Confirm plan</button></div>
       {error && <div className="error">{error}</div>}
     </div>
   );
@@ -231,7 +266,8 @@ export default function PatientPage({ mrn }) {
           <div>
             <div className="v4-name" style={{ fontSize: 17 }}>{p.full_name} {patientStatusPill(p.status, p.pause_until)}</div>
             <div className="v4-meta" style={{ fontSize: 12, marginTop: 4 }}>
-              {p.mrn}{plan ? ` · ${plan.therapy} · treatment completed ${fmt(plan.treatment_end_date)} (month ${month})` : ' · follow-up plan not confirmed yet'}
+              {p.mrn}{plan ? (plan.treatment_end_date ? ` · ${plan.therapy} · treatment completed ${fmt(plan.treatment_end_date)} (month ${month})`
+                : ` · plan ${plan.template_id} v${plan.template_version} confirmed by ${ui.name(plan.confirmed_by)}`) : ' · follow-up plan not confirmed yet'}
             </div>
             <div className="v4-meta" style={{ fontSize: 12 }}>Language: <b>{p.preferred_language}</b> · {p.phone} · WhatsApp · Coordinator: <b>{p.coordinator || 'Unassigned'}</b></div>
             <div className="v4-meta" style={{ fontSize: 12 }}>

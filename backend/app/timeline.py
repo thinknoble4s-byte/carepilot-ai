@@ -54,7 +54,9 @@ def build(conn, mrn: str) -> dict:
             """SELECT g.*, c.item_code, c.name FROM gap_event g JOIN order_card c USING (card_id)
                WHERE g.mrn = %s ORDER BY gap_id""", (mrn,)).fetchall():
         what = "not booked 7 days before due" if g["rule"] == "G0" else "missed: not attended by due date + 2 days"
-        events.append(_ev(g["detected_on"], f"{g['name']} — {what}", "gap", "carepilot", "Morning gap check",
+        state = {"open": "open", "reminder_sent": "reminder sent", "resolved": "resolved",
+                 "blocked": f"blocked ({g['blocked_reason']})"}[g["status"]]
+        events.append(_ev(g["detected_on"], f"{g['name']} — {what} · gap {state}", "gap", "carepilot", "Morning gap check",
                           "Raised automatically by the morning gap check", g["rule"]))
 
     for m in conn.execute("SELECT * FROM outbox_message WHERE mrn = %s ORDER BY message_id", (mrn,)).fetchall():
