@@ -73,7 +73,7 @@ def build(conn, mrn: str) -> dict:
         if i["kind"] == "voice":
             ai_part = (f" · AI: flag {i['ai_flag']}" + (" (AI could not read it)" if i["ai_failed"] else "")
                        + (f" · \"{i['translation']}\"" if i["translation"] else "")) if i["ai_flag"] else ""
-            events.append(_ev(i["received_on"], f"Voice note from {i['from_role']} ({i['clip_id']}){ai_part}",
+            events.append(_ev(i["received_on"], f"Voice note from {i['from_role']} ({i['clip_id'] or 'recorded'}){ai_part}",
                               "routine", "patient", f"WhatsApp voice note #{i['inbound_id']}",
                               f"Reply to message #{i['in_reply_to']}" if i["in_reply_to"] else "Unprompted message"))
             continue

@@ -357,6 +357,18 @@ def simulate_reply(mrn: str, body: ReplyIn, _user: dict = Depends(require_role(*
                  in_reply_to=body.in_reply_to, clip_id=body.clip_id, event_id=body.event_id)
 
 
+@app.post("/simulator/{mrn}/voice", status_code=201)
+async def simulator_voice(mrn: str, file: UploadFile = File(...), from_role: str = Form("patient"),
+                          in_reply_to: int | None = Form(None), event_id: str | None = Form(None),
+                          language: str | None = Form(None), _user: dict = Depends(require_role(*COORDINATOR))):
+    """A voice note recorded (or an audio file uploaded) in the simulator: stored in the database, then the
+    same path as a clip — Sarvam text, translation and the yes/no health flag. language: Hindi, Kannada,
+    English or auto (omit for the patient's language)."""
+    audio = await file.read()
+    return in_tx(gateway.receive_reply, mrn, from_role=from_role, in_reply_to=in_reply_to, event_id=event_id or None,
+                 audio=audio, mime=file.content_type or "", spoken=language or None)
+
+
 @app.get("/simulator/clips")
 def simulator_clips(_user: dict = Depends(require_role(*COORDINATOR))):
     return in_tx(gateway.clips)

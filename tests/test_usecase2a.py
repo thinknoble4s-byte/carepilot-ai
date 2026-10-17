@@ -52,7 +52,7 @@ def test_seed_after_use_case_1(uc2a, client):
     for mrn in ("TP001", "TP004"):
         assert reminder(mrn)["status"] == "sent"
         assert cards(client, mrn)["Review visit"]["state"] == "Due"
-    assert [c["id"] for c in client.get("/simulator/clips", headers=ANITA).json()] == ["HI-01", "HI-02"]
+    assert [c["id"] for c in client.get("/simulator/clips", headers=ANITA).json()] == ["HI-01", "HI-02", "HI-03"]
 
 
 def test_uc2a_t1_positive_case(uc2a, client):
@@ -224,3 +224,48 @@ def test_patient_journey_opens_for_use_case_plans(uc2a, client):
     r = client.get("/patients/TP001/timeline", headers=ANITA)
     assert r.status_code == 200, r.text
     assert any("Voice note" in e["label"] for e in r.json()["events"])
+
+
+def test_hi03_no_complaints_becomes_a_proposal(uc2a, client):
+    assert "HI-03" in [c["id"] for c in client.get("/simulator/clips", headers=ANITA).json()]
+    r = reply(client, "TP004", clip_id="HI-03")
+    assert r["handling"] == ["ai_flag_no", "proposal_created:held_open_proposal"]
+    [prop] = client.get("/proposals", headers=ANITA).json()
+    assert prop["translation"] == "I am perfectly fine, I have no complaints."
+    assert client.get(f"/inbound/{prop['inbound_id']}/audio", headers=ANITA).status_code == 200  # audio plays in the list
+
+
+def _record(client, mrn, data, *, mime="audio/wav", **fields):
+    return client.post(f"/simulator/{mrn}/voice", headers=ANITA, files={"file": ("note.wav", data, mime)}, data=fields)
+
+
+def test_recorded_voice_note_is_stored_and_goes_through_the_ai(uc2a, client):
+    """A note recorded in the simulator is stored in the database and takes the same path as a clip. The
+    simulated Sarvam in tests cannot read real audio, so it fails safe: flag yes, handover, AI failure shown."""
+    from app.gateway import CLIP_DIR
+
+    wav = (CLIP_DIR / "HI-03.wav").read_bytes()
+    r = _record(client, "TP001", wav, event_id="rec-1", language="Hindi")
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["handling"] == ["ai_flag_yes_failed", "handover_opened:health_flag_handover"]
+    with db() as c:
+        v = c.execute("SELECT * FROM inbound_message WHERE inbound_id = %s", (body["inbound_id"],)).fetchone()
+    assert (v["kind"], v["clip_id"], v["ai_flag"], v["ai_failed"]) == ("voice", None, "yes", True)
+    audio = client.get(f"/inbound/{body['inbound_id']}/audio", headers=SEKHAR)
+    assert audio.status_code == 200 and audio.content == wav and audio.headers["content-type"] == "audio/wav"
+    assert scalar("SELECT details->>'recorded' FROM audit_ledger WHERE action = 'voice_note_received'") == "true"
+    # The same delivery again changes nothing (REQ-20).
+    again = _record(client, "TP001", wav, event_id="rec-1", language="Hindi").json()
+    assert again["handling"] == ["duplicate_ignored"]
+    assert scalar("SELECT count(*) FROM inbound_message WHERE kind = 'voice'") == 1
+
+
+def test_recorded_voice_note_is_checked(uc2a, client):
+    assert _record(client, "TP001", b"not audio", mime="text/plain").status_code == 422
+    assert _record(client, "TP001", b"").status_code == 422
+    assert _record(client, "TP001", b"RIFF" + b"\0" * (5 * 1024 * 1024)).status_code == 422
+    assert _record(client, "TP001", b"RIFF1234", language="French").status_code == 422
+    assert client.post("/simulator/TP001/voice", headers=SEKHAR,
+                       files={"file": ("n.wav", b"RIFF", "audio/wav")}).status_code == 403
+    assert scalar("SELECT count(*) FROM inbound_message WHERE kind = 'voice'") == 0

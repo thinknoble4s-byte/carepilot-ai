@@ -1,7 +1,7 @@
 // Pop-ups from prototype v7.2: handover review, log a call, pause, messages (WhatsApp, simulated),
 // the doctor's instruction in the hospital record, and the morning department lists.
-import React, { useCallback, useEffect, useState } from 'react';
-import { api, post } from './api.js';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { api, post, upload } from './api.js';
 import { fmt, useUI, VoiceClip } from './ui.jsx';
 
 export const CLOSE_REASONS = ['Nothing clinical', 'Travel or booking plans only', 'Patient called; matter resolved',
@@ -202,6 +202,136 @@ function PauseForm({ patient, via }) {
   );
 }
 
+// ---- Voice notes recorded (or uploaded) in the simulator ----
+// Converted in the browser to 16 kHz mono WAV, the format Sarvam reads most reliably, and kept under 30 seconds.
+const MAX_SECONDS = 30;
+
+async function toWav(blob) {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new Ctx();
+  let decoded;
+  try {
+    decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+  } finally {
+    ctx.close();
+  }
+  const rate = 16000;
+  const offline = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * rate)), rate);
+  const src = offline.createBufferSource();
+  src.buffer = decoded;
+  src.connect(offline.destination);
+  src.start();
+  const pcm = (await offline.startRendering()).getChannelData(0);
+  const view = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+  const str = (o, s) => [...s].forEach((ch, i) => view.setUint8(o + i, ch.charCodeAt(0)));
+  str(0, 'RIFF'); view.setUint32(4, 36 + pcm.length * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  str(36, 'data'); view.setUint32(40, pcm.length * 2, true);
+  pcm.forEach((v, i) => view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 0x7fff, true));
+  return { blob: new Blob([view], { type: 'audio/wav' }), seconds: decoded.duration };
+}
+
+function VoiceRecorder({ patient, onSend }) {
+  const [status, setStatus] = useState('idle');  // idle | recording | ready
+  const [secs, setSecs] = useState(0);
+  const [note, setNote] = useState(null);  // { blob, seconds, url, source }
+  const [spoken, setSpoken] = useState('');
+  const [err, setErr] = useState('');
+  const rec = useRef(null);
+  const timer = useRef(null);
+  const canRecord = typeof window !== 'undefined' && window.isSecureContext && !!navigator.mediaDevices?.getUserMedia
+    && typeof MediaRecorder !== 'undefined';
+
+  useEffect(() => () => {
+    clearInterval(timer.current);
+    if (rec.current?.state === 'recording') rec.current.stop();
+  }, []);
+  useEffect(() => () => { if (note?.url) URL.revokeObjectURL(note.url); }, [note]);
+
+  const keep = async (blob, source) => {
+    try {
+      const wav = await toWav(blob);
+      if (wav.seconds > MAX_SECONDS + 0.5) {
+        setErr(`Keep the voice note under ${MAX_SECONDS} seconds (this one is ${Math.round(wav.seconds)} s).`);
+        setStatus('idle');
+        return;
+      }
+      setNote({ ...wav, url: URL.createObjectURL(wav.blob), source });
+      setStatus('ready');
+    } catch (e) {
+      setErr('This audio could not be read. Try another recording or a WAV, MP3 or M4A file.');
+      setStatus('idle');
+    }
+  };
+
+  const start = async () => {
+    setErr('');
+    setNote(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks = [];
+      const r = new MediaRecorder(stream);
+      r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      r.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        clearInterval(timer.current);
+        keep(new Blob(chunks, { type: r.mimeType || 'audio/webm' }), 'recorded');
+      };
+      rec.current = r;
+      r.start();
+      setSecs(0);
+      setStatus('recording');
+      timer.current = setInterval(() => setSecs((s) => {
+        if (s + 1 >= MAX_SECONDS && rec.current?.state === 'recording') rec.current.stop();
+        return s + 1;
+      }), 1000);
+    } catch (e) {
+      setErr('Microphone not available: allow microphone access in the browser, or upload an audio file instead.');
+    }
+  };
+  const stop = () => { if (rec.current?.state === 'recording') rec.current.stop(); };
+
+  return (
+    <>
+      <label className="v3-field">Record a voice note (stored in the database)</label>
+      {canRecord ? (
+        <div className="btn-row" style={{ marginTop: 0 }}>
+          {status === 'recording'
+            ? <button type="button" className="btn warn" onClick={stop}>■ Stop ({secs}s / {MAX_SECONDS}s)</button>
+            : <button type="button" className="btn" onClick={start}>● Start recording</button>}
+        </div>
+      ) : (
+        <div className="small-note">Recording needs a secure page (https) or this computer (localhost); this demo address is
+          plain http, so the browser blocks the microphone. Upload an audio file instead.</div>
+      )}
+      <label className="v3-field" htmlFor="msgF">…or upload an audio file (up to {MAX_SECONDS} seconds)</label>
+      <input id="msgF" type="file" accept="audio/*" className="v3-in"
+        onChange={(e) => { const f = e.target.files[0]; e.target.value = ''; if (f) { setErr(''); keep(f, f.name); } }} />
+      {status === 'ready' && note && (
+        <>
+          <div className="small-note" style={{ marginTop: 6 }}>{note.source === 'recorded' ? 'Your recording' : note.source} · {note.seconds.toFixed(1)} s</div>
+          <audio controls src={note.url} style={{ width: '100%', maxWidth: 300, height: 34 }} />
+          <label className="v3-field" htmlFor="msgL">Language spoken</label>
+          <select id="msgL" className="v3-in" value={spoken} onChange={(e) => setSpoken(e.target.value)}>
+            <option value="">Patient's language ({patient.preferred_language || patient.language})</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Kannada">Kannada</option>
+            <option value="English">English</option>
+            <option value="auto">Detect automatically</option>
+          </select>
+          <div className="btn-row">
+            <button type="button" className="btn primary"
+              onClick={async () => { if (await onSend(note.blob, spoken)) { setNote(null); setStatus('idle'); } }}>Send recording as the patient</button>
+            <button type="button" className="btn ghost" onClick={() => { setNote(null); setStatus('idle'); }}>Discard</button>
+          </div>
+        </>
+      )}
+      {err && <div className="error">{err}</div>}
+    </>
+  );
+}
+
 export function openMessages(ui, patient) {
   ui.showModal(`Messages — ${patient.full_name}`,
     'Approved templates in the patient\'s language. Button replies are logged automatically; free text always goes to a person.',
@@ -233,6 +363,22 @@ function Messages({ patient }) {
   }, []);
   const actOnReplies = settings?.act_on_replies !== false;
   useEffect(() => load(), [load]);
+  const voiceForm = (ev) => {
+    const fd = new FormData();
+    fd.append('file', ev.blob, 'voice-note.wav');
+    fd.append('event_id', ev.event_id);
+    if (ev.in_reply_to) fd.append('in_reply_to', String(ev.in_reply_to));
+    if (ev.language) fd.append('language', ev.language);
+    return fd;
+  };
+  const sendRecording = async (blob, language) => {
+    const ev = { upload: true, blob, language, in_reply_to: lastSent?.id, event_id: `wa-${Date.now()}` };
+    const r = await act(() => upload(`simulator/${patient.mrn}/voice`, voiceForm(ev)), (x) => `Voice note handled: ${x.handling.join('; ')}`, true);
+    if (r) { setLastEvent(ev); load(); }
+    return r;
+  };
+  const replay = () => act(() => (lastEvent.upload ? upload(`simulator/${patient.mrn}/voice`, voiceForm(lastEvent))
+    : post(`simulator/${patient.mrn}/reply`, lastEvent)), (r) => `Replay: ${r.handling.join('; ')}`, true).then(load);
   const reply = async (body) => {
     // Every simulated delivery carries a WhatsApp-style event id; resending the same id must change nothing (REQ-20).
     const sent = { event_id: `wa-${Date.now()}`, ...body };
@@ -267,7 +413,7 @@ function Messages({ patient }) {
                 {m.direction === 'in' && m.button && <span className="v31-en"><b>Tapped: {m.button.replaceAll('_', ' ')}</b></span>}
                 {m.kind === 'voice' && (
                   <>
-                    <span className="v31-en"><b>🎙 Voice note ({m.clip_id})</b></span>
+                    <span className="v31-en"><b>🎙 Voice note ({m.clip_id || 'recorded'})</b></span>
                     <VoiceClip inboundId={m.id} />
                     {m.transcript && <span className="v31-kn">{m.transcript}</span>}
                     {english && m.translation && <span className="v31-en">AI translation: {m.translation}</span>}
@@ -336,7 +482,7 @@ function Messages({ patient }) {
             </div>
             {actOnReplies && clips.length > 0 && (
               <>
-                <label className="v3-field" htmlFor="msgV">Record voice note (pre-recorded clip)</label>
+                <label className="v3-field" htmlFor="msgV">Send a pre-recorded voice note (synthetic clip)</label>
                 <select id="msgV" className="v3-in" value={clip} onChange={(e) => setClip(e.target.value)}>
                   {clips.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </select>
@@ -346,10 +492,11 @@ function Messages({ patient }) {
                     onClick={() => reply({ clip_id: clip, in_reply_to: lastSent?.id })}>Send voice note</button>
                   <button type="button" className="btn ghost" disabled={!lastEvent}
                     title="Test UC2a-T6: the same delivery arrives twice"
-                    onClick={() => act(() => post(`simulator/${patient.mrn}/reply`, lastEvent), (r) => `Replay: ${r.handling.join('; ')}`, true).then(load)}>
+                    onClick={replay}>
                     Resend the last event (replay)
                   </button>
                 </div>
+                <VoiceRecorder patient={patient} onSend={sendRecording} />
               </>
             )}
           </>

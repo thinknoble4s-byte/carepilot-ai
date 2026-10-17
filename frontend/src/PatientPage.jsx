@@ -363,7 +363,7 @@ export default function PatientPage({ mrn }) {
                   <td>{m.direction === 'call' ? 'Call' : 'WhatsApp'}</td>
                   <td>{m.direction === 'out' ? `To ${m.party}` : m.direction === 'in' ? `From ${m.party}` : `${m.party} (by ${ui.name(m.actor)})`}</td>
                   <td>{m.direction === 'out' ? <>{m.template_id.replaceAll('_', ' ')}<div className="small-note">{m.body_en}</div></>
-                    : m.direction === 'in' ? <>{m.button && <b>Tapped “{m.button.replaceAll('_', ' ')}” </b>}{m.kind === 'voice' && <b>Voice note ({m.clip_id}): </b>}{m.transcript || m.body}{m.translation && m.translation !== m.body && <div className="small-note">AI translation: {m.translation}</div>}{m.ai_flag && <div className="small-note">AI health flag: {m.ai_flag}{m.ai_failed ? ' (AI failed — safe path)' : ''}</div>}</> : m.body || '—'}</td>
+                    : m.direction === 'in' ? <>{m.button && <b>Tapped “{m.button.replaceAll('_', ' ')}” </b>}{m.kind === 'voice' && <b>Voice note ({m.clip_id || 'recorded'}): </b>}{m.transcript || m.body}{m.translation && m.translation !== m.body && <div className="small-note">AI translation: {m.translation}</div>}{m.ai_flag && <div className="small-note">AI health flag: {m.ai_flag}{m.ai_failed ? ' (AI failed — safe path)' : ''}</div>}</> : m.body || '—'}</td>
                   <td>{m.direction === 'out'
                     ? <span className={`tag ${m.status === 'sent' ? 'verified' : 'unverified'}`}>{m.status === 'sent' ? 'Sent' : m.status.replaceAll('_', ' ')}{m.blocked_reason ? `: ${m.blocked_reason}` : ''}</span>
                     : m.direction === 'in' ? <span className="tag verified">Reply</span> : <span className="tag">{CALL_OUTCOME[m.status] || m.status}</span>}</td>

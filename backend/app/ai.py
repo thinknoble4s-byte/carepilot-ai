@@ -112,6 +112,8 @@ FAKE_CLIPS = {
               "I have been having pain in my arm for the past week, I need to see a doctor."),
     "HI-02": ("मैं शनिवार को अपने बेटे के साथ आऊँगी, कृपया सुबह का समय दीजिए।",
               "I will come with my son on Saturday, please give me the morning time."),
+    "HI-03": ("मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।",
+              "I am perfectly fine, I have no complaints."),
 }
 HEALTH_WORDS = re.compile(r"pain|ache|hurt|fever|swell|bleed|breath|sick|unwell|tablet|medicine|side effect|doctor|"
                           r"worried|concern|दर्द|बुखार|डॉक्टर|डाक्टर|ನೋವು|ಜ್ವರ", re.I)
@@ -139,8 +141,10 @@ class Fake:
         if "Answer yes or no" in user:
             return "yes" if HEALTH_WORDS.search(message) else "no"
         intent = "booked" if re.search(r"come|booked|आऊँगी|शनिवार", message, re.I) else "other"
-        return json.dumps({"summary": "Patient says she will come on Saturday with her son and asks for a morning time."
-                           if intent == "booked" else "Patient sent a message.", "intent": intent, "intent_reason": None})
+        well = re.search(r"perfectly fine|no complaints|ठीक", message, re.I)
+        summary = ("Patient says she will come on Saturday with her son and asks for a morning time." if intent == "booked"
+                   else "Patient says she is well and has no complaints." if well else "Patient sent a message.")
+        return json.dumps({"summary": summary, "intent": intent, "intent_reason": None})
 
 
 def _provider(conn):

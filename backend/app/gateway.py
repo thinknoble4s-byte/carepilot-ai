@@ -22,6 +22,8 @@ GATEWAY = "WhatsApp gateway (simulated)"
 SARVAM = "Sarvam (AI)"
 BUTTONS = ("booked", "help_book", "cant_come")
 CLIP_DIR = Path(__file__).resolve().parent / "seed_data" / "uc2a" / "audio"
+MAX_AUDIO_BYTES = 5 * 1024 * 1024  # a recorded note of up to 30 seconds is about 1 MB as 16 kHz WAV
+SPOKEN = ("Hindi", "Kannada", "English", "auto")  # "auto": Sarvam detects the language
 
 
 def clips(conn) -> list[dict]:
@@ -34,7 +36,8 @@ def choose_action(flag: str) -> tuple[str, str]:
 
 
 def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | None = None, text: str | None = None,
-                  in_reply_to: int | None = None, clip_id: str | None = None, event_id: str | None = None) -> dict:
+                  in_reply_to: int | None = None, clip_id: str | None = None, event_id: str | None = None,
+                  audio: bytes | None = None, mime: str | None = None, spoken: str | None = None) -> dict:
     """A reply from the simulator. A tap together with text or a voice note is two events, handled in turn."""
     content = bool((text or "").strip()) or clip_id is not None
     if button and content:
@@ -45,10 +48,11 @@ def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | N
         return {**second, "handling": first["handling"] + second["handling"],
                 "inbound_ids": [first["inbound_id"], second["inbound_id"]]}
     return _receive(conn, mrn, from_role=from_role, button=button, text=text, clip_id=clip_id,
-                    in_reply_to=in_reply_to, event_id=event_id)
+                    in_reply_to=in_reply_to, event_id=event_id, audio=audio, mime=mime, spoken=spoken)
 
 
-def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_reply_to=None, event_id=None) -> dict:
+def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_reply_to=None, event_id=None,
+             audio=None, mime=None, spoken=None) -> dict:
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
     if from_role not in ("patient", "caregiver"):
@@ -56,7 +60,18 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
     if button is not None and button not in BUTTONS:
         raise Invalid("button must be one of: " + ", ".join(BUTTONS))
     text = (text or "").strip() or None
-    if button is None and text is None and clip_id is None:
+    if audio is not None:  # a voice note recorded or uploaded in the simulator (stored in the database)
+        if clip_id is not None or button is not None or text is not None:
+            raise Invalid("Send a recorded voice note on its own")
+        if not audio:
+            raise Invalid("The recording is empty")
+        if len(audio) > MAX_AUDIO_BYTES:
+            raise Invalid("The recording is too large (keep it under 30 seconds)")
+        if not (mime or "").startswith("audio/"):
+            raise Invalid("Only audio files can be sent as a voice note")
+    if spoken is not None and spoken not in SPOKEN:
+        raise Invalid("language must be one of: " + ", ".join(SPOKEN))
+    if button is None and text is None and clip_id is None and audio is None:
         raise Invalid("A reply needs a button, some text or a voice note")
 
     if event_id:  # REQ-20: a replayed event changes nothing
@@ -89,6 +104,10 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
         audio_id = conn.execute("INSERT INTO audio_blob (mime, data) VALUES ('audio/wav', %s) RETURNING audio_id",
                                 (path.read_bytes(),)).fetchone()["audio_id"]
         kind = "voice"
+    elif audio is not None:
+        audio_id = conn.execute("INSERT INTO audio_blob (mime, data) VALUES (%s, %s) RETURNING audio_id",
+                                (mime.split(";")[0], audio)).fetchone()["audio_id"]
+        kind = "voice"
     now = clock.get_now(conn)
     inbound = conn.execute(
         """
@@ -100,12 +119,14 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
          event_id, audio_id, clip_id),
     ).fetchone()
     iid = inbound["inbound_id"]
-    source = f"WhatsApp {'voice note' if kind == 'voice' else 'reply'} #{iid} from {from_role}, " \
+    source = f"WhatsApp {'voice note' + (' (recorded)' if audio is not None else '') if kind == 'voice' else 'reply'} " \
+             f"#{iid} from {from_role}, " \
              f"{now:%Y-%m-%d %H:%M}"
     audit.append(conn, actor_type="system", actor_name=GATEWAY,
                  action="voice_note_received" if kind == "voice" else "reply_received",
                  entity_type="inbound_message", entity_id=str(iid), mrn=mrn,
                  details={"kind": kind, "button": button, "text": text, "clip": clip_id, "from_role": from_role,
+                          "recorded": audio is not None, "spoken_language": spoken,
                           "in_reply_to": target["message_id"] if target else None, "audio_stored": audio_id is not None})
 
     result = {"inbound_id": iid, "handling": [], "handover_id": None, "proposal_id": None}
@@ -124,7 +145,7 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
         if created:
             _acknowledge(conn, mrn, from_role, ho["handover_id"], "ack_help_keyword")
     else:
-        result.update(_understand_and_act(conn, mrn, inbound, source, from_role))
+        result.update(_understand_and_act(conn, mrn, inbound, source, from_role, spoken))
     conn.execute("UPDATE inbound_message SET handling = %s, handover_id = %s WHERE inbound_id = %s",
                  ("; ".join(result["handling"]), result["handover_id"], iid))
     return result
@@ -135,14 +156,15 @@ def _acknowledge(conn, mrn, recipient, handover_id, reason) -> dict:
                                   reason_code=reason, recipient=recipient, handover_id=handover_id)
 
 
-def _understand_and_act(conn, mrn, inbound, source, from_role) -> dict:
+def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None) -> dict:
     patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
     iid = inbound["inbound_id"]
     if inbound["kind"] == "voice":
         audio = conn.execute("SELECT data, mime FROM audio_blob WHERE audio_id = %s", (inbound["audio_id"],)).fetchone()
         # The patient may speak a language other than her profile language (UC2a: English profile, Hindi note).
         clip = next((c for c in clips(conn) if c["id"] == inbound["clip_id"]), {})
-        u = ai.understand(conn, language=clip.get("language", patient["preferred_language"]), audio=bytes(audio["data"]),
+        language = spoken or clip.get("language", patient["preferred_language"])
+        u = ai.understand(conn, language=language, audio=bytes(audio["data"]),
                           mime=audio["mime"], clip_id=inbound["clip_id"])
     else:
         u = ai.understand(conn, language=patient["preferred_language"], text=inbound["text"])

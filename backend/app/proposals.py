@@ -68,7 +68,7 @@ def open_for(conn, mrn: str) -> list[dict]:
 
 def waiting(conn) -> list[dict]:
     return conn.execute(
-        """SELECT p.proposal_id, p.mrn, pt.full_name, p.summary, p.intent, p.intent_reason, p.draft_failed,
+        """SELECT p.proposal_id, p.mrn, p.inbound_id, pt.full_name, p.summary, p.intent, p.intent_reason, p.draft_failed,
                   p.created_at_demo, i.transcript, i.translation, i.audio_id, i.kind, i.text
            FROM proposal p JOIN inbound_message i USING (inbound_id) JOIN patient pt ON pt.mrn = p.mrn
            WHERE p.status = 'drafted' ORDER BY p.proposal_id""").fetchall()

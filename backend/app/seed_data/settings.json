@@ -38,6 +38,13 @@
       "language": "Hindi",
       "label": "HI-02 — will come on Saturday with her son, morning please",
       "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+    },
+    {
+      "id": "HI-03",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-03 — feeling perfectly OK, no complaints",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu): \"मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।\""
     }
   ]
 }
