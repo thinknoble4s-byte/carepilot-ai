@@ -28,8 +28,9 @@ def build(conn, mrn: str) -> dict:
         events.append(_ev(c["recorded_on"], f"Consent recorded ({c['consent_reference']}): {', '.join(c['scopes'])}",
                           "milestone", "hosp", f"Consent record {c['consent_reference']}", "Coordinator, consent form"))
     if plan:
-        events.append(_ev(plan["treatment_end_date"], f"Active treatment completed ({plan['therapy']})", "milestone",
-                          "hosp", "Care plan confirmation", f"Confirmed by {_who(plan['confirmed_by'])}"))
+        if plan["treatment_end_date"]:  # Use Case 1/2a plans have entered due dates and no treatment end date
+            events.append(_ev(plan["treatment_end_date"], f"Active treatment completed ({plan['therapy']})", "milestone",
+                              "hosp", "Care plan confirmation", f"Confirmed by {_who(plan['confirmed_by'])}"))
         events.append(_ev(plan["confirmed_on"] or plan["treatment_end_date"],
                           f"Follow-up plan {plan['template_id']} v{plan['template_version']} "
                           f"confirmed; identifiers checked: {', '.join(plan['identifiers_checked'])}", "milestone",
@@ -108,7 +109,7 @@ def build(conn, mrn: str) -> dict:
     events.sort(key=lambda e: (e["date"], e["kind"] != "milestone"))
     routine = [e for e in events if e["kind"] == "routine"]
     return {"mrn": mrn, "full_name": p["full_name"], "status": p["status"],
-            "therapy": plan["therapy"] if plan else None, "events": events,
+            "therapy": plan["therapy"] if plan else None, "plan": plan["template_id"] if plan else None, "events": events,
             "traced": sum(1 for e in routine if e["origin"]), "need_origin": len(routine),
             "milestones": sum(1 for e in events if e["kind"] == "milestone")}
 

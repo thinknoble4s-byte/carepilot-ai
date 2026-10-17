@@ -41,7 +41,7 @@ export default function Timeline({ mrn }) {
             <div className="v4-name">
               <a role="button" tabIndex={0} onClick={() => ui.nav('plan', mrn)} style={{ color: 'inherit', textDecoration: 'none' }}>{t.full_name}</a>{' '}
               {patientStatusPill(t.status)}
-              <div className="v4-meta">{mrn}{t.therapy ? ` · ${t.therapy}` : ' · follow-up plan not confirmed yet'}</div>
+              <div className="v4-meta">{mrn}{t.therapy ? ` · ${t.therapy}` : t.plan ? ` · plan ${t.plan} confirmed` : ' · follow-up plan not confirmed yet'}</div>
             </div>
             <div className="seg">
               {FILTERS.map(([id, label]) => (

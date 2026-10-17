@@ -216,3 +216,11 @@ def test_audit_order_positive_case(uc2a, client):
     assert all(r["demo_time"] for r in rows)
     assert scalar("SELECT reason_code FROM audit_ledger WHERE action = 'agent_decision' AND mrn = 'TP001' "
                   "AND task = 'reply_understanding'") == "health_flag_handover"
+
+
+def test_patient_journey_opens_for_use_case_plans(uc2a, client):
+    """Use Case plans have no treatment end date; the journey must still open, voice note included."""
+    tap_and_voice(client, "TP001", "HI-01")
+    r = client.get("/patients/TP001/timeline", headers=ANITA)
+    assert r.status_code == 200, r.text
+    assert any("Voice note" in e["label"] for e in r.json()["events"])
