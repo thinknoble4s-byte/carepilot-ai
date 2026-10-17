@@ -54,6 +54,24 @@ def test_due_dates_match_answer_key(mrn):
     assert due == {"V1": v1, "T1": t1, "V2": v2, "T2": t23, "T3": t23}
 
 
+@pytest.mark.demo_template
+def test_demo_template_v1_1_months():
+    """The editable demo template (v1.1): V1 at 1 month, T1 at 2, V2 at 3, T2/T3 at 3 months - 14 days.
+    Sunita (SYN-0007) finished treatment on 15 May 2026; weekend dates move to Monday."""
+    from app.reference import plan_template
+
+    assert plan_template()["version"] == "1.1"
+    due = {c["item_code"]: c["due_date"] for c in cards_for("SYN-0007")}
+    assert due == {"V1": "2026-06-15", "T1": "2026-07-15", "V2": "2026-08-17", "T2": "2026-08-03", "T3": "2026-08-03"}
+
+
+@pytest.mark.demo_template
+def test_demo_reset_loads_template_v1_1(seeded, client):
+    body = client.get("/care-plan", headers=PRIYA).json()["plan_templates"][0]["body"]
+    assert (body["template_id"], body["version"]) == ("BC-SURV-1", "1.1")
+    assert [(i["item_code"], i["months"], i["days"]) for i in body["items"]] ==         [("V1", 1, 0), ("T1", 2, 0), ("V2", 3, 0), ("T2", 3, -14), ("T3", 3, -14)]
+
+
 def test_month_end_and_weekend_rules():
     from app.plan import add_months
 

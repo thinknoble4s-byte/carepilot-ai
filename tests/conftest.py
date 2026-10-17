@@ -18,6 +18,28 @@ DSN = os.environ.get("TEST_DATABASE_URL")
 # Tests never call the real Sarvam API: a deterministic fake stands in (see app/ai.py).
 os.environ["AI_PROVIDER"] = "fake"
 
+# The Golden Path care plan template is demo content that people edit (backend/app/seed_data/
+# care_plan_template.json). Engine tests use a fixed copy of the v1.0 schedule (6/12 months, the Step A
+# answer key) so editing the demo template does not break them. Tests marked `demo_template` use the real file.
+FIXED_TEMPLATE = Path(__file__).resolve().parent / "fixtures" / "care_plan_template_v1_0.json"
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "demo_template: use the editable demo care plan template, not the fixed copy")
+
+
+@pytest.fixture(autouse=True)
+def fixed_plan_template(request, monkeypatch):
+    if request.node.get_closest_marker("demo_template"):
+        return
+    import json
+
+    from app import reference, seed
+
+    template = json.loads(FIXED_TEMPLATE.read_text(encoding="utf-8"))
+    monkeypatch.setattr(reference, "plan_template", lambda: template)
+    monkeypatch.setattr(seed, "plan_template", lambda: template)
+
 
 def users_header(user_id: str) -> dict:
     return {"X-User": user_id}

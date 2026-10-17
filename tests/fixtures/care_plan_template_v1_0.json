@@ -1,0 +1,20 @@
+{
+  "template_id": "BC-SURV-1",
+  "version": "1.0",
+  "name": "Breast cancer survivorship follow-up (MOCK, not clinical advice)",
+  "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+  "effective_from": "2026-10-05",
+  "weekend_rule": "move_forward_to_monday",
+  "items": [
+    {"item_code": "V1", "type": "visit", "name": "Oncology follow-up visit (6 months)", "months": 6, "days": 0, "department": "Oncology OPD"},
+    {"item_code": "T1", "type": "test", "name": "Pre-visit blood tests (CBC, liver function)", "months": 6, "days": -7, "department": "Laboratory"},
+    {"item_code": "V2", "type": "visit", "name": "Oncology follow-up visit (12 months)", "months": 12, "days": 0, "department": "Oncology OPD"},
+    {"item_code": "T2", "type": "test", "name": "Mammogram", "months": 12, "days": -14, "department": "Radiology"},
+    {"item_code": "T3", "type": "test", "name": "Bone density scan (DEXA)", "months": 12, "days": -14, "department": "Radiology"}
+  ],
+  "departments": {
+    "Oncology OPD": {"owner": "Priya Nair", "cover": "Meera Joseph"},
+    "Laboratory": {"owner": "Sunil Kumar", "cover": "Priya Nair"},
+    "Radiology": {"owner": "Lakshmi Rao", "cover": "Priya Nair"}
+  }
+}
