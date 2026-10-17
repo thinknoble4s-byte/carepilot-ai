@@ -47,8 +47,7 @@ def test_golden_path(seeded, client):
 
     # Step 8: the instruction creates a new card and an approved booking message the same day.
     client.post(f"/handovers/{hid}/instruction", headers=ANAND, json={
-        "text": "Surgical-site review within 7 days",
-        "order": {"name": "Surgical-site review", "department": "Oncology OPD", "within_days": 7}})
+        "text": "Surgical-site review within 7 days", "days": 7})
     assert outbox(SUNITA)[-1]["template_id"] == "instruction_booking"
     assert client.post(f"/handovers/{hid}/close", headers=PRIYA, json={}).status_code == 422
     client.post(f"/handovers/{hid}/close", headers=PRIYA, json={"reason": "Review booked; doctor's plan in place"})

@@ -30,8 +30,8 @@ def check_transition(card_type: str, from_state: str, to_state: str, **ctx) -> N
     if to_state not in flow[from_state]:
         raise IllegalTransition(f"A {card_type} card cannot move from {from_state} to {to_state}")
     move = (card_type, from_state, to_state)
-    if move == ("visit", "Due", "Booked") and ctx.get("source") not in ("button_tap", "coordinator"):
-        raise IllegalTransition("A booking is recorded from a button tap or by a coordinator")
+    if move == ("visit", "Due", "Booked") and ctx.get("source") not in ("patient_button", "button_tap", "coordinator"):
+        raise IllegalTransition("A booking is recorded from a patient button or by a coordinator")
     if move == ("visit", "Booked", "Attended") and ctx.get("source") not in ("appointment_list", "hospital_feed"):
         raise IllegalTransition("Attendance comes only from the appointment list or a hospital feed, never a reply")
     if move == ("test", "Ordered", "Scheduled") and not ctx.get("appointment_date"):

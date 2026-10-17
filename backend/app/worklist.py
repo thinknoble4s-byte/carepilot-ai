@@ -55,7 +55,10 @@ def build(conn) -> dict:
         ORDER BY p.mrn
         """
     ).fetchall()
-    handovers = {h["mrn"]: h for h in conn.execute("SELECT * FROM handover WHERE stage <> 'closed'").fetchall()}
+    handovers = {h["mrn"]: h for h in conn.execute(
+        """SELECT h.*, i.kind AS inbound_kind FROM handover h LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id
+           WHERE h.stage <> 'closed'""").fetchall()}
+    open_proposals = _group(conn.execute("SELECT * FROM proposal WHERE status = 'drafted' ORDER BY proposal_id").fetchall())
     tasks = _group(conn.execute("SELECT * FROM coordinator_task WHERE status = 'open' ORDER BY task_id").fetchall())
     drafts = _group(conn.execute(
         """SELECT o.*, c.item_code FROM outbox_message o LEFT JOIN order_card c USING (card_id)
@@ -74,8 +77,8 @@ def build(conn) -> dict:
     for p in patients:
         mrn, reasons, tags = p["mrn"], [], set()
 
-        def add(tag, text, action=False, due=None):
-            reasons.append({"tag": tag, "txt": text, "action": action, "due": due})
+        def add(tag, text, action=False, due=None, marks=None):
+            reasons.append({"tag": tag, "txt": text, "action": action, "due": due, "marks": marks or []})
             tags.add(tag)
             if action:
                 tags.add("action")
@@ -87,7 +90,7 @@ def build(conn) -> dict:
                 "therapy": p["therapy"], "treatment_end": p["treatment_end"], "last_reply": last_reply,
                 "caregiver": p["caregiver_name"], "caregiver_in_loop": bool(p["caregiver_phone"] and p["scopes"]
                                                                           and "whatsapp_caregiver" in p["scopes"]),
-                "handover_id": None, "unanswered": un}
+                "handover_id": None, "unanswered": un, "hold": bool(open_proposals[mrn])}
         if p["status"] in CLOSED:
             rows.append({**base, "main": "closed", "reasons": [{"tag": "closed", "txt": f"Closed — {p['status'].lower()}",
                                                                 "action": False, "due": None}], "next": None})
@@ -118,9 +121,11 @@ def build(conn) -> dict:
             if h["stage"] == "awaiting_coordinator":
                 why = {"help_keyword": "Patient asked for a person (HELP)", "manual": "Handover opened by the team",
                        "unclassified_reply": "Agent stopped: the patient wrote a message — review the handover",
-                       "health_matter": "Agent stopped: patient mentioned a health matter — review the handover"}
+                       "health_matter": "Agent stopped: health mention — review the handover"}
+                marks = (["health_mention"] if h["trigger"] == "health_matter" else []) + \
+                    (["voice"] if h["inbound_kind"] == "voice" else []) + (["ai_failed"] if h["ai_failed"] else [])
                 add("action", why.get(h["trigger"], "Review the handover") + escalated("coordinator_review"), True,
-                    task_due("coordinator_review"))
+                    task_due("coordinator_review"), marks)
             elif h["stage"] == "calling":
                 add("action", "Call the patient before deciding on the handover" + escalated("call_first"), True,
                     task_due("call_first"))
@@ -136,6 +141,10 @@ def build(conn) -> dict:
                 add("action", "Doctor marked the concern urgent — call the patient today" + escalated("urgent_call"),
                     True, task_due("urgent_call"))
 
+        for prop in open_proposals[mrn]:
+            add("approval", f"Proposal to approve: {prop['summary'] or 'AI draft not available — read the message'}"
+                            f"{' (intent ' + prop['intent'].replace('_', ' ') + ')' if prop['intent'] else ''}"
+                            " — routine reminders on hold")
         for m in drafts[mrn]:
             add("approval", f"Agent proposal to approve: {m['template_id'].replace('_', ' ')}"
                             f"{' for ' + m['item_code'] if m['item_code'] else ''} ({m['recipient']})")
@@ -233,6 +242,15 @@ def agent_feed(conn, today: date) -> list[dict]:
         """,
         (since,),
     ).fetchall()
+    stops = conn.execute(
+        """
+        SELECT a.demo_date AS day, a.occurred_at AS ts, a.mrn, p.full_name, a.reason_code
+        FROM audit_ledger a JOIN patient p USING (mrn)
+        WHERE a.action = 'agent_decision' AND a.reason_code IN ('health_flag_handover', 'held_open_proposal')
+          AND a.demo_date >= %s
+        """,
+        (since,),
+    ).fetchall()
     verb = {"sent": "Sent", "pending_approval": "Drafted for approval", "blocked": "Blocked by the send-guard:"}
     rows = [{"day": m["day"], "ts": m["ts"], "mrn": m["mrn"], "full_name": m["full_name"],
              "text": f"{verb.get(m['status'], m['status'])} {m['template_id'].replace('_', ' ')}"
@@ -240,6 +258,9 @@ def agent_feed(conn, today: date) -> list[dict]:
                      f" to the {m['recipient']}"} for m in sent]
     rows += [{"day": t["day"], "ts": t["ts"], "mrn": t["mrn"], "full_name": t["full_name"],
               "text": f"Logged the \"{t['button'].replace('_', ' ')}\" button reply: {t['handling']}"} for t in taps]
+    rows += [{"day": s["day"], "ts": s["ts"], "mrn": s["mrn"], "full_name": s["full_name"],
+              "text": ("Stopped: health mention" if s["reason_code"] == "health_flag_handover" else "Held: open proposal")
+              + f" ({s['reason_code']})"} for s in stops]
     return sorted(rows, key=lambda r: r["ts"], reverse=True)
 
 
@@ -248,7 +269,8 @@ def _glance(conn, today, rows) -> dict:
     active = [r for r in rows if r["main"] not in ("paused", "closed")]
     need = [r for r in active if r["main"] in ("action", "noresp")]
     handled = [r for r in active if r["main"] == "agent"]
-    approvals = conn.execute("SELECT count(*) AS n FROM outbox_message WHERE status = 'pending_approval'").fetchone()["n"]
+    approvals = conn.execute("SELECT count(*) AS n FROM outbox_message WHERE status = 'pending_approval'").fetchone()["n"] \
+        + conn.execute("SELECT count(*) AS n FROM proposal WHERE status = 'drafted'").fetchone()["n"]
     return {"agent_actions": len(feed), "agent_patients": len({f["mrn"] for f in feed}), "handled": len(handled),
             "approvals": approvals, "need_you": len(need)}
 

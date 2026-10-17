@@ -15,6 +15,9 @@ from .reference import ITEM_LABELS
 
 AUTOMATED = ("agent", "system")
 ALWAYS_ALLOWED_AUTOMATED = ("handover_ack",)  # the fixed acknowledgement after a health mention or HELP
+# While a handover is open only these two pass, whoever sends (UC2a REQ-06): the acknowledgement and the
+# booking message for a doctor's instruction (a person decided that one). Everything else is refused.
+ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking")
 
 
 def latest_scopes(conn, mrn: str) -> list[str]:
@@ -39,6 +42,8 @@ def guard(conn, patient: dict, template_id: str, recipient: str, actor_type: str
         return "no_whatsapp_consent", inputs
     if recipient == "caregiver" and not patient["caregiver_phone"]:
         return "no_caregiver_phone", inputs
+    if handover is not None and template_id not in ALLOWED_DURING_HANDOVER:
+        return "held_handover_open", inputs
     if actor_type in AUTOMATED and template_id not in ALWAYS_ALLOWED_AUTOMATED:
         if "automated_messaging" not in scopes:
             return "no_automated_consent", inputs
@@ -46,8 +51,6 @@ def guard(conn, patient: dict, template_id: str, recipient: str, actor_type: str
             return "agent_off", inputs
         if patient["status"] == "Paused":
             return "patient_paused", inputs
-        if handover is not None:
-            return "handover_open", inputs
     return None, inputs
 
 
@@ -73,6 +76,12 @@ def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: st
         raise NotFound(f"Patient {mrn} not found")
     lang = patient["preferred_language"]
     tmpl = policy.template(conn, template_id, lang)
+    fallback = None
+    if tmpl is None and template_id in ALWAYS_ALLOWED_AUTOMATED and lang != "English":
+        # REQ-07: the acknowledgement is never blocked for want of an approved translation; silence is worse.
+        tmpl = policy.template(conn, template_id, "English")
+        fallback = f"{lang} template not approved; English sent"
+        lang = "English" if tmpl else lang
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s", (card_id,)).fetchone() if card_id else None
     blocked, inputs = guard(conn, patient, template_id, recipient, actor_type)
     if tmpl is None and not blocked:
@@ -104,7 +113,8 @@ def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: st
         action={"sent": "message_sent", "blocked": "message_blocked", "pending_approval": "message_drafted"}[status],
         entity_type="outbox_message", entity_id=str(msg["message_id"]), mrn=mrn, reason_code=blocked or reason_code,
         template_id=template_id, template_version=version, mode=mode, outcome=status,
-        decision_inputs=inputs, details={"recipient": recipient, "card_id": card_id, "gap_id": gap_id, "language": lang},
+        decision_inputs=inputs, details={"recipient": recipient, "card_id": card_id, "gap_id": gap_id, "language": lang,
+                                         "language_fallback": fallback},
     )
     return msg
 

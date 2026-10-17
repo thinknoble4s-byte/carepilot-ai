@@ -1,7 +1,8 @@
 // R3 — the patient page (prototype v7.2 scrPlan "Follow-up plan and actions").
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
-import { openCall, openHandover, openMessages, openPause } from './Modals.jsx';
+import { CloseReason, openCall, openHandover, openMessages, openPause, PatientWords } from './Modals.jsx';
+import ProposalCard from './Proposals.jsx';
 import { Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, useUI } from './ui.jsx';
 
 const LIFE = { visit: ['Due', 'Booked', 'Attended'], test: ['Due', 'Ordered', 'Scheduled', 'Completed', 'Report received', 'Report verified'] };
@@ -73,14 +74,10 @@ function ConcernCard({ h, tasks, today, role, patient }) {
   return (
     <div className={`v4-item ${urgentOpen ? 'over' : 'req'}`}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <div className="t">Concern — {h.trigger === 'help_keyword' ? 'patient asked for a person' : 'patient-reported'}</div>{status}
+        <div className="t">Concern — {h.trigger === 'help_keyword' ? 'patient asked for a person' : h.trigger === 'health_matter' ? 'health mention (AI flag)' : 'patient-reported'}</div>{status}
       </div>
-      {h.patient_words && (
-        <div className="fb" style={{ marginTop: 6, fontSize: 12.5 }}>
-          <b>Patient said</b> ({patient.preferred_language}, {fmt(h.opened_on)}, via {h.source}): "{h.patient_words}"
-          {h.translation && <div className="small-note">English: {h.translation}</div>}
-        </div>
-      )}
+      {h.patient_words && <div style={{ marginTop: 6 }}><PatientWords h={h} language={patient.preferred_language} /></div>}
+      {h.response_minutes != null && <div className="d">Reviewed by {ui.name(h.reviewed_by)} {h.response_minutes} minutes after the agent stopped.</div>}
       <div className="d">Coordinator: {patient.coordinator || 'Unassigned'} · Doctor: {h.doctor ? ui.name(h.doctor) : 'not yet assigned'}. CarePilot does not interpret or grade concerns.</div>
       <div className="v5-steps" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
         {chain.map(([l, d]) => (
@@ -100,7 +97,7 @@ function ConcernCard({ h, tasks, today, role, patient }) {
       {role === 'coordinator' && h.stage === 'ready_to_close' && !urgentOpen && (
         <div style={{ marginTop: 8 }}>
           <label className="v3-field" htmlFor="clr">Close the handover — reason (your name is recorded)</label>
-          <input id="clr" className="v3-in" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Review booked; doctor's plan in place" />
+          <CloseReason id="clr" value={reason} onChange={setReason} />
           <div className="btn-row"><button type="button" className="btn primary" disabled={!reason.trim()} onClick={close}>Close handover</button></div>
         </div>
       )}
@@ -307,10 +304,18 @@ export default function PatientPage({ mrn }) {
         {hOpen && !ro && p.handover.stage === 'awaiting_coordinator' && (
           <div className="v4-flag" style={{ marginTop: 10 }}>
             <div className="ft">Agent handover — the agent stopped and handed this to you</div>
-            {p.handover.patient_words && <div className="fb">"{p.handover.patient_words}" ({p.preferred_language})</div>}
+            {p.handover.patient_words && <div className="fb">"{p.handover.patient_words}" ({p.handover.inbound_kind === 'voice' ? 'voice note' : p.preferred_language})</div>}
+            {p.handover.translation && <div className="small-note">English (AI translation): {p.handover.translation}</div>}
             <div className="btn-row"><button type="button" className="btn sm primary" onClick={() => openHandover(ui, { ...p, handover_id: p.handover.handover_id })}>Review handover</button></div>
           </div>
         )}
+        {(p.send_block || p.hold) && (
+          <div className="role-note" style={{ marginTop: 10 }}>
+            {p.send_block ? <><b>Send block on</b> — a handover is open. Only the acknowledgement and the doctor's booking message can go out, whoever sends.</>
+              : <><b>Routine reminders on hold</b> — a proposal is waiting for you. Approve or reject it to lift the hold.</>}
+          </div>
+        )}
+        {!ro && (p.proposals || []).filter((x) => x.status === 'drafted').map((x) => <div key={x.proposal_id} style={{ marginTop: 10 }}><ProposalCard p={x} /></div>)}
         <div className="agent-line"><span className="v4-k agent">Agent</span>{' '}
           {p.status === 'Agent off' ? 'Switched off for this patient — you handle all contact.'
             : 'On — sends reminders and booking help for this patient within the autonomy policy; stops and hands over if a health matter comes up.'}
@@ -358,7 +363,7 @@ export default function PatientPage({ mrn }) {
                   <td>{m.direction === 'call' ? 'Call' : 'WhatsApp'}</td>
                   <td>{m.direction === 'out' ? `To ${m.party}` : m.direction === 'in' ? `From ${m.party}` : `${m.party} (by ${ui.name(m.actor)})`}</td>
                   <td>{m.direction === 'out' ? <>{m.template_id.replaceAll('_', ' ')}<div className="small-note">{m.body_en}</div></>
-                    : m.direction === 'in' ? <>{m.button && <b>Tapped “{m.button.replaceAll('_', ' ')}” </b>}{m.body}</> : m.body || '—'}</td>
+                    : m.direction === 'in' ? <>{m.button && <b>Tapped “{m.button.replaceAll('_', ' ')}” </b>}{m.kind === 'voice' && <b>Voice note ({m.clip_id}): </b>}{m.transcript || m.body}{m.translation && m.translation !== m.body && <div className="small-note">AI translation: {m.translation}</div>}{m.ai_flag && <div className="small-note">AI health flag: {m.ai_flag}{m.ai_failed ? ' (AI failed — safe path)' : ''}</div>}</> : m.body || '—'}</td>
                   <td>{m.direction === 'out'
                     ? <span className={`tag ${m.status === 'sent' ? 'verified' : 'unverified'}`}>{m.status === 'sent' ? 'Sent' : m.status.replaceAll('_', ' ')}{m.blocked_reason ? `: ${m.blocked_reason}` : ''}</span>
                     : m.direction === 'in' ? <span className="tag verified">Reply</span> : <span className="tag">{CALL_OUTCOME[m.status] || m.status}</span>}</td>

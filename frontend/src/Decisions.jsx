@@ -1,7 +1,7 @@
 // R4 — Needs my decision (prototype v7.2 scrDecide).
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
-import { openInstruction } from './Modals.jsx';
+import { InstructionForm, PatientWords } from './Modals.jsx';
 import { Dl, fmt, ScreenHead, useUI } from './ui.jsx';
 
 export default function Decisions() {
@@ -9,13 +9,14 @@ export default function Decisions() {
   const [queue, setQueue] = useState([]);
   const [recent, setRecent] = useState([]);
   const [error, setError] = useState('');
+  const [choice, setChoice] = useState({});
   const load = useCallback(() => {
     api('doctor/queue').then(setQueue).catch((e) => setError(e.message));
     api('decisions/recent').then(setRecent).catch(() => {});
   }, []);
   useEffect(() => load(), [load]);
 
-  // One explicit tap records the decision; nothing is pre-selected and CarePilot suggests nothing.
+  // The doctor chooses, then submits (UC2a step 9); nothing is pre-selected and CarePilot suggests nothing.
   const decide = async (item, decision) => {
     try {
       await post(`handovers/${item.handover_id}/gate2`, { decision });
@@ -44,16 +45,21 @@ export default function Decisions() {
             </div>
             <Dl due={c.due_date} label="Decision" today={ui.today} />
           </div>
-          <div className="fb" style={{ marginTop: 8, fontSize: 13 }}>
-            <b>Patient said</b> ({c.preferred_language}): "{c.patient_words}"
-            {c.translation && <div className="small-note">English: {c.translation}</div>}
-          </div>
+          <div style={{ marginTop: 8 }}><PatientWords h={c} language={c.preferred_language} /></div>
           <div className="small-note" style={{ marginTop: 4 }}>
             Source: {c.source} · confirmed by {ui.name(c.gate1_by)}{c.call_note ? ` · coordinator's call: "${c.call_note}"` : ''}. CarePilot does not grade concerns — you decide.
           </div>
+          <div className="btn-row" role="radiogroup" aria-label="Your decision">
+            {[['urgent', 'Urgent — call today'], ['routine', 'Routine']].map(([v, l]) => (
+              <label key={v} className="v4-check" style={{ marginRight: 14 }}>
+                <input type="radio" name={`g2-${c.handover_id}`} checked={choice[c.handover_id] === v}
+                  onChange={() => setChoice({ ...choice, [c.handover_id]: v })} /> {l}
+              </label>
+            ))}
+          </div>
           <div className="btn-row">
-            <button type="button" className="btn warn" onClick={() => decide(c, 'urgent')}>Urgent — call today</button>
-            <button type="button" className="btn" onClick={() => decide(c, 'routine')}>Routine</button>
+            <button type="button" className="btn primary" disabled={!choice[c.handover_id]}
+              onClick={() => decide(c, choice[c.handover_id])}>Submit</button>
             <button type="button" className="btn ghost" onClick={() => ui.nav('plan', c.mrn)}>Open patient</button>
           </div>
         </div>
@@ -69,10 +75,8 @@ export default function Decisions() {
                 <div className="t">{c.full_name} — {c.gate2_decision === 'urgent' ? 'Urgent' : 'Routine'}</div>
                 <Dl due={c.due_date} label="Instruction" today={ui.today} />
               </div>
-              <div className="d">Write your instruction in the hospital record as usual — CarePilot picks it up and creates the order card.</div>
-              <div className="btn-row">
-                <button type="button" className="btn sm" onClick={() => openInstruction(ui, c)}>Demo: instruction appears in the EMR</button>
-              </div>
+              <div className="d">Write your instruction in the hospital record as usual — CarePilot picks it up and creates the card.</div>
+              <InstructionForm item={c} inline />
             </div>
           ))}
         </div>

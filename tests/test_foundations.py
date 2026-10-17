@@ -68,9 +68,9 @@ def test_advance_clock(conn):
 
 
 def test_clock_endpoints(seeded, client):
-    assert client.get("/clock", headers=ANAND).json() == {"today": "2026-11-02"}
-    assert client.post("/clock/advance", json={"days": 7}, headers=PRIYA).json() == {"today": "2026-11-09"}
+    assert client.get("/clock", headers=ANAND).json() == {"today": "2026-11-02", "time": "09:00"}
+    assert client.post("/clock/advance", json={"days": 7}, headers=PRIYA).json()["today"] == "2026-11-09"
     for days in (0, 61):
         assert client.post("/clock/advance", json={"days": days}, headers=PRIYA).status_code == 422
     assert client.post("/clock/advance", json={"days": 7}, headers=ANAND).status_code == 403
-    assert client.get("/clock", headers=ANAND).json() == {"today": "2026-11-09"}
+    assert client.get("/clock", headers=ANAND).json()["today"] == "2026-11-09"

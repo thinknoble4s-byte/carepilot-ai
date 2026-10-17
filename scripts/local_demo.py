@@ -42,6 +42,17 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+def load_sarvam_key() -> bool:
+    """SARVAM_API_KEY from .env (git-ignored) if present; the value is never printed. Without it the AI is simulated."""
+    env = ROOT / ".env"
+    if not os.environ.get("SARVAM_API_KEY") and env.exists():
+        for line in env.read_text(encoding="utf-8").splitlines():
+            key, _, value = line.partition("=")
+            if key.strip() == "SARVAM_API_KEY" and value.strip():
+                os.environ["SARVAM_API_KEY"] = value.strip().strip('"').strip("'")
+    return bool(os.environ.get("SARVAM_API_KEY"))
+
+
 def main() -> None:
     import pgserver
     import uvicorn
@@ -64,6 +75,7 @@ def main() -> None:
 
         print(f"\nCarePilot local demo is running (synthetic data, local database, no AWS).")
         print(f"  Open  http://127.0.0.1:{PAGE_PORT}")
+        print("  AI    " + ("Sarvam (key loaded from .env)" if load_sarvam_key() else "simulated (no SARVAM_API_KEY in .env)"))
         print("  Stop  Ctrl+C (the local database is deleted)\n")
         sys.path.insert(0, str(ROOT / "backend"))
         uvicorn.run("app.main:app", host="127.0.0.1", port=API_PORT, log_level="warning")

@@ -81,12 +81,12 @@ def test_send_layer_blocks_even_if_a_workflow_tries(seeded, client):
                                            actor="u_priya", reason_code="test", recipient="caregiver")
         no_consent = messaging.send_message(c, mrn="SYN-0013", template_id="booking_reminder", actor_type="person",
                                             actor="u_priya", reason_code="test")
-    assert (agent_try["status"], agent_try["blocked_reason"]) == ("blocked", "handover_open")
+    assert (agent_try["status"], agent_try["blocked_reason"]) == ("blocked", "held_handover_open")
     assert ack["status"] == "sent"       # the fixed acknowledgement is the one exception
-    assert person["status"] == "sent"    # a person's approved message is not an automated send
+    assert (person["status"], person["blocked_reason"]) == ("blocked", "held_handover_open")  # only 2 templates pass
     assert caregiver["blocked_reason"] == "no_whatsapp_consent"
     assert no_consent["blocked_reason"] == "no_whatsapp_consent"
-    assert scalar("SELECT count(*) FROM audit_ledger WHERE action = 'message_blocked'") == 3
+    assert scalar("SELECT count(*) FROM audit_ledger WHERE action = 'message_blocked'") == 4
 
 
 def test_agent_off_and_missing_consent_route_to_the_coordinator(seeded, client):
@@ -120,7 +120,7 @@ def test_booked_button_updates_the_visit_card_without_ai(seeded, client):
     cards = {c["item_code"]: c["state"] for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json()}
     assert cards["V1"] == "Booked"
     change = last_audit("card_state_changed")
-    assert (change["actor_type"], change["details"]["source"]) == ("agent", "button_tap")
+    assert (change["actor_type"], change["details"]["source"]) == ("system", "patient_button")
     assert scalar("SELECT count(*) FROM audit_ledger WHERE actor_type = 'ai'") == 0  # no model involved
     assert morning(client)["gap_check"]["resolved"] == 1
 

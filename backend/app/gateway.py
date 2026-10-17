@@ -1,21 +1,54 @@
-"""Inbound WhatsApp replies (simulated channel gateway).
+"""Inbound WhatsApp replies (simulated channel gateway) — Use Case 2a.
 
-Buttons are structured, so they update the workflow directly with no AI call.
-Free text is never acted on: it goes to a person. Until the Sarvam health-matter
-flag arrives (Increment 4), there is no classifier, and "no classifier" counts
-as uncertain, so free text takes the safe path: handover plus the fixed
-acknowledgement. HELP (or ಸಹಾಯ / मदद) always reaches a person directly.
+Every inbound message (button tap, typed text, voice note) is always saved and audited; only sending
+is ever blocked, never receiving. A replayed event (same event id) creates nothing new.
+
+Buttons are structured, so they update the workflow directly with no AI: "Booked" moves a visit card
+to Booked (source: patient button, appointment date empty). Text and voice are never acted on by
+themselves: the AI layer (Sarvam) gives the text, an English translation and one yes/no health flag
+(failure or doubt counts as yes). A plain function then picks one action:
+  flag yes -> stop and hand over (health_flag_handover): fixed acknowledgement, handover, send block
+  flag no  -> hold while a proposal waits for a coordinator (held_open_proposal)
+HELP (or ಸಹಾಯ / मदद) always reaches a person directly. In data sets with replies switched off
+(Use Case 1) the reply is only saved.
 """
-from . import audit, clock, handover, messaging, policy, states, tasks
+from pathlib import Path
+
+from . import ai, audit, clock, handover, messaging, policy, states, tasks
 from .agent import AGENT, set_next_action
 from .errors import Invalid, NotFound
 
 GATEWAY = "WhatsApp gateway (simulated)"
+SARVAM = "Sarvam (AI)"
 BUTTONS = ("booked", "help_book", "cant_come")
+CLIP_DIR = Path(__file__).resolve().parent / "seed_data" / "uc2a" / "audio"
 
 
-def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | None = None,
-                  text: str | None = None, in_reply_to: int | None = None) -> dict:
+def clips(conn) -> list[dict]:
+    return policy.settings(conn).get("voice_clips") or []
+
+
+def choose_action(flag: str) -> tuple[str, str]:
+    """REQ-05: a plain function, no AI call. It never overrides the send block."""
+    return ("handover", "health_flag_handover") if flag == "yes" else ("hold", "held_open_proposal")
+
+
+def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | None = None, text: str | None = None,
+                  in_reply_to: int | None = None, clip_id: str | None = None, event_id: str | None = None) -> dict:
+    """A reply from the simulator. A tap together with text or a voice note is two events, handled in turn."""
+    content = bool((text or "").strip()) or clip_id is not None
+    if button and content:
+        first = _receive(conn, mrn, from_role=from_role, button=button, in_reply_to=in_reply_to,
+                         event_id=f"{event_id}:tap" if event_id else None)
+        second = _receive(conn, mrn, from_role=from_role, text=text, clip_id=clip_id, in_reply_to=in_reply_to,
+                          event_id=event_id)
+        return {**second, "handling": first["handling"] + second["handling"],
+                "inbound_ids": [first["inbound_id"], second["inbound_id"]]}
+    return _receive(conn, mrn, from_role=from_role, button=button, text=text, clip_id=clip_id,
+                    in_reply_to=in_reply_to, event_id=event_id)
+
+
+def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_reply_to=None, event_id=None) -> dict:
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
     if from_role not in ("patient", "caregiver"):
@@ -23,8 +56,20 @@ def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | N
     if button is not None and button not in BUTTONS:
         raise Invalid("button must be one of: " + ", ".join(BUTTONS))
     text = (text or "").strip() or None
-    if button is None and text is None:
-        raise Invalid("A reply needs a button or some text")
+    if button is None and text is None and clip_id is None:
+        raise Invalid("A reply needs a button, some text or a voice note")
+
+    if event_id:  # REQ-20: a replayed event changes nothing
+        seen = conn.execute("SELECT * FROM inbound_message WHERE event_id = %s", (event_id,)).fetchone()
+        if seen:
+            prop = conn.execute("SELECT proposal_id FROM proposal WHERE inbound_id = %s",
+                                (seen["inbound_id"],)).fetchone()
+            audit.append(conn, actor_type="system", actor_name=GATEWAY, action="duplicate_suppressed",
+                         entity_type="inbound_message", entity_id=str(seen["inbound_id"]), mrn=seen["mrn"],
+                         outcome="replay_ignored", details={"event_id": event_id})
+            return {"inbound_id": seen["inbound_id"], "handling": ["duplicate_ignored"], "duplicate": True,
+                    "handover_id": seen["handover_id"], "proposal_id": prop["proposal_id"] if prop else None}
+
     if in_reply_to is not None:
         target = conn.execute("SELECT * FROM outbox_message WHERE message_id = %s AND mrn = %s AND status = 'sent'",
                               (in_reply_to, mrn)).fetchone()
@@ -35,57 +80,153 @@ def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | N
             "SELECT * FROM outbox_message WHERE mrn = %s AND status = 'sent' AND card_id IS NOT NULL "
             "ORDER BY message_id DESC LIMIT 1", (mrn,)).fetchone()
 
-    today = clock.get_today(conn)
+    audio_id, kind = None, "button" if button else "text"
+    if clip_id is not None:
+        clip = next((c for c in clips(conn) if c["id"] == clip_id), None)
+        path = CLIP_DIR / f"{clip_id}.wav"
+        if clip is None or not path.exists():
+            raise NotFound(f"Voice clip {clip_id} is not available")
+        audio_id = conn.execute("INSERT INTO audio_blob (mime, data) VALUES ('audio/wav', %s) RETURNING audio_id",
+                                (path.read_bytes(),)).fetchone()["audio_id"]
+        kind = "voice"
+    now = clock.get_now(conn)
     inbound = conn.execute(
         """
-        INSERT INTO inbound_message (mrn, from_role, in_reply_to, button, text, handling, received_on)
-        VALUES (%s, %s, %s, %s, %s, 'received', %s) RETURNING *
+        INSERT INTO inbound_message (mrn, from_role, in_reply_to, button, text, handling, received_on, received_time,
+                                     kind, event_id, audio_id, clip_id)
+        VALUES (%s, %s, %s, %s, %s, 'received', %s, %s, %s, %s, %s, %s) RETURNING *
         """,
-        (mrn, from_role, target["message_id"] if target else None, button, text, today),
+        (mrn, from_role, target["message_id"] if target else None, button, text, now.date(), now.time(), kind,
+         event_id, audio_id, clip_id),
     ).fetchone()
-    source = f"WhatsApp reply #{inbound['inbound_id']} from {from_role}, {today.isoformat()}"
-    audit.append(conn, actor_type="system", actor_name=GATEWAY, action="reply_received", entity_type="inbound_message",
-                 entity_id=str(inbound["inbound_id"]), mrn=mrn,
-                 details={"button": button, "text": text, "from_role": from_role,
-                          "in_reply_to": target["message_id"] if target else None})
+    iid = inbound["inbound_id"]
+    source = f"WhatsApp {'voice note' if kind == 'voice' else 'reply'} #{iid} from {from_role}, " \
+             f"{now:%Y-%m-%d %H:%M}"
+    audit.append(conn, actor_type="system", actor_name=GATEWAY,
+                 action="voice_note_received" if kind == "voice" else "reply_received",
+                 entity_type="inbound_message", entity_id=str(iid), mrn=mrn,
+                 details={"kind": kind, "button": button, "text": text, "clip": clip_id, "from_role": from_role,
+                          "in_reply_to": target["message_id"] if target else None, "audio_stored": audio_id is not None})
 
-    handling, ho = [], None
+    result = {"inbound_id": iid, "handling": [], "handover_id": None, "proposal_id": None}
     if not policy.settings(conn)["act_on_replies"]:
         # Use Case 1: the reply is kept in the message history and CarePilot takes no action.
-        conn.execute("UPDATE inbound_message SET handling = 'saved_no_action' WHERE inbound_id = %s",
-                     (inbound["inbound_id"],))
-        return {"inbound_id": inbound["inbound_id"], "handling": ["saved_no_action"], "handover_id": None}
+        conn.execute("UPDATE inbound_message SET handling = 'saved_no_action' WHERE inbound_id = %s", (iid,))
+        return {**result, "handling": ["saved_no_action"]}
+
     if button:
-        handling.append(_apply_button(conn, mrn, button, target, inbound["inbound_id"]))
-    if text:
-        keywords = [k.lower() for k in policy.deadlines(conn)["help_keywords"]]
-        trigger = "help_keyword" if text.lower() in keywords else "unclassified_reply"
-        ho, created = handover.open_handover(conn, mrn, trigger=trigger, actor_type="system", actor=GATEWAY,
-                                             patient_words=text, source=source)
-        handling.append(f"handover_{'opened' if created else 'updated'}:{trigger}")
+        result["handling"].append(_apply_button(conn, mrn, button, target, iid))
+    elif text and text.lower() in [k.lower() for k in policy.deadlines(conn)["help_keywords"]]:
+        ho, created = handover.open_handover(conn, mrn, trigger="help_keyword", actor_type="system", actor=GATEWAY,
+                                             patient_words=text, source=source, inbound_id=iid)
+        result["handover_id"] = ho["handover_id"]
+        result["handling"].append(f"handover_{'opened' if created else 'updated'}:help_keyword")
         if created:
-            messaging.send_message(conn, mrn=mrn, template_id="handover_ack", actor_type="system", actor=GATEWAY,
-                                   reason_code=f"ack_{trigger}", recipient=from_role,
-                                   handover_id=ho["handover_id"])
+            _acknowledge(conn, mrn, from_role, ho["handover_id"], "ack_help_keyword")
+    else:
+        result.update(_understand_and_act(conn, mrn, inbound, source, from_role))
     conn.execute("UPDATE inbound_message SET handling = %s, handover_id = %s WHERE inbound_id = %s",
-                 ("; ".join(handling), ho["handover_id"] if ho else None, inbound["inbound_id"]))
-    return {"inbound_id": inbound["inbound_id"], "handling": handling,
-            "handover_id": ho["handover_id"] if ho else None}
+                 ("; ".join(result["handling"]), result["handover_id"], iid))
+    return result
+
+
+def _acknowledge(conn, mrn, recipient, handover_id, reason) -> dict:
+    return messaging.send_message(conn, mrn=mrn, template_id="handover_ack", actor_type="agent", actor=AGENT,
+                                  reason_code=reason, recipient=recipient, handover_id=handover_id)
+
+
+def _understand_and_act(conn, mrn, inbound, source, from_role) -> dict:
+    patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
+    iid = inbound["inbound_id"]
+    if inbound["kind"] == "voice":
+        audio = conn.execute("SELECT data, mime FROM audio_blob WHERE audio_id = %s", (inbound["audio_id"],)).fetchone()
+        # The patient may speak a language other than her profile language (UC2a: English profile, Hindi note).
+        clip = next((c for c in clips(conn) if c["id"] == inbound["clip_id"]), {})
+        u = ai.understand(conn, language=clip.get("language", patient["preferred_language"]), audio=bytes(audio["data"]),
+                          mime=audio["mime"], clip_id=inbound["clip_id"])
+    else:
+        u = ai.understand(conn, language=patient["preferred_language"], text=inbound["text"])
+    conn.execute(
+        """
+        UPDATE inbound_message SET transcript = %s, translation = %s, ai_flag = %s, ai_failed = %s, ai_attempts = %s,
+               ai_model = %s, ai_prompt_version = %s WHERE inbound_id = %s
+        """,
+        (u["transcript"], u["translation"], u["flag"], u["failed"], u["attempts"], u["model"], u["prompt_version"], iid),
+    )
+    audit.append(conn, actor_type="ai_suggestion", actor_name=SARVAM, action="ai_understanding",
+                 entity_type="inbound_message", entity_id=str(iid), mrn=mrn, model=u["model"],
+                 prompt_version=u["prompt_version"], outcome=f"flag={u['flag']}",
+                 reason_code="ai_call_failed" if u["failed"] else ("ai_unsure" if u["unsure"] else None),
+                 details={"transcript": u["transcript"], "translation": u["translation"], "attempts": u["attempts"],
+                          "failed": u["failed"], "errors": u["errors"]})
+
+    action, reason = choose_action(u["flag"])
+    open_h = messaging.open_handover(conn, mrn)
+    facts = {"flag": u["flag"], "ai_failed": u["failed"], "ai_unsure": u["unsure"],
+             "handover_already_open": open_h is not None}
+    audit.append(conn, actor_type="agent", actor_name=AGENT, action="agent_decision", entity_type="inbound_message",
+                 entity_id=str(iid), mrn=mrn, reason_code=reason, task="reply_understanding", outcome=action,
+                 trigger_event=f"inbound_message:{iid}", decision_inputs=facts,
+                 details={"action": "stop and hand over" if action == "handover" else "hold while a proposal waits"})
+    words, translation = u["transcript"] or inbound["text"], u["translation"]
+
+    if action == "handover" or open_h is not None:
+        # Flag yes (or a person already owns the conversation): the words go to a person.
+        if open_h is None:
+            _acknowledge(conn, mrn, from_role, None, "ack_health_flag")  # sent before the handover opens
+        ho, created = handover.open_handover(
+            conn, mrn, trigger="health_matter", actor_type="system", actor=GATEWAY, patient_words=words,
+            source=source, translation=translation, inbound_id=iid, ai_failed=u["failed"])
+        if created:
+            conn.execute("UPDATE outbox_message SET handover_id = %s WHERE mrn = %s AND template_id = 'handover_ack' "
+                         "AND handover_id IS NULL", (ho["handover_id"], mrn))
+        return {"handling": [f"ai_flag_{u['flag']}" + ("_failed" if u["failed"] else ""),
+                             f"handover_{'opened' if created else 'updated'}:health_flag_handover"],
+                "handover_id": ho["handover_id"], "proposal_id": None}
+
+    # Flag no: a proposal for a coordinator, and a hold on routine reminders (REQ-16/17).
+    d = ai.draft(conn, transcript=words, translation=translation)
+    now = clock.get_now(conn)
+    prop = conn.execute(
+        """
+        INSERT INTO proposal (mrn, inbound_id, summary, intent, intent_reason, draft_failed, created_at_demo,
+                              ai_model, ai_prompt_version)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
+        """,
+        (mrn, iid, d["summary"], d["intent"], d["intent_reason"], d["failed"], now, d["model"], d["prompt_version"]),
+    ).fetchone()
+    audit.append(conn, actor_type="ai_suggestion", actor_name=SARVAM, action="ai_draft", entity_type="proposal",
+                 entity_id=str(prop["proposal_id"]), mrn=mrn, model=d["model"], prompt_version=d["prompt_version"],
+                 outcome="draft_failed" if d["failed"] else "drafted",
+                 details={"summary": d["summary"], "intent": d["intent"], "intent_reason": d["intent_reason"],
+                          "attempts": d["attempts"], "errors": d["errors"]})
+    audit.append(conn, actor_type="system", actor_name=GATEWAY, action="proposal_created", entity_type="proposal",
+                 entity_id=str(prop["proposal_id"]), mrn=mrn, outcome="drafted",
+                 details={"hold_on": bool(policy.settings(conn).get("hold_on_proposal", True))})
+    if policy.settings(conn)["people_tasks"]:
+        tasks.create_task(conn, mrn=mrn, task_type="proposal_review", actor_type="system", actor=GATEWAY,
+                          reason="Read the patient's message and approve or reject the AI draft",
+                          dedupe_key=f"proposal:{prop['proposal_id']}")
+        conn.execute("UPDATE coordinator_task SET proposal_id = %s WHERE dedupe_key = %s",
+                     (prop["proposal_id"], f"proposal:{prop['proposal_id']}"))
+    set_next_action(conn, mrn, "Reminders on hold: proposal waiting for the coordinator"
+                    if policy.settings(conn).get("hold_on_proposal", True) else "Proposal waiting for the coordinator")
+    return {"handling": [f"ai_flag_{u['flag']}", "proposal_created:held_open_proposal"], "handover_id": None,
+            "proposal_id": prop["proposal_id"]}
 
 
 def _apply_button(conn, mrn: str, button: str, target: dict | None, inbound_id: int) -> str:
-    """Deterministic: no LLM call. Logged as the agent's live 'log_button_reply' task."""
+    """Deterministic: no AI call. A tap is a structured fact recorded by the system (REQ-01)."""
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s",
                         (target["card_id"],)).fetchone() if target and target["card_id"] else None
-    label = card["item_code"] if card else "no card"
     if button == "booked" and card and card["card_type"] == "visit" and card["state"] == "Due":
-        states.transition_card(conn, card["card_id"], "Booked", "agent", AGENT, source="button_tap")
+        states.transition_card(conn, card["card_id"], "Booked", "system", GATEWAY, source="patient_button")
         outcome = "card_booked"
-        set_next_action(conn, mrn, f"{card['item_code']} booked; attendance comes from the appointment list")
+        set_next_action(conn, mrn, f"{card['item_code']} booked by the patient; attendance comes from the appointment list")
     elif button == "booked" and card and card["state"] == "Due":
         tasks.create_task(conn, mrn=mrn, task_type="confirm_test_booking", card_id=card["card_id"],
                           reason=f"Patient says {card['name']} is booked: add the appointment date",
-                          actor_type="agent", actor=AGENT, dedupe_key=f"testbooked:{card['card_id']}")
+                          actor_type="system", actor=GATEWAY, dedupe_key=f"testbooked:{card['card_id']}")
         outcome = "test_booking_to_confirm"
         set_next_action(conn, mrn, f"Coordinator to confirm the {card['item_code']} appointment date")
     elif button == "booked":
@@ -95,12 +236,8 @@ def _apply_button(conn, mrn: str, button: str, target: dict | None, inbound_id: 
         tasks.create_task(conn, mrn=mrn, task_type=task_type, card_id=card["card_id"] if card else None,
                           reason=("Patient asked for help booking " if button == "help_book"
                                   else "Patient says they cannot come for ") + (card["name"] if card else "a visit"),
-                          actor_type="agent", actor=AGENT, dedupe_key=f"{button}:{inbound_id}")
+                          actor_type="system", actor=GATEWAY, dedupe_key=f"{button}:{inbound_id}")
         outcome = f"task_{task_type}"
         set_next_action(conn, mrn, "Coordinator to help book" if button == "help_book"
                         else "Coordinator to follow up: patient cannot come")
-    audit.append(conn, actor_type="agent", actor_name=AGENT, action="agent_decision", entity_type="inbound_message",
-                 entity_id=str(inbound_id), mrn=mrn, reason_code=f"button_{button}", task="log_button_reply",
-                 mode="live", outcome=outcome, trigger_event=f"inbound_message:{inbound_id}",
-                 details={"card": label})
     return f"button_{button}:{outcome}"

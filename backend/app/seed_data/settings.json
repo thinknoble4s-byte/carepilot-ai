@@ -9,5 +9,35 @@
   "caregiver_copy": true,
   "act_on_replies": true,
   "people_tasks": true,
-  "clinic_name": "Hospital A"
+  "clinic_name": "Hospital A",
+  "instruction_card": {
+    "name": "Doctor-requested visit",
+    "department": "Oncology OPD",
+    "owner": "Priya Nair",
+    "cover": "Meera Joseph"
+  },
+  "ai": {
+    "tries": 2,
+    "timeout_seconds": 10,
+    "speech_model": "saaras:v3",
+    "language_model": "sarvam-105b",
+    "note": "UC2a names Sarvam-30B; Sarvam deprecated it (API answer, 17 Oct 2026) and points to sarvam-105b."
+  },
+  "hold_on_proposal": true,
+  "voice_clips": [
+    {
+      "id": "HI-01",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-01 — arm pain for a week, wants to see the doctor",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+    },
+    {
+      "id": "HI-02",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-02 — will come on Saturday with her son, morning please",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+    }
+  ]
 }

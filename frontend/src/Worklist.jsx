@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { openCall, openDeptLists, openHandover, openMessages, openPause } from './Modals.jsx';
+import ProposalCard from './Proposals.jsx';
 import { Chip, fmt, GapState, GUARD, Reason, ScreenHead, useUI } from './ui.jsx';
 
 const FILTERS = [['action', 'Coordinator action required'], ['noresp', 'No response'], ['overdue', 'Overdue'],
@@ -17,8 +18,10 @@ export default function Worklist() {
   const me = ui.user?.person;
 
   const [allCards, setAllCards] = useState([]);
+  const [replyProposals, setReplyProposals] = useState([]);
   const load = useCallback(() => {
     api('worklist').then(setData).catch((e) => setError(e.message));
+    api('proposals').then(setReplyProposals).catch(() => {});
     api('cards').then(setAllCards).catch(() => {});
   }, []);
   useEffect(() => load(), [load]);
@@ -110,6 +113,14 @@ export default function Worklist() {
           plus {g.approvals} one-tap approval{g.approvals === 1 ? '' : 's'}. The agent never handles health matters — those always come to you.
         </div>
       </div>
+
+      {replyProposals.length > 0 && (
+        <div className="card agent-card">
+          <div className="card-title">Replies to approve ({replyProposals.length})</div>
+          <div className="card-desc">The AI found no health mention and drafted a summary. Routine reminders to these patients are on hold until you approve or reject.</div>
+          {replyProposals.map((p) => <ProposalCard key={p.proposal_id} p={p} onDone={load} />)}
+        </div>
+      )}
 
       {proposals.length > 0 && (
         <div className="card agent-card">

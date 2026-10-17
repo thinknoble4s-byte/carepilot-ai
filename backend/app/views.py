@@ -60,8 +60,17 @@ def patient_detail(conn, mrn: str) -> dict:
             (mrn,),
         ).fetchall(),
         "handover": conn.execute(
-            "SELECT * FROM handover WHERE mrn = %s ORDER BY (stage = 'closed'), handover_id DESC LIMIT 1", (mrn,)
+            """SELECT h.*, i.kind AS inbound_kind, i.transcript, i.translation AS ai_translation, i.audio_id
+               FROM handover h LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id
+               WHERE h.mrn = %s ORDER BY (h.stage = 'closed'), h.handover_id DESC LIMIT 1""", (mrn,)
         ).fetchone(),
+        "proposals": conn.execute(
+            """SELECT p.*, i.transcript, i.translation, i.audio_id, i.kind, i.text
+               FROM proposal p JOIN inbound_message i USING (inbound_id) WHERE p.mrn = %s
+               ORDER BY p.proposal_id DESC""", (mrn,)).fetchall(),
+        "send_block": conn.execute("SELECT 1 FROM handover WHERE mrn = %s AND stage <> 'closed'",
+                                   (mrn,)).fetchone() is not None,
+        "hold": conn.execute("SELECT 1 FROM proposal WHERE mrn = %s AND status = 'drafted'", (mrn,)).fetchone() is not None,
         "appointments": conn.execute(
             "SELECT appointment_date, department FROM appointment WHERE mrn = %s ORDER BY appointment_date",
             (mrn,),
@@ -116,21 +125,24 @@ def summary(conn) -> dict:
 
 
 def messages(conn, mrn: str) -> list[dict]:
-    """The WhatsApp thread for one patient: outbox (sent, blocked, drafts) and replies, in order."""
+    """The WhatsApp thread for one patient: outbox (sent, blocked, drafts), replies (taps, text, voice notes with
+    their transcript, translation and flag) and calls, in order."""
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
     return conn.execute(
         """
-        SELECT 'out' AS direction, message_id AS id, created_at, created_on AS day, recipient AS party, body,
-               body_en, buttons, status, blocked_reason, template_id, actor, NULL::text AS button, NULL::text AS handling
+        SELECT 'out' AS direction, message_id AS id, created_at, created_on AS day, NULL::time AS at, recipient AS party,
+               body, body_en, buttons, status, blocked_reason, template_id, actor, NULL::text AS button,
+               NULL::text AS handling, language, NULL::text AS kind, NULL::text AS transcript, NULL::text AS translation,
+               NULL::text AS ai_flag, NULL::boolean AS ai_failed, NULL::bigint AS audio_id, NULL::text AS clip_id
         FROM outbox_message WHERE mrn = %(mrn)s
         UNION ALL
-        SELECT 'in', inbound_id, created_at, received_on, from_role, text, NULL, NULL, NULL, NULL, NULL, NULL,
-               button, handling
+        SELECT 'in', inbound_id, created_at, received_on, received_time, from_role, text, NULL, NULL, NULL, NULL, NULL,
+               NULL, button, handling, NULL, kind, transcript, translation, ai_flag, ai_failed, audio_id, clip_id
         FROM inbound_message WHERE mrn = %(mrn)s
         UNION ALL
-        SELECT 'call', call_id, created_at, called_on, who, note, NULL, NULL, outcome, NULL, NULL, called_by,
-               NULL, NULL
+        SELECT 'call', call_id, created_at, called_on, NULL, who, note, NULL, NULL, outcome, NULL, NULL, called_by,
+               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
         FROM call_log WHERE mrn = %(mrn)s
         ORDER BY created_at
         """,
@@ -144,8 +156,9 @@ def needs_you(conn) -> dict:
         "handovers": conn.execute(
             """
             SELECT h.handover_id, h.mrn, p.full_name, h.trigger, h.stage, h.patient_words, h.opened_on,
-                   h.gate2_decision
-            FROM handover h JOIN patient p USING (mrn) WHERE h.stage <> 'closed' ORDER BY h.handover_id
+                   h.gate2_decision, h.opened_at_demo, i.kind AS inbound_kind
+            FROM handover h JOIN patient p USING (mrn) LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id
+            WHERE h.stage <> 'closed' ORDER BY h.handover_id
             """
         ).fetchall(),
         "tasks": conn.execute(
@@ -170,17 +183,22 @@ def doctor_queue(conn) -> list[dict]:
     return conn.execute(
         """
         SELECT h.handover_id, h.mrn, p.full_name, p.preferred_language, h.stage, h.trigger, h.patient_words,
-               h.translation, h.source, h.call_note, h.gate1_by, h.gate2_decision, h.doctor,
+               h.translation, h.source, h.call_note, h.gate1_by, h.gate2_decision, h.doctor, h.ai_failed,
+               i.kind AS inbound_kind, i.audio_id, i.transcript, h.inbound_id,
                (SELECT due_date FROM coordinator_task t WHERE t.handover_id = h.handover_id AND t.status = 'open'
                   AND t.task_type IN ('doctor_decision', 'doctor_instruction') ORDER BY task_id DESC LIMIT 1) AS due_date
-        FROM handover h JOIN patient p USING (mrn)
+        FROM handover h JOIN patient p USING (mrn) LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id
         WHERE h.stage IN ('awaiting_doctor', 'awaiting_instruction') ORDER BY h.handover_id
         """
     ).fetchall()
 
 
 def handover_detail(conn, handover_id: int) -> dict:
-    h = conn.execute("SELECT * FROM handover WHERE handover_id = %s", (handover_id,)).fetchone()
+    h = conn.execute(
+        """SELECT h.*, i.kind AS inbound_kind, i.transcript, i.translation AS ai_translation, i.audio_id,
+                  i.ai_attempts, i.ai_model
+           FROM handover h LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id WHERE h.handover_id = %s""",
+        (handover_id,)).fetchone()
     if h is None:
         raise NotFound(f"Handover {handover_id} not found")
     return {**h, "tasks": conn.execute(

@@ -35,9 +35,9 @@ def append(
         raise TypeError(f"Unknown audit fields: {sorted(unknown)}")
     if extra.get("decision_inputs") is not None:
         extra["decision_inputs"] = Jsonb(extra["decision_inputs"])
-    clock = conn.execute("SELECT today FROM demo_clock WHERE id = 1").fetchone()
+    clock = conn.execute("SELECT today, now_time FROM demo_clock WHERE id = 1").fetchone()
     extra["demo_date"] = clock["today"] if clock else None
-    extra["demo_time"] = DEMO_TIME.get()
+    extra["demo_time"] = DEMO_TIME.get() or (clock["now_time"].strftime("%H:%M") if clock else None)
     cols = ["actor_type", "actor_name", "action", "entity_type", "entity_id", "details", *extra]
     values = [actor_type, actor_name, action, entity_type, entity_id, Jsonb(details or {}), *extra.values()]
     return conn.execute(

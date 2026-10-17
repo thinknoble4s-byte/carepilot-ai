@@ -42,7 +42,7 @@ def _run(conn) -> dict:
     candidates = conn.execute(
         """
         SELECT CASE WHEN c.due_date >= %(today)s::date THEN 'G0' ELSE 'G1' END AS rule,
-               c.card_id, c.mrn, c.due_date, c.item_code
+               c.card_id, c.mrn, c.due_date, c.item_code, c.origin
         FROM order_card c JOIN patient p USING (mrn)
         WHERE c.state = 'Due'
           AND p.status NOT IN ('Paused', 'Lost to follow-up', 'Followed up elsewhere')
@@ -53,7 +53,9 @@ def _run(conn) -> dict:
         """,
         {"today": today, "window": window, "grace": grace, "all_cards": cfg["reminder_cards"] == "all"},
     ).fetchall()
-    candidates = [c for c in candidates if c["rule"] in cfg["gap_rules"]]
+    # G0 is for cards that come from the care plan (UC2a REQ-13): a doctor-requested card has its own message.
+    candidates = [c for c in candidates if c["rule"] in cfg["gap_rules"]
+                  and not (c["rule"] == "G0" and c["origin"] != "plan_item")]
 
     new, suppressed = [], []
     for c in candidates:

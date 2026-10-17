@@ -42,6 +42,14 @@ export function post(path, body) {
   return api(path, { method: 'POST', body: JSON.stringify(body ?? {}) });
 }
 
+export async function blobUrl(path) {
+  const res = await fetch(`${await apiBase()}${path.replace(/^\//, '')}`, {
+    headers: currentUser ? { 'X-User': currentUser } : {},
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return URL.createObjectURL(await res.blob());
+}
+
 export function upload(path, formData) {
   return request(path, { method: 'POST', body: formData }, {});
 }

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use Case 2a Gap Review</title>
+<style>
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --ink: #14202e; --quiet: #556070; --line: #dde3ea;
+  --brand: #1d4f91; --brand-tint: #e9f1fb;
+  --met: #15803d; --met-tint: #e9f8ee; --part: #b45309; --part-tint: #fdf3e2; --miss: #b91c1c; --miss-tint: #fcebeb;
+  --ai: #6d28d9; --ai-tint: #f2edfc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f16; --surface: #151c28; --ink: #eef2f7; --quiet: #9aa7b8; --line: #293345;
+    --brand: #7aa5e8; --brand-tint: #16233a;
+    --met: #4ade80; --met-tint: #102a19; --part: #fbbf24; --part-tint: #2e2410; --miss: #f87171; --miss-tint: #2e1414;
+    --ai: #b79cf5; --ai-tint: #221a3a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0f16; --surface: #151c28; --ink: #eef2f7; --quiet: #9aa7b8; --line: #293345;
+  --brand: #7aa5e8; --brand-tint: #16233a;
+  --met: #4ade80; --met-tint: #102a19; --part: #fbbf24; --part-tint: #2e2410; --miss: #f87171; --miss-tint: #2e1414;
+  --ai: #b79cf5; --ai-tint: #221a3a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 26px; margin: 0 0 4px; }
+h2 { font-size: 19px; margin: 32px 0 10px; padding-top: 6px; border-top: 1px solid var(--line); }
+h3 { font-size: 15px; margin: 18px 0 6px; }
+p { margin: 8px 0; }
+.sub { color: var(--quiet); margin: 0 0 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+.lead { font-size: 16px; }
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.fig b { display: block; font-size: 28px; line-height: 1.1; }
+.fig.met b { color: var(--met); } .fig.part b { color: var(--part); } .fig.miss b { color: var(--miss); }
+.fig span { color: var(--quiet); font-size: 13px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { background: var(--brand-tint); font-size: 12.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--quiet); }
+tr:last-child td { border-bottom: 0; }
+.s { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.s.met { background: var(--met-tint); color: var(--met); }
+.s.part { background: var(--part-tint); color: var(--part); }
+.s.miss { background: var(--miss-tint); color: var(--miss); }
+.s.ai { background: var(--ai-tint); color: var(--ai); }
+code { font-family: Consolas, "SF Mono", monospace; font-size: 12.5px; background: var(--brand-tint); padding: 0 4px; border-radius: 4px; }
+ul, ol { margin: 6px 0 6px 20px; padding: 0; }
+li { margin: 3px 0; }
+.note { color: var(--quiet); font-size: 13px; }
+.decide { border-left: 4px solid var(--part); }
+nav a { color: var(--brand); margin-right: 14px; font-size: 14px; }
+.toc { display: flex; flex-wrap: wrap; gap: 4px 0; margin: 4px 0 8px; }
+@media (max-width: 600px) { h1 { font-size: 22px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Use Case 2a — gap review against the current build</h1>
+  <p class="sub">Spec: <code>CarePilot_UseCase2a_Reply_and_Voice_Note_v1.2.docx</code> (17 Oct 2026). Code: <code>main</code> at commit <code>c454e5c</code>, 212 tests. Review only — nothing has been changed.</p>
+
+  <nav class="toc">
+    <a href="#summary">Summary</a><a href="#reqs">REQ-01 to REQ-20</a><a href="#seed">Seed and demo controls</a>
+    <a href="#screens">Screens</a><a href="#messages">Messages</a><a href="#audit">Audit</a><a href="#tests">Tests</a>
+    <a href="#decisions">Decisions needed</a><a href="#plan">Proposed build order</a>
+  </nav>
+
+  <h2 id="summary">Summary</h2>
+  <div class="card lead">
+    The <b>human safety path is largely built</b>: Booked tap, send block, handover, Send to doctor, the doctor's gate, the
+    instruction card with a 2-working-day deadline, the booking message and closure with a reason all exist (built for the
+    Golden Path). What is <b>missing is everything about understanding a reply</b>: voice notes with audio, the Sarvam
+    speech-to-text, translation and yes/no health flag with retry, and the "flag = no" path (AI proposal, hold, approve).
+    Several working parts also need adjusting to UC2a's exact rules, names, wording and seed.
+  </div>
+  <div class="figs">
+    <div class="fig met"><b>1</b><span>requirement fully met today</span></div>
+    <div class="fig part"><b>10</b><span>partly met — adjust what exists</span></div>
+    <div class="fig miss"><b>9</b><span>missing — new build</span></div>
+    <div class="fig"><b>0 of 6</b><span>UC2a tests that would pass today</span></div>
+  </div>
+  <p class="note">The biggest new pieces: an AI client layer for Sarvam (planned as Increment 4), voice-note storage and
+    playback, a proposal and hold mechanism, a demo clock with time of day, and a new "after Use Case 1" seed.</p>
+
+  <h2 id="reqs">Requirements REQ-01 to REQ-20</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>ID</th><th>Topic</th><th>Status</th><th>What exists today</th><th>What is missing or different</th></tr></thead>
+    <tbody>
+      <tr><td>REQ-01</td><td>Booked tap</td><td><span class="s part">Partial</span></td>
+        <td>Tap saved; visit card Due → Booked; appointment date empty; no AI; typed text never moves a card.</td>
+        <td>Booking source is stored as <code>button_tap</code>, spec says “patient button”. The card change is logged with actor type <b>agent</b>; the spec's audit table says <b>System</b>. In the UC1 data set replies are switched off, so UC2a needs its own data set with replies on.</td></tr>
+      <tr><td>REQ-02</td><td>Every inbound message saved, with audio, findable in 3 places</td><td><span class="s miss">Missing</span></td>
+        <td>Text and button replies are always saved and audited; receiving is never blocked.</td>
+        <td>No voice notes at all: no audio storage (local file / S3), no voice message type, no play button, no transcript and translation under the bubble, no audio on the Handover review, proposal view, Journey/audit or Needs my decision.</td></tr>
+      <tr><td>REQ-03</td><td>Understanding the voice note (Saaras v3 + Sarvam-30B, one yes/no flag)</td><td><span class="s miss">Missing</span></td>
+        <td>No AI call anywhere. Free text has “no classifier”, which is treated as uncertain → handover.</td>
+        <td>AI client layer; speech-to-text with Hindi text and English translation; the fixed yes/no prompt; bias to “yes”; an output validator that rejects any severity / cause / diagnosis field; model and prompt version on each audit row. The Sarvam key is already in the Lambda settings (verified earlier).</td></tr>
+      <tr><td>REQ-04</td><td>AI failure: one retry, ~10 s timeout, then “yes”</td><td><span class="s miss">Missing</span></td>
+        <td>The safe outcome (handover) already happens, but without trying the AI.</td>
+        <td>Retry count and timeout as config settings; “AI call failed” in the audit; the review screen message “The AI could not read this message. Please listen to the audio.”; applies to the speech step too.</td></tr>
+      <tr><td>REQ-05</td><td>Action function: <code>health_flag_handover</code> or <code>held_open_proposal</code></td><td><span class="s miss">Missing</span></td>
+        <td>A reply opens a handover with trigger <code>unclassified_reply</code>; no reason code on that path.</td>
+        <td>A plain, AI-free function that maps the flag to one of the two actions and reason codes, and never overrides the send block.</td></tr>
+      <tr><td>REQ-06</td><td>Stop and send block</td><td><span class="s part">Partial</span></td>
+        <td>Handover blocks automated sends, even when the sender is called directly; the acknowledgement passes; blocked attempts are logged.</td>
+        <td>(a) Blocked reason is <code>handover_open</code>; spec says <code>held_handover_open</code>. (b) Today any send by a <b>person</b> passes the block (e.g. the coordinator's “Send reminder”); spec allows exactly two templates — the acknowledgement and the doctor-instruction booking message — and refuses everything else. (c) The booking message is sent as the doctor (person); spec says the agent sends it.</td></tr>
+      <tr><td>REQ-07</td><td>Acknowledgement in the patient's language, English fallback, never blocked</td><td><span class="s miss">Missing</span></td>
+        <td>Use Case 1 made the sender refuse a language without an approved template (<code>held_template_missing</code>), with no fallback.</td>
+        <td>A specific exception for the acknowledgement: fall back to English, never block, record the fallback in the audit. (UC2a-T5.)</td></tr>
+      <tr><td>REQ-08</td><td>Telling the coordinator</td><td><span class="s part">Partial</span></td>
+        <td>The handover tops the worklist as “Coordinator action required”; the patient page shows the concern.</td>
+        <td>No “Health mention” tag, no voice-note icon, no number badge on the Workspace tab; the concern state is not called “Agent stopped”.</td></tr>
+      <tr><td>REQ-09</td><td>Send to doctor — same record</td><td><span class="s part">Partial</span></td>
+        <td>Gate 1 “Send to doctor” moves the same handover to the doctor's Needs my decision with words and source; doctor-decision deadline escalates to the cover after 1 working day.</td>
+        <td>No audio or real translation to show; state labels differ (“Waiting for the doctor's decision” vs “Sent to doctor”).</td></tr>
+      <tr><td>REQ-10</td><td>Handover response time in minutes (10:15 → 11:00 = 45)</td><td><span class="s miss">Missing</span></td>
+        <td>The indicator exists in <b>working days</b> (open date → Gate 1 date).</td>
+        <td>The demo clock has no time of day. Needs demo date <b>and time</b>, the stop and review moments recorded in minutes, and the aggregate on the chief's screen.</td></tr>
+      <tr><td>REQ-11</td><td>Doctor gate: nothing pre-selected, Submit disabled until chosen</td><td><span class="s part">Partial</span></td>
+        <td>Explicit Urgent / Routine, no suggestion, no score; the doctor only.</td>
+        <td>After the prototype rebuild the screen uses one-tap buttons (“Urgent — call today”, “Routine”). The spec wants a choice plus a Submit button that stays disabled until a choice is made.</td></tr>
+      <tr><td>REQ-12</td><td>Instruction and new card</td><td><span class="s part">Partial</span></td>
+        <td>Simulated EMR pop-up (instruction, department, due date) creates a card, origin instruction, with a booking task due in 2 working days.</td>
+        <td>Card name must be the neutral “Doctor-requested visit” (today it is the instruction text, e.g. “Surgical-site review…”). Input should be instruction text + <b>days</b> (today a department and a due date). Owner Anita / cover Ravi (today from Step A departments). Box labelled SIMULATED. A separate “card created” audit entry for this card (today only in the instruction entry). Weekend shift on the due date is ours, not the spec's.</td></tr>
+      <tr><td>REQ-13</td><td>No G0 on the Doctor-requested visit</td><td><span class="s part">Partial</span></td>
+        <td>Met in the UC1 data set (plan visit cards only).</td>
+        <td>In the Golden Path data set (“all cards”) G0 <b>does</b> run on instruction cards. The spec states it as a rule, so it should hold everywhere.</td></tr>
+      <tr><td>REQ-14</td><td>Booking message the same day, approved template, three buttons</td><td><span class="s met">Met</span></td>
+        <td>Sent the same day through the send-guard, three buttons, passes the open handover.</td>
+        <td>Only the wording (section 11) and the actor (agent, see REQ-06) differ.</td></tr>
+      <tr><td>REQ-15</td><td>Closing: named person, reason, block off</td><td><span class="s part">Partial</span></td>
+        <td>Named person and non-empty reason enforced (also by the database); block lifts; follow-up resumes; shown on the patient page and journey.</td>
+        <td>Reason pick-list (“Doctor instruction done, patient messaged”, “Nothing clinical”, “Patient reached by phone…”) plus optional note; the Close box belongs at the bottom of the Handover review screen.</td></tr>
+      <tr><td>REQ-16</td><td>Flag = no: proposal (summary + intent from a fixed list)</td><td><span class="s miss">Missing</span></td>
+        <td>Only “shadow mode” message drafts exist, which are a different thing.</td>
+        <td>Proposal record (Drafted → Approved / Rejected) with a 1–2 line English summary and an intent from booked / help to book / can't come + reason / pause request / other; no clinical fields; changes no card, sends nothing.</td></tr>
+      <tr><td>REQ-17</td><td>Hold while a proposal is open</td><td><span class="s miss">Missing</span></td>
+        <td>Gaps can be blocked for other reasons; nothing for proposals.</td>
+        <td>Hold on the patient while a proposal is open (agent reason <code>held_open_proposal</code>); lifted on approve / reject; moves to the cover after 1 working day. Depends on spec change v0.2, decision 10 (not signed off).</td></tr>
+      <tr><td>REQ-18</td><td>Approving a proposal</td><td><span class="s miss">Missing</span></td>
+        <td>An Approvals list exists for shadow drafts.</td>
+        <td>Approve records name, time, time taken and whether the draft was edited; leaves Approvals; shown on the patient page and journey; changes no card.</td></tr>
+      <tr><td>REQ-19</td><td>Why the draft exists (acceptance rate)</td><td><span class="s part">Partial</span></td>
+        <td>Live / shadow modes and a coordinator-only promote switch exist.</td>
+        <td>The share of drafts approved without edits is not calculated yet (needs REQ-18's “edited” flag).</td></tr>
+      <tr><td>REQ-20</td><td>No duplicates on replay</td><td><span class="s part">Partial</span></td>
+        <td>A second reply joins the open handover; the acknowledgement is not resent.</td>
+        <td>Replaying the same inbound event still stores a second message. Needs an inbound event id that is unique, so the replay is recognised and nothing new is created (UC2a-T6).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="seed">Seed data and demo controls</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Item in the spec</th><th>Status</th><th>Gap</th></tr></thead>
+    <tbody>
+      <tr><td>“After Use Case 1” seed: TP001 and TP004, reminder already sent 09 Nov 07:30, card Due 16 Nov, plans confirmed</td><td><span class="s miss">Missing</span></td><td>New data set (beside UC1 and Golden Path) whose reset restores that state exactly, with demo time 10:15.</td></tr>
+      <tr><td>TP004 (same as TP001)</td><td><span class="s miss">Missing</span></td><td>Not in any seed.</td></tr>
+      <tr><td>Patient names</td><td><span class="s part">Conflict</span></td><td>UC2a calls TP001 “Meena” and TP004 “Kavita”. Our UC1 seed named TP001 “Kavya Rao” and TP002 “Meena Iyer”. See decisions.</td></tr>
+      <tr><td>Clips HI-01 and HI-02 (synthetic, native Hindi speaker, 8–10 s)</td><td><span class="s miss">Missing</span></td><td>No audio files exist. A native recording is an open point; a stand-in could be generated with Sarvam's text-to-speech until then.</td></tr>
+      <tr><td>Simulator “Record voice note” attaches the clip for the patient</td><td><span class="s miss">Missing</span></td><td>Simulator sends buttons and text only.</td></tr>
+      <tr><td>Demo controls: set date <b>and time</b></td><td><span class="s part">Partial</span></td><td>Date only (Set date, 07:00 / 07:30 jobs). Needs time of day for REQ-10 and the 10:15 / 11:00 / 09:30 steps.</td></tr>
+      <tr><td>Test switch to turn Sarvam off</td><td><span class="s miss">Missing</span></td><td>Needed for UC2a-T4 (AI failure).</td></tr>
+      <tr><td>Data-set switches</td><td><span class="s part">Partial</span></td><td>UC2a needs replies on (UC1 has them off), caregiver copy off, plan-visit G0 only. Typed replies, HELP and caregiver replies are “added later” in UC2a but already work today — they can stay, or be switched off.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="screens">Screens</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Screen</th><th>Spec asks for</th><th>Status</th><th>Gap</th></tr></thead>
+    <tbody>
+      <tr><td>Patient-phone simulator</td><td>Voice bubble with play button; acknowledgement; booking message with buttons; nothing after the tap in the negative case</td><td><span class="s part">Partial</span></td><td>Voice bubble, play button and “Record voice note” missing.</td></tr>
+      <tr><td>Workspace</td><td>Needs you: handover with “Health mention” tag, voice icon, badge. Approvals: the proposal. Agent activity: “Stopped: health mention” / “Held: open proposal” with reason codes. Controls: date + time, reset to “after UC1”, Sarvam off switch.</td><td><span class="s part">Partial</span></td><td>Tag, icon, badge, proposal in Approvals, the two agent-activity entries, time control, Sarvam switch.</td></tr>
+      <tr><td>Patient page</td><td>Messages with play + transcript + translation under each voice note; cards; concern or proposal with state and owner; a line saying whether the send block or hold is on</td><td><span class="s part">Partial</span></td><td>Voice rows, proposal panel, the block / hold status line.</td></tr>
+      <tr><td>Handover review</td><td>Hindi words, translation labelled “AI translation, check against the audio”, audio player, source; failure message; 3 buttons; Close box with pick-list and note</td><td><span class="s part">Partial</span></td><td>Pop-up exists with words, source and the 3 buttons. Missing: translation label, audio, failure message, Close box with pick-list here.</td></tr>
+      <tr><td>Proposal view</td><td>Words, translation, audio, summary, intent; Approve / Reject</td><td><span class="s miss">Missing</span></td><td>New.</td></tr>
+      <tr><td>Needs my decision</td><td>Same words, translation, audio, source; Urgent / Routine with nothing selected and Submit disabled; SIMULATED hospital record box with instruction text + days</td><td><span class="s part">Partial</span></td><td>Submit pattern (REQ-11), audio, “days” input, SIMULATED label.</td></tr>
+      <tr><td>Journey and audit</td><td>Actor type, demo time, one-click source; every step incl. reason codes and response time</td><td><span class="s part">Partial</span></td><td>Actor type and demo date/time exist; one-click opening of a message/audio and the response time do not.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="messages">Messages and templates</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Message</th><th>Status</th><th>Gap</th></tr></thead>
+    <tbody>
+      <tr><td>Acknowledgement, English (fixed text, Sanjeevini Clinic)</td><td><span class="s part">Different wording</span></td><td>Today: “Thank you. A member of our care team will contact you tomorrow morning.” Spec: “Dear {patient_name}, Greetings from Sanjeevini Clinic. We have received your message…”. Emergency line pending D5.</td></tr>
+      <tr><td>Acknowledgement, Hindi (draft, not approved)</td><td><span class="s miss">Missing</span></td><td>Store as an unapproved draft so the sender refuses it and REQ-07 falls back to English.</td></tr>
+      <tr><td>Doctor-requested visit, English (with three buttons, {due_date} as 17-Nov)</td><td><span class="s part">Different wording</span></td><td>Today's instruction message names the item; spec wording is neutral and names Dr. Sekhar.</td></tr>
+      <tr><td>Doctor-requested visit, Hindi (draft)</td><td><span class="s miss">Missing</span></td><td>As above: unapproved draft.</td></tr>
+      <tr><td>Template record: ID, language, version, approver, effective date; unapproved refused</td><td><span class="s met">Met</span></td><td>Built in Use Case 1. Needs a way to store an <b>unapproved</b> draft (today only approved templates are seeded).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="audit">Audit trail (actor types)</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Spec entry</th><th>Spec actor</th><th>Today</th></tr></thead>
+    <tbody>
+      <tr><td>Booked tap logged; card set to Booked</td><td>System</td><td><span class="s part">Agent</span></td></tr>
+      <tr><td>Voice note received and stored</td><td>System</td><td><span class="s miss">No voice notes</span></td></tr>
+      <tr><td>Hindi text, translation, flag (model and prompt version; failures noted)</td><td>AI suggestion</td><td><span class="s miss">No AI rows</span> (columns exist)</td></tr>
+      <tr><td>Action chosen: <code>health_flag_handover</code> with the facts checked</td><td>CarePilot agent</td><td><span class="s miss">Missing</span></td></tr>
+      <tr><td>Acknowledgement sent (template and version)</td><td>CarePilot agent</td><td><span class="s part">System (WhatsApp gateway)</span></td></tr>
+      <tr><td>Handover opened; send block on</td><td>System</td><td><span class="s met">System</span></td></tr>
+      <tr><td>Coordinator sends to doctor; response time recorded</td><td>Person</td><td><span class="s part">Person, no response time</span></td></tr>
+      <tr><td>Doctor chooses Routine; instruction recorded</td><td>Person</td><td><span class="s met">Person</span></td></tr>
+      <tr><td>New visit card created</td><td>System</td><td><span class="s part">Inside the instruction entry only</span></td></tr>
+      <tr><td>Booking message sent</td><td>CarePilot agent</td><td><span class="s part">Person (doctor)</span></td></tr>
+      <tr><td>Handover closed with reason; send block off</td><td>Person</td><td><span class="s met">Person</span></td></tr>
+      <tr><td colspan="3" class="note">Negative case adds: AI suggestion with flag = no and a draft; agent hold with <code>held_open_proposal</code>; proposal created; approved; hold lifted — all missing.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="tests">Tests UC2a-T1 to T6 — would they pass today?</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Test</th><th>Today</th><th>Main blockers</th></tr></thead>
+    <tbody>
+      <tr><td>UC2a-T1 Positive case (TP001)</td><td><span class="s miss">Fails</span></td><td>No seed, no voice note, no Sarvam flag, no response time, card name, Submit pattern.</td></tr>
+      <tr><td>UC2a-T2 Send block</td><td><span class="s part">Partly</span></td><td>Reason name <code>held_handover_open</code>; person sends must also be refused except the two allowed templates.</td></tr>
+      <tr><td>UC2a-T3 Negative case (TP004)</td><td><span class="s miss">Fails</span></td><td>No flag = no path, proposal, hold, approve.</td></tr>
+      <tr><td>UC2a-T4 AI failure, Sarvam off</td><td><span class="s miss">Fails</span></td><td>No AI call, no retry, no switch, no failure message.</td></tr>
+      <tr><td>UC2a-T5 Acknowledgement fallback</td><td><span class="s miss">Fails</span></td><td>Sender blocks instead of falling back to English.</td></tr>
+      <tr><td>UC2a-T6 Replay</td><td><span class="s miss">Fails</span></td><td>No inbound event id; the replayed message is stored twice.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="decisions">Decisions needed before building</h2>
+  <div class="card decide">
+    <ol>
+      <li><b>Patient names.</b> UC2a uses TP001 = Meena, TP004 = Kavita. Our UC1 seed has TP001 = Kavya Rao, TP002 = Meena Iyer. Recommend: rename to match UC2a (TP001 Meena …, TP004 Kavita …) and give TP002 another name.</li>
+      <li><b>Send block for people.</b> Today a person's send passes an open handover. UC2a allows only the acknowledgement and the doctor-instruction booking message. Recommend: switch to this template allow-list everywhere (it is stricter and safer); the Golden Path still works.</li>
+      <li><b>Acknowledgement fallback vs Use Case 1's “no fallback”.</b> Recommend: keep “no fallback” for every template except the acknowledgement, as REQ-07 says.</li>
+      <li><b>Doctor screen.</b> UC2a wants choice + Submit (disabled until chosen); the prototype has one-tap buttons. Recommend: follow UC2a (choice then Submit), keeping the prototype's look.</li>
+      <li><b>G0 on instruction cards.</b> Recommend: make REQ-13 permanent — G0 never runs on Doctor-requested cards in any data set.</li>
+      <li><b>Voice clips.</b> Native recordings are an open point. Recommend: generate stand-in clips HI-01 / HI-02 with Sarvam text-to-speech, clearly labelled synthetic, and swap in the native recordings when ready.</li>
+      <li><b>Hold (REQ-17)</b> depends on spec change v0.2 decision 10 (not signed off). Recommend: build it behind a setting, on for UC2a, so it can be removed without code changes.</li>
+      <li><b>Running Sarvam.</b> Real calls cost a small amount per message and need the database on for AWS demos; local tests use a fake Sarvam so the suite stays free and repeatable, with one opt-in live test.</li>
+      <li><b>Audio storage on AWS.</b> Needs a private S3 location (a small infrastructure change); locally, files on disk.</li>
+    </ol>
+  </div>
+
+  <h2 id="plan">Proposed build order (following the spec's slices)</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Slice</th><th>Requirements</th><th>Main work</th></tr></thead>
+    <tbody>
+      <tr><td>0. Ground work</td><td>Seed, controls</td><td>“After UC1” data set (TP001, TP004), demo time of day, Sarvam on/off switch, UC2a templates (English approved, Hindi drafts unapproved), names per decision 1.</td></tr>
+      <tr><td>1. Booked tap</td><td>REQ-01, REQ-02</td><td>Source “patient button”, System actor, inbound event id (also REQ-20).</td></tr>
+      <tr><td>2. Voice note + Sarvam</td><td>REQ-02, REQ-03, REQ-04</td><td>Audio upload/storage, AI client (timeouts, one retry, validator, model/prompt version), speech-to-text + translation, yes/no flag, failure = yes, “AI suggestion” audit rows, fake Sarvam for tests.</td></tr>
+      <tr><td>3. Stop</td><td>REQ-05 to REQ-10</td><td>Action function and reason codes, acknowledgement with English fallback, template allow-list during a handover, Health mention tag / icon / badge, review screen with audio and failure message, response time in minutes.</td></tr>
+      <tr><td>4. Decision</td><td>REQ-11 to REQ-15</td><td>Submit-pattern doctor gate, SIMULATED record with days, “Doctor-requested visit” card (Anita / Ravi, no G0), agent-sent booking message, Close box with reason pick-list.</td></tr>
+      <tr><td>5. Negative case</td><td>REQ-16 to REQ-19</td><td>Proposal (summary + intent), hold with <code>held_open_proposal</code>, Approvals, approve with time taken and edited flag, acceptance-rate figure.</td></tr>
+      <tr><td>Tests</td><td>UC2a-T1 to T6</td><td>Automated, on the new data set, with the audit order check; UC1 and Golden Path tests kept passing.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Prepared 17 Oct 2026 from a read of the spec and the code. No code, data or infrastructure was changed.</p>
+</div>
+</body>
+</html>

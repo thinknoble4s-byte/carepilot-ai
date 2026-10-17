@@ -12,7 +12,7 @@ from datetime import timedelta
 from . import audit, clock, messaging, policy, tasks
 from .agent import set_next_action
 from .errors import Conflict, Invalid, NotFound
-from .reference import DEPARTMENTS, USERS_BY_ID, plan_template
+from .reference import USERS_BY_ID
 
 GATE1_CHOICES = ("send_to_doctor", "call_first", "nothing_clinical")
 GATE2_CHOICES = ("urgent", "routine")
@@ -37,8 +37,20 @@ def _due(task: dict) -> str:
     return task["due_date"].strftime("%d/%m/%Y") if task.get("due_date") else "today"
 
 
+def _record_review(conn, h: dict, user: dict) -> int | None:
+    """REQ-10: minutes from the agent stopping to the coordinator reviewing (first decision), demo clock."""
+    if h["reviewed_at_demo"] is not None or h["opened_at_demo"] is None:
+        return h["response_minutes"]
+    now = clock.get_now(conn)
+    minutes = int((now - h["opened_at_demo"]).total_seconds() // 60)
+    conn.execute("UPDATE handover SET reviewed_at_demo = %s, reviewed_by = %s, response_minutes = %s "
+                 "WHERE handover_id = %s", (now, user["user_id"], minutes, h["handover_id"]))
+    return minutes
+
+
 def open_handover(conn, mrn: str, *, trigger: str, actor_type: str, actor: str, patient_words: str | None = None,
-                  source: str | None = None) -> tuple[dict, bool]:
+                  source: str | None = None, translation: str | None = None, inbound_id: int | None = None,
+                  ai_failed: bool = False) -> tuple[dict, bool]:
     """Open a handover, or return the one already open (no duplicates). Returns (handover, created)."""
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s FOR UPDATE", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
@@ -52,20 +64,21 @@ def open_handover(conn, mrn: str, *, trigger: str, actor_type: str, actor: str, 
                          entity_type="handover", entity_id=str(existing["handover_id"]), mrn=mrn,
                          details={"source": source})
         return existing, False
+    now = clock.get_now(conn)
     h = conn.execute(
         """
-        INSERT INTO handover (mrn, trigger, patient_words, source, opened_by, opened_on, translation)
-        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *
+        INSERT INTO handover (mrn, trigger, patient_words, source, opened_by, opened_on, translation, inbound_id,
+                              ai_failed, opened_at_demo)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *
         """,
-        (mrn, trigger, patient_words, source, actor, clock.get_today(conn),
-         None if trigger == "manual" else "Not available yet: Sarvam translation arrives in Increment 4"),
+        (mrn, trigger, patient_words, source, actor, now.date(), translation, inbound_id, ai_failed, now),
     ).fetchone()
     task = tasks.create_task(conn, mrn=mrn, task_type="coordinator_review", handover_id=h["handover_id"],
                              reason=f"Gate 1: review the handover ({trigger.replace('_', ' ')})",
                              actor_type=actor_type, actor=actor)
     audit.append(conn, actor_type=actor_type, actor_name=actor, action="handover_opened", entity_type="handover",
                  entity_id=str(h["handover_id"]), mrn=mrn, reason_code=trigger, trigger_event=source,
-                 details={"patient_words": patient_words})
+                 outcome="send_block_on", details={"patient_words": patient_words, "ai_failed": ai_failed})
     set_next_action(conn, mrn, f"Coordinator review (Gate 1) by {_due(task)}; automated messages stopped")
     return h, True
 
@@ -77,6 +90,7 @@ def gate1(conn, handover_id: int, user: dict, choice: str | None) -> dict:
     if choice not in GATE1_CHOICES:
         raise Invalid("Choose one: " + ", ".join(GATE1_CHOICES))
     tasks.complete_open(conn, handover_id, "coordinator_review", user["user_id"], f"Gate 1: {choice}")
+    minutes = _record_review(conn, h, user)
     if choice == "send_to_doctor":
         rules = policy.deadlines(conn)
         doctor = USERS_BY_ID[rules["default_doctor"]]
@@ -97,7 +111,8 @@ def gate1(conn, handover_id: int, user: dict, choice: str | None) -> dict:
                    gate1_on=clock.get_today(conn))
         next_action = "Coordinator to close the handover with a reason"
     audit.append(conn, actor_type="person", actor_name=user["user_id"], action="gate1_decided", entity_type="handover",
-                 entity_id=str(handover_id), mrn=h["mrn"], outcome=choice)
+                 entity_id=str(handover_id), mrn=h["mrn"], outcome=choice,
+                 details={"handover_response_minutes": minutes})
     set_next_action(conn, h["mrn"], next_action)
     return h
 
@@ -154,26 +169,26 @@ def gate2(conn, handover_id: int, user: dict, decision: str | None) -> dict:
     return h
 
 
-def record_instruction(conn, handover_id: int, user: dict, text: str | None, order: dict | None = None) -> dict:
+def record_instruction(conn, handover_id: int, user: dict, text: str | None, days=None) -> dict:
+    """Gate 3 (REQ-12): the doctor's instruction in the SIMULATED hospital record: text + number of days.
+    Rules create one neutral "Doctor-requested visit" card (no clinical words in card lists): due = decision
+    day + days, booking deadline = decision day + 2 working days, owner and cover from the settings. No G0
+    runs on it (REQ-13); its own booking message goes out the same day (REQ-14)."""
     h = _load(conn, handover_id)
     if h["stage"] != "awaiting_instruction":
         raise Conflict(f"Handover {handover_id} is not waiting for an instruction (stage: {h['stage']})")
     if not text or not text.strip():
         raise Invalid("The instruction text is required")
+    if days is not None and (not isinstance(days, int) or isinstance(days, bool) or not 1 <= days <= 365):
+        raise Invalid("days must be a whole number from 1 to 365")
+    audit.append(conn, actor_type="person", actor_name=user["user_id"], action="instruction_recorded",
+                 entity_type="handover", entity_id=str(handover_id), mrn=h["mrn"],
+                 details={"instruction": text.strip(), "days": days, "source": "SIMULATED hospital record"})
     card = None
-    if order:
-        name = (order.get("name") or "").strip()
-        dept = order.get("department")
-        card_type = order.get("card_type", "visit")
-        within = order.get("within_days")
-        if not name or dept not in DEPARTMENTS or card_type not in ("visit", "test") \
-                or not isinstance(within, int) or not 1 <= within <= 365:
-            raise Invalid("The order needs a name, a department, a card type (visit or test) and within_days 1-365")
+    if days is not None:
         today = clock.get_today(conn)
-        due = today + timedelta(days=within)
-        while due.weekday() >= 5:
-            due += timedelta(days=1)
-        owners = plan_template()["departments"][dept]
+        spec = policy.settings(conn).get("instruction_card") or {}
+        name = spec.get("name", "Doctor-requested visit")
         plan = conn.execute("SELECT care_plan_id FROM care_plan WHERE mrn = %s", (h["mrn"],)).fetchone()
         n = conn.execute("SELECT count(*) AS n FROM order_card WHERE mrn = %s AND origin = 'instruction'",
                          (h["mrn"],)).fetchone()["n"]
@@ -181,26 +196,28 @@ def record_instruction(conn, handover_id: int, user: dict, text: str | None, ord
             """
             INSERT INTO order_card (mrn, care_plan_id, item_code, card_type, name, department, due_date, state,
                                     owner_name, cover_name, origin, handover_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'Due', %s, %s, 'instruction', %s) RETURNING *
+            VALUES (%s, %s, %s, 'visit', %s, %s, %s, 'Due', %s, %s, 'instruction', %s) RETURNING *
             """,
-            (h["mrn"], plan["care_plan_id"] if plan else None, f"X{n + 1}", card_type, name, dept, due,
-             owners["owner"], owners["cover"], handover_id),
+            (h["mrn"], plan["care_plan_id"] if plan else None, f"X{n + 1}", name, spec.get("department", "Oncology OPD"),
+             today + timedelta(days=days), spec.get("owner", "Priya Nair"), spec.get("cover", "Meera Joseph"),
+             handover_id),
         ).fetchone()
-        tasks.create_task(conn, mrn=h["mrn"], task_type="booking_from_instruction", owner_name=owners["owner"],
+        audit.append(conn, actor_type="system", actor_name="system", action="card_created", entity_type="order_card",
+                     entity_id=str(card["card_id"]), mrn=h["mrn"],
+                     details={"card": card["item_code"], "name": name, "due_date": card["due_date"].isoformat(),
+                              "owner": card["owner_name"], "cover": card["cover_name"], "origin": "instruction",
+                              "handover_id": handover_id})
+        tasks.create_task(conn, mrn=h["mrn"], task_type="booking_from_instruction", owner_name=card["owner_name"],
                           card_id=card["card_id"], handover_id=handover_id,
-                          reason=f"Book {name} by {due.strftime('%d/%m/%Y')} (doctor's instruction)",
-                          actor_type="person", actor=user["user_id"])
-        # The patient is told the same day. A person-initiated, approved template: allowed during the handover.
-        messaging.send_message(conn, mrn=h["mrn"], template_id="instruction_booking", actor_type="person",
-                               actor=user["user_id"], reason_code="instruction_booking", card_id=card["card_id"],
+                          reason=f"Book the {name} by {card['due_date'].strftime('%d/%m/%Y')} (doctor's instruction)",
+                          actor_type="system", actor="system")
+        # The patient is told the same day by the agent; allowed through the open handover (REQ-06/14).
+        messaging.send_message(conn, mrn=h["mrn"], template_id="instruction_booking", actor_type="agent",
+                               actor="CarePilot agent", reason_code="instruction_booking", card_id=card["card_id"],
                                handover_id=handover_id)
     tasks.complete_open(conn, handover_id, "doctor_instruction", user["user_id"], text.strip())
     h = _stage(conn, h, "ready_to_close", instruction=text.strip(), instruction_by=user["user_id"],
                instruction_card=card["card_id"] if card else None, instruction_on=clock.get_today(conn))
-    audit.append(conn, actor_type="person", actor_name=user["user_id"], action="instruction_recorded",
-                 entity_type="handover", entity_id=str(handover_id), mrn=h["mrn"],
-                 details={"instruction": text.strip(), "card_id": card["card_id"] if card else None,
-                          "source": "simulated hospital record"})
     pending_call = conn.execute(
         "SELECT 1 FROM coordinator_task WHERE handover_id = %s AND task_type = 'urgent_call' AND status = 'open'",
         (handover_id,)).fetchone()
@@ -224,7 +241,7 @@ def close(conn, handover_id: int, user: dict, reason: str | None) -> dict:
     h = _stage(conn, h, "closed", closed_by=user["user_id"], closed_reason=reason.strip(),
                closed_on=clock.get_today(conn))
     audit.append(conn, actor_type="person", actor_name=user["user_id"], action="handover_closed",
-                 entity_type="handover", entity_id=str(handover_id), mrn=h["mrn"], outcome="closed",
+                 entity_type="handover", entity_id=str(handover_id), mrn=h["mrn"], outcome="closed_send_block_off",
                  details={"reason": reason.strip()})
     set_next_action(conn, h["mrn"], "Routine follow-up resumed")
     return h

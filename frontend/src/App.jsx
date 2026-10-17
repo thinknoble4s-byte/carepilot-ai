@@ -12,7 +12,7 @@ import { fmt, Modal, Scope, UI } from './ui.jsx';
 
 // Tabs per role, as in prototype v7.2: [id, label, count key].
 const TABS = {
-  coordinator: [['worklist', 'Workspace'], ['journey', 'Patient journey'], ['intake', 'Intake & verification', 'exceptions'],
+  coordinator: [['worklist', 'Workspace', 'workspace'], ['journey', 'Patient journey'], ['intake', 'Intake & verification', 'exceptions'],
     ['audit', 'Audit trail'], ['programme', 'Care Plan']],
   oncologist: [['decide', 'Needs my decision', 'decisions'], ['journey', 'Patient journey'], ['audit', 'Audit trail'],
     ['programme', 'Care Plan']],
@@ -86,6 +86,13 @@ function ResetChoice({ onReset }) {
         <div className="btn-row"><button type="button" className="btn primary" onClick={() => onReset('uc1')}>Reset to Use Case 1</button></div>
       </div>
       <div className="card-flat">
+        <div className="card-title">After Use Case 1 (Use Case 2a)</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001) and Kavita (TP004), English, "Review visit" due 16 Nov;
+          the reminder already went out at 07:30 on Mon 9 Nov and the clock is at 10:15. Replies on: taps update cards, voice notes
+          and text go through the AI health flag (Sarvam). Send block, hold while a proposal waits, tasks for people.</div>
+        <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2a')}>Reset to after Use Case 1</button></div>
+      </div>
+      <div className="card-flat">
         <div className="card-title">Golden Path data</div>
         <div className="small-note" style={{ lineHeight: 1.7 }}>The 25 Step A patients (Sunita Verma is the demo patient); Priya and
           Meera. Everything switched on: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
@@ -114,6 +121,8 @@ export default function App() {
   const [pid, setPid] = useState('SYN-0007');
   const [auditMrn, setAuditMrn] = useState('');
   const [today, setToday] = useState(null);
+  const [now, setNow] = useState(null);
+  const [demoSettings, setDemoSettings] = useState(null);
   const [counts, setCounts] = useState({});
   const [version, setVersion] = useState(0);
   const [modal, setModal] = useState(null);
@@ -134,8 +143,16 @@ export default function App() {
 
   const loadShell = useCallback(async () => {
     try {
-      setToday((await api('clock')).today);
+      const c = await api('clock');
+      setToday(c.today);
+      setNow(c.time);
       const next = {};
+      if (role === 'coordinator') {
+        const d = await api('demo/settings');
+        setDemoSettings(d);
+        const w = await api('worklist');
+        next.workspace = w.patients.filter((p) => p.main === 'action').length;
+      }
       if (role === 'coordinator') next.exceptions = (await api('exceptions')).length;
       if (role === 'oncologist') next.decisions = (await api('doctor/queue')).length;
       setCounts(next);
@@ -189,6 +206,8 @@ export default function App() {
 
   const [dateInput, setDateInput] = useState('');
   useEffect(() => { if (today) setDateInput(String(today).slice(0, 10)); }, [today]);
+  const [timeInput, setTimeInput] = useState('');
+  useEffect(() => { if (now) setTimeInput(now); }, [now]);
 
   const reloadUsers = () => api('users').then(setUsers).catch(() => {});
 
@@ -272,13 +291,14 @@ export default function App() {
         <div className="demo-bar">
           {role !== 'chief' && dbUp && (
             <>
-              <span>Demo date <b>{fmt(today)}</b></span>
+              <span>Demo date <b>{fmt(today)}</b>{now ? <> · <b>{now}</b></> : null}</span>
               {role === 'coordinator' && (
                 <>
                   <span className="demo-date-set">
                     <input type="date" aria-label="Demo date" value={dateInput} onChange={(e) => setDateInput(e.target.value)} />
-                    <button type="button" className="scope-btn" disabled={busy || !dateInput || dateInput === String(today).slice(0, 10)}
-                      onClick={() => demo(() => post('clock/set', { date: dateInput }), (r) => `Demo date set to ${fmt(r.today)}`)}>
+                    <input type="time" aria-label="Demo time" value={timeInput} onChange={(e) => setTimeInput(e.target.value)} />
+                    <button type="button" className="scope-btn" disabled={busy || !dateInput || (dateInput === String(today).slice(0, 10) && timeInput === now)}
+                      onClick={() => demo(() => post('clock/set', { date: dateInput, time: timeInput || null }), (r) => `Demo clock set to ${fmt(r.today)} ${r.time}`)}>
                       Set date
                     </button>
                   </span>
@@ -300,9 +320,18 @@ export default function App() {
                     onClick={() => demo(() => post('clock/advance', { days: 7 }), (r) => `Demo date is now ${fmt(r.today)}`)}>
                     Advance 7 days
                   </button>
+                  {demoSettings?.act_on_replies && (
+                    <label className="scope-btn" title="Test UC2a-T4: with Sarvam off every AI call fails and replies take the safe path"
+                      style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                      <input type="checkbox" checked={demoSettings.sarvam_enabled} disabled={busy}
+                        onChange={(e) => demo(() => post('demo/sarvam', { enabled: e.target.checked }),
+                          (r) => (r.sarvam_enabled ? 'Sarvam switched on' : 'Sarvam switched off — AI calls fail, replies go to a person'))} />
+                      Sarvam {demoSettings.ai_provider === 'fake' ? '(simulated)' : ''}
+                    </label>
+                  )}
                   <button type="button" className="scope-btn" disabled={busy}
                     onClick={() => ui.showModal('Reset demo', 'All demo data and the audit trail go back to a starting state. Choose the data set.',
-                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${r.scenario === 'uc1' ? 'Use Case 1' : 'Golden Path'}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
+                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${{ uc1: 'Use Case 1', uc2a: 'after Use Case 1', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
                     Reset demo
                   </button>
                 </>

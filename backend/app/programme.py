@@ -51,6 +51,11 @@ def kpis(conn) -> dict:
     ).fetchone()
     responses = [_working_days(r["opened_on"], r["gate1_on"]) for r in conn.execute(
         "SELECT opened_on, gate1_on FROM handover WHERE gate1_on IS NOT NULL").fetchall()]
+    minutes = [r["response_minutes"] for r in conn.execute(
+        "SELECT response_minutes FROM handover WHERE response_minutes IS NOT NULL").fetchall()]
+    decided = conn.execute(
+        "SELECT count(*) AS n, count(*) FILTER (WHERE status = 'approved' AND NOT edited) AS clean "
+        "FROM proposal WHERE status <> 'drafted'").fetchone()
     rows = worklist.build(conn)["patients"]
     statuses = conn.execute("SELECT status, count(*) AS n FROM patient GROUP BY status").fetchall()
     return {
@@ -65,6 +70,9 @@ def kpis(conn) -> dict:
         "g0_gaps": g0["total"], "g0_booked_after_reminder": g0["rescued"],
         "handover_response_median_days": median(responses) if responses else None,
         "handovers_decided": len(responses),
+        "handover_response_median_minutes": median(minutes) if minutes else None,
+        "proposals_decided": decided["n"], "proposals_approved_unedited": decided["clean"],
+        "draft_acceptance": round(100 * decided["clean"] / decided["n"]) if decided["n"] else None,
         "not_responding": sum(1 for r in rows if r["unanswered"] >= 2),
         "lost_to_follow_up": next((s["n"] for s in statuses if s["status"] == "Lost to follow-up"), 0),
         "open_handovers": conn.execute("SELECT count(*) AS n FROM handover WHERE stage <> 'closed'").fetchone()["n"],

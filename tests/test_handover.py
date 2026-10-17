@@ -26,7 +26,7 @@ def test_free_text_takes_the_safe_path(seeded, client):
     confirm_plan(client, "SYN-0007")
     morning(client)
     r = reply(client, text=PAIN)
-    assert r["handling"] == ["handover_opened:unclassified_reply"]
+    assert r["handling"] == ["ai_flag_yes", "handover_opened:health_flag_handover"]
     h = client.get(f"/handovers/{r['handover_id']}", headers=PRIYA).json()
     assert (h["stage"], h["patient_words"]) == ("awaiting_coordinator", PAIN)
     ack = outbox("SYN-0007")[-1]
@@ -43,7 +43,7 @@ def test_booked_button_with_a_health_mention_does_both(seeded, client):
     morning(client)
     v1 = next(m for m in outbox("SYN-0007") if m["recipient"] == "patient" and "16/11/2026" in m["body"])
     r = reply(client, button="booked", text=PAIN, in_reply_to=v1["message_id"])
-    assert r["handling"] == ["button_booked:card_booked", "handover_opened:unclassified_reply"]
+    assert r["handling"] == ["button_booked:card_booked", "ai_flag_yes", "handover_opened:health_flag_handover"]
     assert {c["item_code"]: c["state"] for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json()}["V1"] == "Booked"
 
 
@@ -68,7 +68,7 @@ def test_a_second_reply_joins_the_open_handover(seeded, client):
     first = reply(client, text="pain since last week")
     second = reply(client, text="also a fever")
     assert second["handover_id"] == first["handover_id"]
-    assert second["handling"] == ["handover_updated:unclassified_reply"]
+    assert second["handling"] == ["ai_flag_yes", "handover_updated:health_flag_handover"]
     assert scalar("SELECT count(*) FROM handover") == 1
     assert scalar("SELECT count(*) FROM outbox_message WHERE template_id = 'handover_ack'") == 1
 
@@ -89,7 +89,7 @@ def test_gates_run_in_order(seeded, client):
 
 def test_nothing_clinical_then_named_closure_resumes_follow_up(seeded, client):
     confirm_plan(client, "SYN-0007")
-    hid = reply(client, text="I will be travelling")["handover_id"]
+    hid = client.post("/patients/SYN-0007/handover", headers=PRIYA, json={"reason": "Travel plans by phone"}).json()["handover_id"]
     morning(client)  # the T1 reminder waits
     assert client.post(f"/handovers/{hid}/gate1", headers=PRIYA, json={"choice": "nothing_clinical"}).json()["stage"] \
         == "ready_to_close"
@@ -138,17 +138,16 @@ def test_doctor_path_urgent_with_instruction_and_escalation(seeded, client):
     # Gate 3: the instruction creates a new order card and a booking message, during the open handover.
     assert client.post(f"/handovers/{hid}/instruction", headers=ANAND, json={"text": " "}).status_code == 422
     r = client.post(f"/handovers/{hid}/instruction", headers=ANAND, json={
-        "text": "Surgical-site review within 7 days",
-        "order": {"name": "Surgical-site review", "department": "Oncology OPD", "card_type": "visit", "within_days": 7}})
+        "text": "Surgical-site review within 7 days", "days": 7})
     assert r.status_code == 200 and r.json()["stage"] == "ready_to_close"
     cards = {c["item_code"]: c for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json()}
     x1 = cards["X1"]
-    assert (x1["due_date"], x1["owner_name"], x1["cover_name"], x1["state"]) == \
-        ("2026-11-10", "Priya Nair", "Meera Joseph", "Due")
+    assert (x1["name"], x1["due_date"], x1["owner_name"], x1["cover_name"], x1["state"]) == \
+        ("Doctor-requested visit", "2026-11-10", "Priya Nair", "Meera Joseph", "Due")
     booking = task(client, "booking_from_instruction")
     assert booking["due_date"] == "2026-11-05"  # 2 working days from Tue 3 Nov
     msg = outbox("SYN-0007")[-1]
-    assert (msg["template_id"], msg["status"], msg["actor"]) == ("instruction_booking", "sent", "u_anand")
+    assert (msg["template_id"], msg["status"], msg["actor"]) == ("instruction_booking", "sent", "CarePilot agent")
 
     # Closure waits for the urgent call, then needs a named person and a reason.
     assert client.post(f"/handovers/{hid}/close", headers=PRIYA, json={"reason": "done"}).status_code == 409

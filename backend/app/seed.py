@@ -14,12 +14,12 @@ from psycopg.types.json import Jsonb
 from . import audit, clock, consent, importer, plan, states
 from .errors import Invalid
 from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy, message_templates,
-                        plan_template, read_seed, step_a_settings, uc1)
+                        plan_template, read_seed, step_a_settings, uc1, uc2a)
 
 SEED_USER = "u_priya"
 
 DEMO_TABLES = (
-    "call_log", "inbound_message", "outbox_message", "gap_event", "handover",
+    "demo_setting", "proposal", "call_log", "inbound_message", "audio_blob", "outbox_message", "gap_event", "handover",
     "order_card", "care_plan", "coordinator_task", "consent", "appointment", "import_exception",
     "patient", "import_batch", "app_user", "demo_clock", "config_versions", "audit_ledger",
 )
@@ -32,7 +32,7 @@ RULE_THRESHOLDS = {
 }
 
 
-SCENARIOS = ("uc1", "step_a")
+SCENARIOS = ("uc1", "uc2a", "step_a")
 DEFAULT_SCENARIO = "uc1"
 
 
@@ -40,6 +40,7 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     """Rebuild a seed state inside the caller's transaction; returns counts and fingerprint.
 
     uc1     Use Case 1 (default): TP001-TP003, Anita and Ravi, Sanjeevini Clinic, the narrow switches.
+    uc2a    Use Case 2a "after Use Case 1": TP001 and TP004, reminders sent 9 Nov 07:30, clock 10:15, replies on.
     step_a  Step A / Golden Path: 25 patients from the register, Priya and Meera, everything switched on.
     """
     if scenario not in SCENARIOS:
@@ -48,6 +49,7 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     conn.execute(f"TRUNCATE {', '.join(DEMO_TABLES)} RESTART IDENTITY CASCADE")
     conn.execute("SET LOCAL carepilot.demo_reset = 'off'")
     conn.execute("ALTER SEQUENCE audit_ledger_seq RESTART WITH 1")
+    conn.execute("UPDATE demo_clock SET now_time = '09:00' WHERE id = 1")
 
     audit.append(
         conn,
@@ -58,6 +60,8 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     )
     if scenario == "uc1":
         _seed_uc1(conn)
+    elif scenario == "uc2a":
+        _seed_uc2a(conn)
     else:
         _seed_step_a(conn)
     return {**counts(conn), "scenario": scenario, "fingerprint": fingerprint(conn)}
@@ -65,12 +69,13 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
 
 def _config(conn, rows) -> None:
     for kind, name, body, signed_off_by in rows:
+        draft = bool(body.get("draft")) if isinstance(body, dict) else False  # unapproved: stored, never sent
         conn.execute(
             """
             INSERT INTO config_versions (kind, name, version, body, status, signed_off_by, signed_off_at)
-            VALUES (%s, %s, 1, %s, 'active', %s, now())
+            VALUES (%s, %s, 1, %s, %s, %s, CASE WHEN %s THEN NULL ELSE now() END)
             """,
-            (kind, name, Jsonb(body), signed_off_by),
+            (kind, name, Jsonb(body), "draft" if draft else "active", None if draft else signed_off_by, draft),
         )
 
 
@@ -105,10 +110,25 @@ def _seed_step_a(conn) -> None:
                                row["scopes"].split(";"), row["recorded_on"])
 
 
-def _seed_uc1(conn) -> None:
+def _seed_uc2a(conn) -> None:
+    """Use Case 2a "after Use Case 1": TP001 and TP004 with plans confirmed on D0, the T-7 reminder already
+    sent at 07:30 on Mon 9 Nov, demo clock at 10:15 when the patients reply."""
+    from datetime import date, time
+
+    from . import agent, rules
+
+    uc = uc2a()
+    _seed_uc1(conn, uc)
+    clock.set_today(conn, date.fromisoformat(uc["seed_date"]))
+    rules.run_gap_check(conn)
+    agent.run_agent(conn)
+    clock.set_time(conn, time.fromisoformat(uc["seed_time"]))
+
+
+def _seed_uc1(conn, uc: dict | None = None) -> None:
     """Use Case 1 v1.1 section 4: TP001 (plan confirmed by hand in step 1), TP002 (no automated-messaging
     consent; plan and card seeded) and TP003 (plan seeded, card already Booked). Owner Anita, cover Ravi."""
-    uc = uc1()
+    uc = uc or uc1()
     coordinator = next(u["user_id"] for u in uc["users"] if u["name"] == uc["coordinator"])
     _users(conn, uc["users"])
     clock.set_today(conn, DEMO_START_DATE)
@@ -118,7 +138,7 @@ def _seed_uc1(conn) -> None:
         ("plan_template", template["template_id"], template, template["signed_off_by"]),
         ("autonomy_policy", "default", autonomy_policy(), autonomy_policy()["signed_off_by"]),
         ("deadline_policy", "default", uc["deadline_policy"], uc["deadline_policy"]["signed_off_by"]),
-        ("scenario_settings", "default", {**uc["settings"], "scenario": "uc1"}, "Demo data set: Use Case 1"),
+        ("scenario_settings", "default", {**uc["settings"], "scenario": uc["scenario"]}, f"Demo data set: {uc['title']}"),
         *(("message_template", f"{t['template_id']}:{t['language']}", t, t["approved_by"])
           for t in uc["message_templates"]),
     ))
@@ -126,9 +146,9 @@ def _seed_uc1(conn) -> None:
         """
         INSERT INTO import_batch (source_type, file_name, imported_by, rows_read, rows_created,
                                   rows_skipped_identical, rows_exception)
-        VALUES ('register', 'uc1 seed (TP001-TP003)', %s, %s, %s, 0, 0) RETURNING batch_id
+        VALUES ('register', %s, %s, %s, %s, 0, 0) RETURNING batch_id
         """,
-        (coordinator, len(uc["patients"]), len(uc["patients"])),
+        (f"{uc['scenario']} seed", coordinator, len(uc["patients"]), len(uc["patients"])),
     ).fetchone()["batch_id"]
     for pt in uc["patients"]:
         conn.execute(
@@ -141,7 +161,7 @@ def _seed_uc1(conn) -> None:
     audit.append(conn, actor_type="person", actor_name=coordinator, action="register_imported",
                  entity_type="import_batch", entity_id=str(batch),
                  details={"rows_read": len(uc["patients"]), "rows_created": len(uc["patients"]),
-                          "file_name": "uc1 seed (TP001-TP003)"})
+                          "file_name": f"{uc['scenario']} seed"})
     for pt in uc["patients"]:
         c = pt["consent"]
         consent.record_consent(conn, coordinator, pt["mrn"], c["consent_reference"], c["scopes"], c["recorded_on"])

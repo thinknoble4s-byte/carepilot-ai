@@ -28,7 +28,7 @@
   "patients": [
     {
       "mrn": "TP001",
-      "full_name": "Kavya Rao",
+      "full_name": "Meena",
       "phone": "+919000000101",
       "preferred_language": "English",
       "consent": {
@@ -44,7 +44,7 @@
     },
     {
       "mrn": "TP002",
-      "full_name": "Meena Iyer",
+      "full_name": "Asha",
       "phone": "+919000000102",
       "preferred_language": "English",
       "consent": {
@@ -63,7 +63,7 @@
     },
     {
       "mrn": "TP003",
-      "full_name": "Ramesh Kumar",
+      "full_name": "Ramesh",
       "phone": "+919000000103",
       "preferred_language": "English",
       "consent": {
@@ -190,6 +190,36 @@
     "caregiver_copy": false,
     "act_on_replies": false,
     "people_tasks": false,
-    "clinic_name": "Sanjeevini Clinic"
+    "clinic_name": "Sanjeevini Clinic",
+    "instruction_card": {
+      "name": "Doctor-requested visit",
+      "department": "Review clinic",
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "ai": {
+      "tries": 2,
+      "timeout_seconds": 10,
+      "speech_model": "saaras:v3",
+      "language_model": "sarvam-105b",
+      "note": "UC2a names Sarvam-30B; Sarvam deprecated it (API answer, 17 Oct 2026) and points to sarvam-105b."
+    },
+    "hold_on_proposal": true,
+    "voice_clips": [
+      {
+        "id": "HI-01",
+        "patient": "TP001",
+        "language": "Hindi",
+        "label": "HI-01 — arm pain for a week, wants to see the doctor",
+        "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+      },
+      {
+        "id": "HI-02",
+        "patient": "TP004",
+        "language": "Hindi",
+        "label": "HI-02 — will come on Saturday with her son, morning please",
+        "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+      }
+    ]
   }
 }

@@ -8,7 +8,7 @@ from conftest import scalar, users_header
 ANITA = users_header("u_anita")
 DUE = "2026-11-16"
 EXPECTED_BODY = (
-    "Dear Kavya Rao,\nGreetings from Sanjeevini Clinic. We understand that you have not yet booked your appointment "
+    "Dear Meena,\nGreetings from Sanjeevini Clinic. We understand that you have not yet booked your appointment "
     "with Dr. Sekhar for your review due on 16-Nov. Please select one of the options below.\n\n"
     "If you have any concerns, please write to us or feel free to leave a voice message."
 )

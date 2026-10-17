@@ -39,6 +39,10 @@ export default function Indicators() {
             {tile(k.handover_response_median_days == null ? '—' : k.handover_response_median_days === 0 ? 'Same day'
               : `${k.handover_response_median_days} working day${k.handover_response_median_days === 1 ? '' : 's'}`,
               'Handover response', `median from a handover opening to the coordinator's decision (${k.handovers_decided} decided)`)}
+            {tile(k.handover_response_median_minutes == null ? '—' : `${k.handover_response_median_minutes} min`,
+              'Handover response (demo clock)', 'median minutes from the agent stopping to the coordinator reviewing')}
+            {tile(k.draft_acceptance == null ? '—' : `${k.draft_acceptance}%`, 'AI drafts accepted unedited',
+              `${k.proposals_approved_unedited} of ${k.proposals_decided} proposals decided`)}
             {tile(`${k.g0_booked_after_reminder} of ${k.g0_gaps}`, 'Booked after the T-7 reminder', 'G0 gaps whose item left "Due"')}
             {tile(k.not_responding, 'Not responding', 'patients with 2+ messages in a row unanswered')}
             {tile(k.lost_to_follow_up, 'Lost to follow-up', 'closed with a reason under the agreed definition')}

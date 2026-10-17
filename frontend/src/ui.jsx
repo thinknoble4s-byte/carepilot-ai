@@ -1,5 +1,6 @@
 // Shared building blocks that mirror the prototype (v7.2): screen heading, pop-up, notification, dates.
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { blobUrl } from './api.js';
 
 export const UI = createContext({
   toast: () => {}, showModal: () => {}, closeModal: () => {}, refresh: () => {}, nav: () => {}, today: null, role: null, user: null,
@@ -112,11 +113,31 @@ export function Dl({ due, label, today }) {
   return <span className={`dl ${cls}`}>⏱ {text}</span>;
 }
 
+const MARKS = { health_mention: ['Health mention', 'unverified'], voice: ['🎙 Voice note', 'hosp'], ai_failed: ['AI could not read it', 'unverified'] };
+
+export function Marks({ marks }) {
+  return (marks || []).map((m) => <React.Fragment key={m}> <span className={`tag ${MARKS[m]?.[1] || ''}`}>{MARKS[m]?.[0] || m}</span></React.Fragment>);
+}
+
+// A stored voice note (UC2a): played from the database through the API.
+export function VoiceClip({ inboundId }) {
+  const [src, setSrc] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    let url;
+    blobUrl(`inbound/${inboundId}/audio`).then((u) => { url = u; setSrc(u); }).catch((e) => setErr(e.message));
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, [inboundId]);
+  if (err) return <span className="small-note">Audio not available ({err})</span>;
+  if (!src) return <span className="small-note">Loading audio…</span>;
+  return <audio controls preload="metadata" src={src} style={{ width: '100%', maxWidth: 300, height: 34 }} />;
+}
+
 export function Reason({ r, today }) {
   return (
     <div className={r.tag === 'watch' ? 'early' : r.tag === 'agent' ? 'byagent' : ''}>
       {r.tag === 'agent' && <><span className="v4-k agent mini">Agent</span> </>}
-      {r.txt}
+      {r.txt}<Marks marks={r.marks} />
       {r.due && <> <Dl due={r.due} today={today} /></>}
     </div>
   );

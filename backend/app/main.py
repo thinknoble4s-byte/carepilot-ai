@@ -10,13 +10,14 @@ from typing import Literal
 
 import psycopg
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from . import (agent, audit, clock, consent, db, gateway, handover, importer, messaging, patients, plan, programme,
-               rules, seed, tasks, timeline, views, worklist)
+from . import (agent, ai, audit, clock, consent, db, gateway, handover, importer, messaging, patients, plan, programme,
+               proposals, rules, seed, tasks, timeline, views, worklist)
 from .auth import ANY_ROLE, CLINICAL, COORDINATOR, current_user, require_role
 from .errors import DomainError
+from . import policy
 from .reference import ROLE_LABELS, USERS
 
 app = FastAPI(title="CarePilot API", version="0.3.0")
@@ -101,7 +102,8 @@ def audit_trail(limit: int = 20, mrn: str | None = None, kind: str | None = None
 
 @app.get("/clock")
 def get_clock(_user: dict = Depends(current_user)):
-    return {"today": in_tx(clock.get_today)}
+    now = in_tx(clock.get_now)
+    return {"today": now.date(), "time": now.strftime("%H:%M")}
 
 
 class AdvanceIn(BaseModel):
@@ -124,11 +126,71 @@ def demo_reset(body: ResetIn | None = None, user: dict = Depends(require_role(*C
 
 class SetDateIn(BaseModel):
     date: str
+    time: str | None = None
 
 
 @app.post("/clock/set")
 def set_clock(body: SetDateIn, user: dict = Depends(require_role(*COORDINATOR))):
-    return {"today": in_tx(clock.set_forward, body.date, user["user_id"])}
+    def run(conn):
+        clock.set_forward(conn, body.date, user["user_id"], body.time)
+        now = clock.get_now(conn)
+        return {"today": now.date(), "time": now.strftime("%H:%M")}
+
+    return in_tx(run)
+
+
+@app.get("/demo/settings")
+def demo_settings(_user: dict = Depends(current_user)):
+    def run(conn):
+        s = policy.settings(conn)
+        now = clock.get_now(conn)
+        return {"scenario": s.get("scenario"), "clinic_name": s.get("clinic_name"), "act_on_replies": s["act_on_replies"],
+                "sarvam_enabled": ai.sarvam_enabled(conn), "ai_provider": ai.provider_name(),
+                "today": now.date(), "time": now.strftime("%H:%M")}
+
+    return in_tx(run)
+
+
+class SwitchIn(BaseModel):
+    enabled: bool
+
+
+@app.post("/demo/sarvam")
+def sarvam_switch(body: SwitchIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Test switch (UC2a-T4): with Sarvam off every AI call fails, so replies take the safe path."""
+    def run(conn):
+        from psycopg.types.json import Jsonb
+
+        conn.execute("INSERT INTO demo_setting (key, value) VALUES ('sarvam_enabled', %s) "
+                     "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", (Jsonb(body.enabled),))
+        audit.append(conn, actor_type="person", actor_name=user["user_id"], action="demo_switch_changed",
+                     entity_type="demo_setting", entity_id="sarvam_enabled", outcome=str(body.enabled).lower())
+        return {"sarvam_enabled": body.enabled}
+
+    return in_tx(run)
+
+
+@app.get("/proposals")
+def list_proposals(_user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(proposals.waiting)
+
+
+class ApproveIn(BaseModel):
+    summary: str | None = None
+
+
+@app.post("/proposals/{proposal_id}/approve")
+def approve_proposal(proposal_id: int, body: ApproveIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(proposals.approve, proposal_id, user["user_id"], body.summary)
+
+
+class RejectIn(BaseModel):
+    reason: str | None = None
+
+
+@app.post("/proposals/{proposal_id}/reject")
+def reject_proposal(proposal_id: int, body: RejectIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(proposals.reject, proposal_id, user["user_id"], body.reason)
 
 
 @app.get("/cards")
@@ -280,13 +342,34 @@ class ReplyIn(BaseModel):
     text: str | None = None
     from_role: str = "patient"
     in_reply_to: int | None = None
+    clip_id: str | None = None   # "Record voice note": attaches a pre-recorded clip (UC2a)
+    event_id: str | None = None  # the same event sent twice creates nothing new (REQ-20)
 
 
 @app.post("/simulator/{mrn}/reply", status_code=201)
 def simulate_reply(mrn: str, body: ReplyIn, _user: dict = Depends(require_role(*COORDINATOR))):
     """The WhatsApp simulator: the demo operator plays the patient or caregiver."""
     return in_tx(gateway.receive_reply, mrn, from_role=body.from_role, button=body.button, text=body.text,
-                 in_reply_to=body.in_reply_to)
+                 in_reply_to=body.in_reply_to, clip_id=body.clip_id, event_id=body.event_id)
+
+
+@app.get("/simulator/clips")
+def simulator_clips(_user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(gateway.clips)
+
+
+@app.get("/inbound/{inbound_id}/audio")
+def inbound_audio(inbound_id: int, _user: dict = Depends(require_role(*CLINICAL))):
+    def run(conn):
+        row = conn.execute(
+            """SELECT a.data, a.mime FROM inbound_message i JOIN audio_blob a USING (audio_id)
+               WHERE i.inbound_id = %s""", (inbound_id,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="No audio for this message")
+        return row
+
+    row = in_tx(run)
+    return Response(content=bytes(row["data"]), media_type=row["mime"])
 
 
 @app.post("/outbox/{message_id}/approve")
@@ -370,22 +453,14 @@ def gate2(handover_id: int, body: Gate2In, user: dict = Depends(require_role("on
     return in_tx(handover.gate2, handover_id, user, body.decision)
 
 
-class OrderIn(BaseModel):
-    name: str
-    department: str
-    card_type: str = "visit"
-    within_days: int
-
-
 class InstructionIn(BaseModel):
     text: str | None = None
-    order: OrderIn | None = None
+    days: int | None = None  # a visit within N days; omit for an instruction without a new card
 
 
 @app.post("/handovers/{handover_id}/instruction")
 def instruction(handover_id: int, body: InstructionIn, user: dict = Depends(require_role("oncologist"))):
-    return in_tx(handover.record_instruction, handover_id, user, body.text,
-                 body.order.model_dump() if body.order else None)
+    return in_tx(handover.record_instruction, handover_id, user, body.text, body.days)
 
 
 class CloseIn(BaseModel):

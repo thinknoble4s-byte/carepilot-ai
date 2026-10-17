@@ -69,6 +69,13 @@ def build(conn, mrn: str) -> dict:
                           "routine", "carepilot" if m["actor_type"] in ("agent", "system") else "hosp",
                           "WhatsApp (simulated)", origin))
     for i in conn.execute("SELECT * FROM inbound_message WHERE mrn = %s ORDER BY inbound_id", (mrn,)).fetchall():
+        if i["kind"] == "voice":
+            ai_part = (f" · AI: flag {i['ai_flag']}" + (" (AI could not read it)" if i["ai_failed"] else "")
+                       + (f" · \"{i['translation']}\"" if i["translation"] else "")) if i["ai_flag"] else ""
+            events.append(_ev(i["received_on"], f"Voice note from {i['from_role']} ({i['clip_id']}){ai_part}",
+                              "routine", "patient", f"WhatsApp voice note #{i['inbound_id']}",
+                              f"Reply to message #{i['in_reply_to']}" if i["in_reply_to"] else "Unprompted message"))
+            continue
         said = f"tapped \"{i['button'].replace('_', ' ')}\"" if i["button"] else ""
         if i["text"]:
             said += (" and wrote: " if said else "wrote: ") + f"\"{i['text']}\""
@@ -94,6 +101,10 @@ def build(conn, mrn: str) -> dict:
             events.append(_ev(h["closed_on"], f"Handover closed: {h['closed_reason']}", "routine", "hosp",
                               f"Handover #{h['handover_id']}", f"Closed by {_who(h['closed_by'])}"))
 
+    for pr in conn.execute("SELECT * FROM proposal WHERE mrn = %s ORDER BY proposal_id", (mrn,)).fetchall():
+        events.append(_ev(pr["created_at_demo"].date(), f"Proposal drafted by AI: {pr['summary'] or 'no draft'} "
+                          f"(intent {pr['intent'] or 'none'}) — {pr['status']}", "routine", "carepilot",
+                          f"Proposal #{pr['proposal_id']}", f"Voice/text reply #{pr['inbound_id']}"))
     events.sort(key=lambda e: (e["date"], e["kind"] != "milestone"))
     routine = [e for e in events if e["kind"] == "routine"]
     return {"mrn": mrn, "full_name": p["full_name"], "status": p["status"],

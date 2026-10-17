@@ -2,7 +2,40 @@
 // the doctor's instruction in the hospital record, and the morning department lists.
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
-import { fmt, useUI } from './ui.jsx';
+import { fmt, useUI, VoiceClip } from './ui.jsx';
+
+export const CLOSE_REASONS = ['Nothing clinical', 'Travel or booking plans only', 'Patient called; matter resolved',
+  'Doctor instruction done, patient messaged', 'Review booked; doctor\'s plan in place'];
+
+// Close reasons from a pick-list, with "Other" for anything else (UC2a step 11).
+export function CloseReason({ value, onChange, id }) {
+  const [other, setOther] = useState(false);
+  return (
+    <>
+      <select id={id} className="v3-in" value={other ? '__other' : value}
+        onChange={(e) => { const v = e.target.value; setOther(v === '__other'); onChange(v === '__other' ? '' : v); }}>
+        <option value="">Choose a reason…</option>
+        {CLOSE_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+        <option value="__other">Other (write it)</option>
+      </select>
+      {other && <input className="v3-in" style={{ marginTop: 6 }} value={value} onChange={(e) => onChange(e.target.value)} placeholder="Write the reason" />}
+    </>
+  );
+}
+
+// What the patient said: original words, the AI translation (labelled), the audio, and an AI failure note.
+export function PatientWords({ h, language }) {
+  return (
+    <div className="msgprev" style={{ maxWidth: 'none' }}>
+      {h.inbound_kind === 'voice' && <span className="small-note">🎙 Voice note{language ? ` · profile language ${language}` : ''}</span>}
+      <span>{h.patient_words || '—'}</span>
+      {h.translation && <span className="small-note">English (AI translation, Sarvam — check before relying on it): {h.translation}</span>}
+      {h.inbound_kind === 'voice' && h.inbound_id && <VoiceClip inboundId={h.inbound_id} />}
+      {h.ai_failed && <span className="small-note"><b>The AI could not read this message</b> — listen to the audio. It was handed to you as a precaution.</span>}
+      <span className="small-note">{h.source}</span>
+    </div>
+  );
+}
 
 function useAct() {
   const { toast, refresh, closeModal } = useUI();
@@ -49,13 +82,11 @@ function HandoverReview({ patient }) {
   const gate1 = (choice, done) => act(() => post(`handovers/${id}/gate1`, { choice }), done, true);
   return (
     <>
-      <div className="msgprev" style={{ maxWidth: 'none' }}>
-        <span>{h.patient_words || '—'}</span>
-        <span className="small-note">{h.translation ? `English: ${h.translation}` : ''} · {h.source}</span>
-      </div>
+      <PatientWords h={h} language={patient.preferred_language} />
       <div className="small-note" style={{ marginTop: 8, lineHeight: 1.7 }}>
         What the agent did: {h.trigger === 'manual' ? 'nothing — a person opened this handover' :
-          'logged any button reply, sent the fixed acknowledgement, stopped all automated messages and handed the conversation to you'}.
+          h.trigger === 'health_matter' ? 'the AI flagged a possible health mention, so the agent sent the fixed acknowledgement, stopped all routine messages (send block on) and handed the conversation to you. It did not reply to the content'
+            : 'logged any button reply, sent the fixed acknowledgement, stopped all automated messages and handed the conversation to you'}.
       </div>
       {h.stage === 'awaiting_coordinator' ? (
         <>
@@ -73,8 +104,7 @@ function HandoverReview({ patient }) {
           {closing && (
             <>
               <label className="v3-field" htmlFor="hcR">Reason for closing (your name is recorded)</label>
-              <input id="hcR" className="v3-in" value={reason} onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. Travel plans only; nothing clinical" />
+              <CloseReason id="hcR" value={reason} onChange={setReason} />
               <div className="btn-row">
                 <button type="button" className="btn primary" disabled={!reason.trim()}
                   onClick={async () => {
@@ -184,7 +214,17 @@ function Messages({ patient }) {
   const [english, setEnglish] = useState(true);
   const [text, setText] = useState('');
   const [settings, setSettings] = useState(null);
+  const [clips, setClips] = useState([]);
+  const [clip, setClip] = useState('');
+  const [lastEvent, setLastEvent] = useState(null);
   const [act, error] = useAct();
+  useEffect(() => {
+    api('simulator/clips').then((list) => {
+      setClips(list);
+      const mineFirst = list.find((c) => c.patient === patient.mrn) || list[0];
+      if (mineFirst) setClip(mineFirst.id);
+    }).catch(() => {});
+  }, [patient.mrn]);
   const load = useCallback(() => {
     api(`patients/${patient.mrn}/messages`).then(setThread).catch(() => {});
   }, [patient.mrn]);
@@ -194,7 +234,10 @@ function Messages({ patient }) {
   const actOnReplies = settings?.act_on_replies !== false;
   useEffect(() => load(), [load]);
   const reply = async (body) => {
-    if (await act(() => post(`simulator/${patient.mrn}/reply`, body), (r) => `Reply handled: ${r.handling.join('; ')}`, true)) {
+    // Every simulated delivery carries a WhatsApp-style event id; resending the same id must change nothing (REQ-20).
+    const sent = { event_id: `wa-${Date.now()}`, ...body };
+    if (await act(() => post(`simulator/${patient.mrn}/reply`, sent), (r) => `Reply handled: ${r.handling.join('; ')}`, true)) {
+      setLastEvent(sent);
       setText('');
       load();
     }
@@ -222,6 +265,19 @@ function Messages({ patient }) {
               <div key={`${m.direction}-${m.id}`} className={`v31-b ${m.direction === 'out' ? 'hosp' : 'fam'}`}
                 style={m.status && m.status !== 'sent' ? { opacity: 0.6, borderStyle: 'dashed' } : undefined}>
                 {m.direction === 'in' && m.button && <span className="v31-en"><b>Tapped: {m.button.replaceAll('_', ' ')}</b></span>}
+                {m.kind === 'voice' && (
+                  <>
+                    <span className="v31-en"><b>🎙 Voice note ({m.clip_id})</b></span>
+                    <VoiceClip inboundId={m.id} />
+                    {m.transcript && <span className="v31-kn">{m.transcript}</span>}
+                    {english && m.translation && <span className="v31-en">AI translation: {m.translation}</span>}
+                  </>
+                )}
+                {m.direction === 'in' && m.kind === 'text' && english && m.translation && m.translation !== m.body
+                  && <span className="v31-en">AI translation: {m.translation}</span>}
+                {m.direction === 'in' && m.ai_flag && (
+                  <span className="v31-en">{m.ai_flag === 'yes' ? `Health mention flagged${m.ai_failed ? ' (AI failed — safe path)' : ''} → handed to a person` : 'No health mention → proposal for the coordinator'}</span>
+                )}
                 {m.body && <span className="v31-kn">{m.body}</span>}
                 {english && m.body_en && m.body_en !== m.body && <span className="v31-en">{m.body_en}</span>}
                 {m.direction === 'out' && m.buttons?.length > 0 && (
@@ -232,7 +288,7 @@ function Messages({ patient }) {
                     : <span key={b.id} className="rbtn">{b.label}</span>))}</div>
                 )}
                 <span className="v31-t">
-                  {fmt(m.day)} · {m.direction === 'out' ? `to ${m.party}` : `from ${m.party}`}
+                  {fmt(m.day)}{m.at ? ` ${String(m.at).slice(0, 5)}` : ''} · {m.direction === 'out' ? `to ${m.party}` : `from ${m.party}`}
                   {m.status && m.status !== 'sent' ? ` · ${m.status.replaceAll('_', ' ')}${m.blocked_reason ? `: ${m.blocked_reason}` : ''}` : ''}
                 </span>
               </div>
@@ -249,7 +305,7 @@ function Messages({ patient }) {
             <div className="card-title">Demo: reply as the patient</div>
             <div className="small-note">
               {actOnReplies
-                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI. Free text has no classifier until Sarvam (Increment 4), so it always opens a handover — the safe path.'
+                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI. Text and voice notes go to the AI (Sarvam) for one yes/no question: does it mention health? Yes, or any doubt or AI failure, hands it to a person; no makes a proposal for you to approve.'
                 : 'Use Case 1: a reply (button, text or HELP) is saved in the message history and CarePilot takes no action. Reply handling arrives with Use Case 2.'}
             </div>
             {lastSent && (
@@ -278,6 +334,24 @@ function Messages({ patient }) {
                 onClick={() => reply({ button: 'booked', text, in_reply_to: lastSent.id })}>Tap “Booked” + send text</button>
               <button type="button" className="btn ghost" onClick={() => reply({ text: 'HELP' })}>Reply HELP</button>
             </div>
+            {actOnReplies && clips.length > 0 && (
+              <>
+                <label className="v3-field" htmlFor="msgV">Record voice note (pre-recorded clip)</label>
+                <select id="msgV" className="v3-in" value={clip} onChange={(e) => setClip(e.target.value)}>
+                  {clips.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+                <div className="small-note">{clips.find((c) => c.id === clip)?.note}</div>
+                <div className="btn-row">
+                  <button type="button" className="btn primary" disabled={!clip}
+                    onClick={() => reply({ clip_id: clip, in_reply_to: lastSent?.id })}>Send voice note</button>
+                  <button type="button" className="btn ghost" disabled={!lastEvent}
+                    title="Test UC2a-T6: the same delivery arrives twice"
+                    onClick={() => act(() => post(`simulator/${patient.mrn}/reply`, lastEvent), (r) => `Replay: ${r.handling.join('; ')}`, true).then(load)}>
+                    Resend the last event (replay)
+                  </button>
+                </div>
+              </>
+            )}
           </>
         ) : <div className="small-note">Read only.</div>}
         {error && <div className="error">{error}</div>}
@@ -286,51 +360,46 @@ function Messages({ patient }) {
   );
 }
 
-const DEPARTMENTS = [['Oncology OPD', 'visit', 'Priya Nair'], ['Laboratory', 'test', 'Sunil Kumar'], ['Radiology', 'test', 'Lakshmi Rao']];
-
 export function openInstruction(ui, item) {
-  ui.showModal('Demo: instruction appears in the EMR',
+  ui.showModal('SIMULATED hospital record — doctor\'s instruction',
     'In the pilot this is picked up from the hospital record. The demo has no EMR, so enter what the doctor wrote there.',
     <InstructionForm item={item} />);
 }
 
-function InstructionForm({ item }) {
+// Gate 3 (REQ-12): instruction text + number of days. Rules create one neutral "Doctor-requested visit" card.
+export function InstructionForm({ item, inline }) {
   const ui = useUI();
-  const [dept, setDept] = useState('Oncology OPD');
-  const [text, setText] = useState('Surgical-site review within 7 days');
-  const [due, setDue] = useState(addDays(ui.today, 7));
+  const [text, setText] = useState('Review visit within 7 days');
+  const [days, setDays] = useState('7');
   const [withCard, setWithCard] = useState(true);
   const [act, error] = useAct();
-  const within = Math.round((new Date(`${due}T00:00:00`) - new Date(`${ui.today}T00:00:00`)) / 864e5);
-  const type = DEPARTMENTS.find((d) => d[0] === dept)[1];
+  const n = Number(days);
+  const okDays = Number.isInteger(n) && n >= 1 && n <= 365;
   return (
-    <>
-      <label className="v3-field" htmlFor="inT">Instruction</label>
-      <input id="inT" className="v3-in" value={text} onChange={(e) => setText(e.target.value)} />
+    <div className={inline ? 'card-flat' : ''} style={inline ? { marginTop: 8 } : undefined}>
+      {inline && <div className="card-title">SIMULATED hospital record</div>}
+      <label className="v3-field" htmlFor={`inT${item.handover_id}`}>Instruction</label>
+      <input id={`inT${item.handover_id}`} className="v3-in" value={text} onChange={(e) => setText(e.target.value)} />
       <label className="v4-check" style={{ marginTop: 10 }}>
-        <input type="checkbox" checked={withCard} onChange={(e) => setWithCard(e.target.checked)} /> Creates an order card
+        <input type="checkbox" checked={withCard} onChange={(e) => setWithCard(e.target.checked)} /> A visit is needed
       </label>
       {withCard && (
         <>
-          <label className="v3-field" htmlFor="inD">Department</label>
-          <select id="inD" className="v3-in" value={dept} onChange={(e) => setDept(e.target.value)}>
-            {DEPARTMENTS.map(([d, , owner]) => <option key={d} value={d}>{d} — owner {owner}</option>)}
-          </select>
-          <label className="v3-field" htmlFor="inDue">Due</label>
-          <input type="date" id="inDue" className="v3-in" value={due} onChange={(e) => setDue(e.target.value)} />
+          <label className="v3-field" htmlFor={`inN${item.handover_id}`}>Within how many days</label>
+          <input id={`inN${item.handover_id}`} type="number" min="1" max="365" className="v3-in" value={days} onChange={(e) => setDays(e.target.value)} />
+          {okDays && <div className="small-note">Creates a "Doctor-requested visit" card due {fmt(addDays(ui.today, n))}; the patient gets the booking message today.</div>}
         </>
       )}
       <div className="btn-row">
-        <button type="button" className="btn primary" disabled={!text.trim() || (withCard && within < 1)}
-          onClick={() => act(() => post(`handovers/${item.handover_id}/instruction`, {
-            text, order: withCard ? { name: text, department: dept, card_type: type, within_days: within } : null,
-          }), withCard ? 'Instruction picked up — order card created and the patient told' : 'Instruction picked up')}>
-          Pick up instruction
+        <button type="button" className="btn primary" disabled={!text.trim() || (withCard && !okDays)}
+          onClick={() => act(() => post(`handovers/${item.handover_id}/instruction`, { text, days: withCard ? n : null }),
+            withCard ? 'Instruction picked up — card created and the patient told' : 'Instruction picked up', inline)}>
+          Save to the record
         </button>
-        <button type="button" className="btn ghost" onClick={ui.closeModal}>Cancel</button>
+        {!inline && <button type="button" className="btn ghost" onClick={ui.closeModal}>Cancel</button>}
       </div>
       {error && <div className="error">{error}</div>}
-    </>
+    </div>
   );
 }
 
