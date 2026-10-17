@@ -49,6 +49,7 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     conn.execute(f"TRUNCATE {', '.join(DEMO_TABLES)} RESTART IDENTITY CASCADE")
     conn.execute("SET LOCAL carepilot.demo_reset = 'off'")
     conn.execute("ALTER SEQUENCE audit_ledger_seq RESTART WITH 1")
+    clock.set_today(conn, DEMO_START_DATE)  # before the first entry, so the reset entry has a demo date too
     conn.execute("UPDATE demo_clock SET now_time = '09:00' WHERE id = 1")
 
     audit.append(

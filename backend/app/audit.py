@@ -3,9 +3,12 @@
 for free. Write the entry on the same connection as the change it records, so
 both commit or roll back together."""
 from contextvars import ContextVar
+from datetime import date
 from typing import Literal
 
 from psycopg.types.json import Jsonb
+
+from .errors import Invalid
 
 # The demo time of the job being run ("07:00" gap check, "07:30" reminder run); None for other actions.
 DEMO_TIME: ContextVar[str | None] = ContextVar("demo_time", default=None)
@@ -70,8 +73,13 @@ KINDS = {"agent": ("agent",), "person": ("person",), "system": ("system",), "ai"
 
 
 def search(conn, *, mrn: str | None = None, kind: str | None = None, days: int | None = None,
-           q: str | None = None, limit: int = 400) -> dict:
-    """Filter the ledger by patient, actor kind, recency and text; counts per kind for the same filter."""
+           q: str | None = None, date_from: date | None = None, date_to: date | None = None, limit: int = 400) -> dict:
+    """Filter the ledger by patient, actor kind, recency, date range and text; counts per kind for the same filter.
+
+    The date range is inclusive and uses the demo date of each entry (the date shown on the screen); entries
+    written before the demo clock existed fall back to the real date."""
+    if date_from and date_to and date_from > date_to:
+        raise Invalid("The From date must be on or before the To date")
     where, params = ["action <> 'session.user_selected'"], {}
     if mrn:
         where.append("mrn = %(mrn)s")
@@ -79,6 +87,12 @@ def search(conn, *, mrn: str | None = None, kind: str | None = None, days: int |
     if days:
         where.append("occurred_at >= now() - make_interval(days => %(days)s)")
         params["days"] = int(days)
+    if date_from:
+        where.append("coalesce(demo_date, occurred_at::date) >= %(date_from)s")
+        params["date_from"] = date_from
+    if date_to:
+        where.append("coalesce(demo_date, occurred_at::date) <= %(date_to)s")
+        params["date_to"] = date_to
     if q:
         where.append("(action || ' ' || actor_name || ' ' || coalesce(entity_type, '') || ' ' || details::text) "
                      "ILIKE %(q)s")

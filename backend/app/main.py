@@ -6,10 +6,11 @@ default; only the owner starts it (scripts/db.sh start). Callers are picked by
 the X-User header (demo profile, no login).
 """
 import os
+from datetime import date
 from typing import Literal
 
 import psycopg
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
@@ -93,11 +94,14 @@ def select_user(user: dict = Depends(current_user)):
 
 @app.get("/audit")
 def audit_trail(limit: int = 20, mrn: str | None = None, kind: str | None = None, days: int | None = None,
-                q: str | None = None):
+                q: str | None = None, date_from: date | None = Query(None, alias="from"),
+                date_to: date | None = Query(None, alias="to")):
+    """Audit search: patient, actor kind, text, and an inclusive From/To range on each entry's demo date."""
     limit = min(max(limit, 1), 400)
-    if not (mrn or kind or days or q):
+    if not (mrn or kind or days or q or date_from or date_to):
         return in_tx(lambda conn: {"entries": audit.recent(conn, limit), "chain": audit.verify(conn)})
-    return in_tx(lambda conn: audit.search(conn, mrn=mrn, kind=kind, days=days, q=q, limit=limit))
+    return in_tx(lambda conn: audit.search(conn, mrn=mrn, kind=kind, days=days, q=q, date_from=date_from,
+                                           date_to=date_to, limit=limit))
 
 
 @app.get("/clock")

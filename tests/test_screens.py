@@ -160,3 +160,20 @@ def test_switching_a_task_to_shadow_is_a_new_policy_version(seeded, client):
     actions = morning(client)["actions"]
     assert {a["outcome"] for a in actions} == {"pending_approval"}
     assert scalar("SELECT policy_version FROM audit_ledger WHERE action = 'agent_decision' ORDER BY id DESC LIMIT 1") == "2.0"
+
+
+def test_audit_date_range(seeded, client):
+    """From/To filter on the demo date shown on each entry, both ends included; From after To is refused."""
+    confirm_plan(client, "SYN-0007")
+    advance(client, 7)
+    morning(client)
+    day = client.get("/audit?from=2026-11-09&to=2026-11-09&limit=400").json()
+    assert day["entries"] and {e["demo_date"] for e in day["entries"]} == {"2026-11-09"}
+    assert "gap_detected" in {e["action"] for e in day["entries"]}
+    before = client.get("/audit?to=2026-11-08&limit=400").json()["entries"]
+    assert before and all(e["demo_date"] <= "2026-11-08" for e in before)
+    assert "plan_confirmed" in {e["action"] for e in before}
+    combined = client.get("/audit?from=2026-11-09&to=2026-11-09&q=gap_detected&mrn=SYN-0007").json()
+    assert combined["entries"] and {e["action"] for e in combined["entries"]} == {"gap_detected"}
+    assert client.get("/audit?from=2026-11-10&to=2026-11-09").status_code == 422
+    assert client.get("/audit?from=09-11-2026").status_code == 422
