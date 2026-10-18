@@ -193,9 +193,28 @@ def record_result(conn, task_id: int, user_id: str, *, result: str, note: str | 
 
 
 def _book_card(conn, card_id: int, day: date, at: time | None, user_id: str) -> None:
-    """REQ-09/10/12: the card becomes Booked (confirmed by coordinator) with the appointment date. A
-    patient-reported booking is upgraded; a coordinator booking is never overwritten by a patient tap."""
+    """REQ-09/10/12: a visit card becomes Booked (confirmed by coordinator) with the appointment date; a
+    patient-reported booking is upgraded; a coordinator booking is never overwritten by a patient tap.
+    A test card (Golden Path) becomes Scheduled with the appointment date."""
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s FOR UPDATE", (card_id,)).fetchone()
+    if card["card_type"] == "test":
+        # A test has no "Booked" state: a booking with a date is Ordered -> Scheduled (Golden Path test cards).
+        if card["state"] == "Due":
+            states.transition_card(conn, card_id, "Ordered", "system", SYSTEM, source="coordinator", recorded_by=user_id)
+            card = {**card, "state": "Ordered"}
+        if card["state"] == "Ordered":
+            states.transition_card(conn, card_id, "Scheduled", "system", SYSTEM, source="coordinator",
+                                   appointment_date=day.isoformat(), recorded_by=user_id)
+        elif card["state"] == "Scheduled":
+            conn.execute("UPDATE order_card SET appointment_date = %s WHERE card_id = %s", (day, card_id))
+            audit.append(conn, actor_type="system", actor_name=SYSTEM, action="card_booking_confirmed",
+                         entity_type="order_card", entity_id=str(card_id), mrn=card["mrn"],
+                         details={"appointment_date": day.isoformat(), "recorded_by": user_id})
+        else:
+            raise Conflict(f"The test is already {card['state']}")
+        conn.execute("UPDATE order_card SET booking_source = 'coordinator', appointment_time = %s WHERE card_id = %s",
+                     (at, card_id))
+        return
     if card["state"] == "Due":
         states.transition_card(conn, card_id, "Booked", "system", SYSTEM, source="coordinator",
                                appointment_date=day.isoformat(), recorded_by=user_id)
@@ -215,7 +234,7 @@ def tasks_for(conn, mrn: str) -> list[dict]:
     """Patient page Tasks section: every task with owner, cover, due, state (Open / Overdue / Done) and attempts."""
     today = clock.get_today(conn)
     rows = conn.execute(
-        """SELECT t.*, c.name AS card_name, c.item_code FROM coordinator_task t
+        """SELECT t.*, c.name AS card_name, c.item_code, c.card_type FROM coordinator_task t
            LEFT JOIN order_card c USING (card_id) WHERE t.mrn = %s
            ORDER BY (t.status = 'open') DESC, t.task_id DESC""", (mrn,)).fetchall()
     out = []

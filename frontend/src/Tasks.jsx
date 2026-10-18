@@ -92,7 +92,7 @@ function TaskPanel({ task, reasons, need }) {
       await post(`tasks/${task.task_id}/result`, {
         result, note: note || null, appointment_date: date || null, appointment_time: time || null, reason_code: code || null,
       });
-      ui.toast(`${task.label}: ${RESULT_LABEL[result]} — task closed${task.task_type !== 'help_request' && ['booked', 'rebooked'].includes(result) ? ', card Booked (confirmed by coordinator)' : ''}`);
+      ui.toast(`${task.label}: ${RESULT_LABEL[result]} — task closed${['booked', 'rebooked'].includes(result) ? (task.card_type === 'test' ? ', test Scheduled' : ', card Booked (confirmed by coordinator)') : ''}`);
       ui.closeModal();
       ui.refresh();
     } catch (e) {
