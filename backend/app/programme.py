@@ -56,6 +56,9 @@ def kpis(conn) -> dict:
     decided = conn.execute(
         "SELECT count(*) AS n, count(*) FILTER (WHERE status = 'approved' AND NOT edited) AS clean "
         "FROM proposal WHERE status <> 'drafted'").fetchone()
+    calls = [r["minutes_to_call"] for r in conn.execute(
+        "SELECT minutes_to_call FROM coordinator_task WHERE task_type = 'urgent_call' AND minutes_to_call IS NOT NULL"
+    ).fetchall()]
     rows = worklist.build(conn)["patients"]
     statuses = conn.execute("SELECT status, count(*) AS n FROM patient GROUP BY status").fetchall()
     return {
@@ -78,6 +81,10 @@ def kpis(conn) -> dict:
         "open_handovers": conn.execute("SELECT count(*) AS n FROM handover WHERE stage <> 'closed'").fetchone()["n"],
         "messages_sent": conn.execute("SELECT count(*) AS n FROM outbox_message WHERE status = 'sent'").fetchone()["n"],
         "sends_blocked": conn.execute("SELECT count(*) AS n FROM outbox_message WHERE status = 'blocked'").fetchone()["n"],
+        # Use Case 2c REQ-14: combined numbers only, no names.
+        "urgent_calls_reached": len(calls),
+        "time_to_call_median_minutes": median(calls) if calls else None,
+        "time_to_call_max_minutes": max(calls) if calls else None,
     }
 
 

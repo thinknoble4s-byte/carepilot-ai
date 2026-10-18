@@ -120,6 +120,36 @@ def build(conn, mrn: str) -> dict:
                 + (f" — \"{t['done_note']}\"" if t["done_note"] else "")
             events.append(_ev(t["done_on"], f"Task closed by {_who(t['done_by'])}: {what}", "routine", "hosp",
                               f"Task #{t['task_id']}", "Coordinator's result"))
+    # Use Case 2c: the call-today task, its attempts, the move to the cover, Overdue and the reached call.
+    hh = lambda ts: f"{ts:%H:%M}" if ts else "—"
+    for t in conn.execute("SELECT * FROM coordinator_task WHERE mrn = %s AND task_type = 'urgent_call' "
+                          "AND created_at_demo IS NOT NULL ORDER BY task_id", (mrn,)).fetchall():
+        src = f"Task #{t['task_id']}"
+        events.append(_ev(t["created_at_demo"].date(), f"Urgent — call the patient today: {t['moved_from'] or t['owner_name']} "
+                          f"by {hh(t['owner_deadline_at'])}, cover {t['cover_name']} by {hh(t['cover_deadline_at'])} "
+                          f"(created {hh(t['created_at_demo'])})", "routine", "carepilot", src,
+                          f"Doctor's Urgent choice (handover #{t['handover_id']})"))
+        for a in conn.execute("SELECT * FROM task_call_attempt WHERE task_id = %s ORDER BY attempt_id",
+                              (t["task_id"],)).fetchall():
+            events.append(_ev(a["called_at_demo"].date(), f"Call attempt {hh(a['called_at_demo'])} by {_who(a['called_by'])}: "
+                              f"{'reached' if a['result'] == 'reached' else 'no answer'}"
+                              + (f' — "{a["note"]}"' if a["note"] else ""), "routine", "hosp", src, "Coordinator's call log"))
+        if t["moved_at_demo"]:
+            events.append(_ev(t["moved_at_demo"].date(), f"Urgent call moved to {t['owner_name']} (cover), from {t['moved_from']} "
+                              f"at {hh(t['moved_at_demo'])}: {t['moved_reason']}", "routine",
+                              "carepilot" if t["moved_by"] == "CarePilot" else "hosp", src,
+                              "System at the owner's deadline" if t["moved_by"] == "CarePilot"
+                              else f"Passed by {_who(t['moved_by'])}"))
+        if t["overdue_at_demo"]:
+            events.append(_ev(t["overdue_at_demo"].date(), f"Urgent call Overdue after {hh(t['cover_deadline_at'])} — "
+                              f"not reached yet ({t['owner_name']})", "gap", "carepilot", src,
+                              "System at the cover's deadline"))
+        if t["status"] == "done":
+            booked = (f"; visit booked {t['appointment_date']:%d %b %Y}"
+                      + (f" {t['appointment_time']:%H:%M}" if t["appointment_time"] else "")) if t["appointment_date"] \
+                else "; no booking recorded"
+            events.append(_ev(t["done_on"], f"Patient reached by {_who(t['done_by'])} at {hh(t['done_at_demo'])}: time to call "
+                              f"{t['minutes_to_call']} minutes{booked}", "routine", "hosp", src, "Coordinator's call log"))
     for pr in conn.execute("SELECT * FROM proposal WHERE mrn = %s ORDER BY proposal_id", (mrn,)).fetchall():
         events.append(_ev(pr["created_at_demo"].date(), f"Proposal drafted by AI: {pr['summary'] or 'no draft'} "
                           f"(intent {pr['intent'] or 'none'}) — {pr['status']}", "routine", "carepilot",
@@ -133,7 +163,9 @@ def build(conn, mrn: str) -> dict:
 
 
 def recent_decisions(conn) -> list[dict]:
-    return conn.execute(
+    from . import urgent_calls
+
+    rows = conn.execute(
         """
         SELECT h.handover_id, h.mrn, p.full_name, h.gate2_decision, h.gate2_on, h.gate2_by, h.instruction,
                h.instruction_on, h.stage
@@ -141,3 +173,4 @@ def recent_decisions(conn) -> list[dict]:
         ORDER BY h.gate2_on DESC, h.handover_id DESC LIMIT 20
         """
     ).fetchall()
+    return [{**r, "call_line": urgent_calls.call_line(conn, r["handover_id"])} for r in rows]

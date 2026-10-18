@@ -1,5 +1,5 @@
 """Read side for the Workspace, Patient journey and Summary screens."""
-from . import messaging
+from . import messaging, urgent_calls
 from .errors import NotFound
 
 
@@ -73,6 +73,7 @@ def patient_detail(conn, mrn: str) -> dict:
                                    (mrn,)).fetchone() is not None,
         "hold": conn.execute("SELECT 1 FROM proposal WHERE mrn = %s AND status = 'drafted'", (mrn,)).fetchone() is not None,
         "task_hold": messaging.task_hold(conn, mrn),
+        "urgent_mode": bool(urgent_calls.config(conn)),
         "appointments": conn.execute(
             "SELECT appointment_date, department FROM appointment WHERE mrn = %s ORDER BY appointment_date",
             (mrn,),
@@ -183,8 +184,9 @@ def needs_you(conn) -> dict:
 
 
 def doctor_queue(conn) -> list[dict]:
-    """Needs my decision: handovers waiting for Gate 2 or Gate 3, with the patient's words and source."""
-    return conn.execute(
+    """Needs my decision: handovers waiting for Gate 2 or Gate 3, with the patient's words and source, and
+    (Use Case 2c REQ-17) a read-only line on the urgent call."""
+    rows = conn.execute(
         """
         SELECT h.handover_id, h.mrn, p.full_name, p.preferred_language, h.stage, h.trigger, h.patient_words,
                h.translation, h.source, h.call_note, h.gate1_by, h.gate2_decision, h.doctor, h.ai_failed,
@@ -195,6 +197,7 @@ def doctor_queue(conn) -> list[dict]:
         WHERE h.stage IN ('awaiting_doctor', 'awaiting_instruction') ORDER BY h.handover_id
         """
     ).fetchall()
+    return [{**r, "call_line": urgent_calls.call_line(conn, r["handover_id"])} for r in rows]
 
 
 def handover_detail(conn, handover_id: int) -> dict:

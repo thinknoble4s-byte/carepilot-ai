@@ -21,6 +21,8 @@ ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking")
 # Use Case 2b: while a help-booking, can't-come or help-request task is open, routine reminders (and, later,
 # slot offers) to the patient are held for every sender (held_open_task). A setting, pending decision 10.
 HELP_TASK_TYPES = ("help_booking", "cant_come", "help_request")
+# Use Case 2c REQ-16: the urgent call-today task holds routine reminders too, until a person reaches the patient.
+HOLD_TASK_TYPES = HELP_TASK_TYPES + ("urgent_call",)
 ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder")
 
 
@@ -28,7 +30,7 @@ def task_hold(conn, mrn: str) -> bool:
     if not policy.settings(conn).get("hold_on_task", False):
         return False
     return conn.execute("SELECT 1 FROM coordinator_task WHERE mrn = %s AND status = 'open' AND task_type = ANY(%s)",
-                        (mrn, list(HELP_TASK_TYPES))).fetchone() is not None
+                        (mrn, list(HOLD_TASK_TYPES))).fetchone() is not None
 
 
 def latest_scopes(conn, mrn: str) -> list[str]:

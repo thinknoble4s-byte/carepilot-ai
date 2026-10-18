@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 from . import audit, clock, consent, importer, plan, states
 from .errors import Invalid
 from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy, message_templates,
-                        plan_template, read_seed, step_a_settings, uc1, uc2a, uc2b)
+                        plan_template, read_seed, step_a_settings, uc1, uc2a, uc2b, uc2c)
 
 SEED_USER = "u_priya"
 
@@ -32,7 +32,7 @@ RULE_THRESHOLDS = {
 }
 
 
-SCENARIOS = ("uc1", "uc2a", "uc2b", "step_a")
+SCENARIOS = ("uc1", "uc2a", "uc2b", "uc2c", "step_a")
 DEFAULT_SCENARIO = "uc1"
 
 
@@ -42,6 +42,7 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     uc1     Use Case 1 (default): TP001-TP003, Anita and Ravi, Sanjeevini Clinic, the narrow switches.
     uc2a    Use Case 2a "after Use Case 1": TP001 and TP004, reminders sent 9 Nov 07:30, clock 10:15, replies on.
     uc2b    Use Case 2b "after Use Case 1": TP001, TP004-TP007, same start; taps and HELP become tasks.
+    uc2c    Use Case 2c "after Use Case 2a, step 6": TP001, TP004-TP007, each handover with the doctor; Tue 10 Nov 09:30.
     step_a  Step A / Golden Path: 25 patients from the register, Priya and Meera, everything switched on.
     """
     if scenario not in SCENARIOS:
@@ -64,6 +65,8 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
         _seed_uc1(conn)
     elif scenario in ("uc2a", "uc2b"):
         _seed_after_uc1(conn, uc2a() if scenario == "uc2a" else uc2b())
+    elif scenario == "uc2c":
+        _seed_uc2c(conn, uc2c())
     else:
         _seed_step_a(conn)
     return {**counts(conn), "scenario": scenario, "fingerprint": fingerprint(conn)}
@@ -124,6 +127,32 @@ def _seed_after_uc1(conn, uc: dict) -> None:
     rules.run_gap_check(conn)
     agent.run_agent(conn)
     clock.set_time(conn, time.fromisoformat(uc["seed_time"]))
+
+
+def _seed_uc2c(conn, uc: dict) -> None:
+    """Use Case 2c section 6, "after Use Case 2a, step 6", driven through the real code paths: each patient taps
+    Booked on the T-7 reminder (Review visit Booked, patient-reported) and sends voice note HI-01 at 10:15. The
+    flag and transcript are the Use Case 2a result (no AI call); the agent stops, sends the acknowledgement and the
+    handover opens with the send block on; Anita sends it to the doctor at 11:00. The clock ends at Tue 10 Nov 09:30."""
+    from datetime import date, time
+
+    from . import gateway, handover
+    from .reference import USERS_BY_ID
+
+    _seed_after_uc1(conn, uc)
+    hs = uc["handover_seed"]
+    coordinator = USERS_BY_ID[next(u["user_id"] for u in uc["users"] if u["name"] == uc["coordinator"])]
+    clock.set_time(conn, time.fromisoformat(hs["reply_time"]))
+    for pt in uc["patients"]:
+        reminder = conn.execute("SELECT message_id FROM outbox_message WHERE mrn = %s AND template_id = 'booking_reminder' "
+                                "AND status = 'sent'", (pt["mrn"],)).fetchone()["message_id"]
+        gateway.receive_reply(conn, pt["mrn"], button="booked", in_reply_to=reminder)
+        gateway.receive_reply(conn, pt["mrn"], clip_id=hs["clip"], in_reply_to=reminder, understood=hs["understood"])
+    clock.set_time(conn, time.fromisoformat(hs["sent_to_doctor_time"]))
+    for h in conn.execute("SELECT handover_id FROM handover ORDER BY handover_id").fetchall():
+        handover.gate1(conn, h["handover_id"], coordinator, "send_to_doctor")
+    clock.set_today(conn, date.fromisoformat(hs["start_date"]))
+    clock.set_time(conn, time.fromisoformat(hs["start_time"]))
 
 
 def _seed_uc1(conn, uc: dict | None = None) -> None:

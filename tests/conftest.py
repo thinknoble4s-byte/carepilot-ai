@@ -107,6 +107,18 @@ def uc2b(monkeypatch):
 
 
 @pytest.fixture()
+def uc2c(monkeypatch):
+    """Use Case 2c "after Use Case 2a, step 6" data set."""
+    if not DSN:
+        pytest.skip("TEST_DATABASE_URL not set")
+    monkeypatch.setenv("DATABASE_URL", DSN)
+    from app import db, seed
+
+    with db.connect() as c:
+        return seed.reset(c, scenario="uc2c")
+
+
+@pytest.fixture()
 def uc1(monkeypatch):
     """Use Case 1 data set (the default demo reset)."""
     if not DSN:

@@ -1,0 +1,390 @@
+{
+  "scenario": "uc2c",
+  "title": "Use Case 2c — The doctor picks Urgent: call the patient today (after Use Case 2a, step 6)",
+  "source": "usecase-docs/CarePilot_UseCase2c_Urgent_Call_Today_v1.2.docx (v1.2, 18 October 2026)",
+  "demo_start_date": "2026-11-02",
+  "seed_date": "2026-11-09",
+  "seed_time": "10:15",
+  "users": [
+    {
+      "user_id": "u_anita",
+      "name": "Anita",
+      "role": "coordinator"
+    },
+    {
+      "user_id": "u_ravi",
+      "name": "Ravi",
+      "role": "coordinator"
+    },
+    {
+      "user_id": "u_sekhar",
+      "name": "Dr. Sekhar",
+      "role": "oncologist"
+    },
+    {
+      "user_id": "u_suresh",
+      "name": "Dr. Suresh Pillai",
+      "role": "chief"
+    }
+  ],
+  "coordinator": "Anita",
+  "patients": [
+    {
+      "mrn": "TP001",
+      "full_name": "Meena",
+      "phone": "+919000000101",
+      "preferred_language": "English",
+      "consent": {
+        "consent_reference": "CONS-TP001",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": {
+        "due_dates": {
+          "RV": "2026-11-16"
+        }
+      },
+      "note": "Doctor chooses Urgent; Anita reaches the patient the same morning (positive case P1)"
+    },
+    {
+      "mrn": "TP004",
+      "full_name": "Kavita",
+      "phone": "+919000000104",
+      "preferred_language": "English",
+      "consent": {
+        "consent_reference": "CONS-TP004",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": {
+        "due_dates": {
+          "RV": "2026-11-16"
+        }
+      },
+      "note": "Doctor chooses Urgent; Anita's call is not answered; the cover reaches the patient (negative case N)"
+    },
+    {
+      "mrn": "TP005",
+      "full_name": "Lakshmi",
+      "phone": "+919000000105",
+      "preferred_language": "English",
+      "consent": {
+        "consent_reference": "CONS-TP005",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": {
+        "due_dates": {
+          "RV": "2026-11-16"
+        }
+      },
+      "note": "Doctor chooses Urgent; Anita logs two no-answer attempts and clicks Pass to cover (T5)"
+    },
+    {
+      "mrn": "TP007",
+      "full_name": "Rekha",
+      "phone": "+919000000107",
+      "preferred_language": "English",
+      "consent": {
+        "consent_reference": "CONS-TP007",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": {
+        "due_dates": {
+          "RV": "2026-11-16"
+        }
+      },
+      "note": "Doctor chooses Urgent; nobody reaches the patient by 18:00 (T6)"
+    },
+    {
+      "mrn": "TP006",
+      "full_name": "Farida",
+      "phone": "+919000000106",
+      "preferred_language": "English",
+      "consent": {
+        "consent_reference": "CONS-TP006",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": {
+        "due_dates": {
+          "RV": "2026-11-16"
+        }
+      },
+      "note": "Doctor chooses Routine: no call task (T7)"
+    }
+  ],
+  "plan_template": {
+    "template_id": "UC1-REVIEW",
+    "version": "1.0",
+    "name": "Use Case 1 review plan (one visit; due date entered at confirmation)",
+    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "effective_from": "2026-10-14",
+    "due_date_entered": true,
+    "identifiers_required": false,
+    "therapy_required": false,
+    "items": [
+      {
+        "item_code": "RV",
+        "type": "visit",
+        "name": "Review visit",
+        "department": "Review clinic"
+      }
+    ],
+    "departments": {
+      "Review clinic": {
+        "owner": "Anita",
+        "cover": "Ravi"
+      }
+    }
+  },
+  "deadline_policy": {
+    "version": "1.3",
+    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "default_coordinator": "Anita",
+    "default_doctor": "u_sekhar",
+    "covers": {
+      "Anita": "Ravi",
+      "Ravi": "Anita",
+      "Dr. Sekhar": "Dr. Sekhar"
+    },
+    "working_days": {
+      "coordinator_review": 1,
+      "call_first": 1,
+      "doctor_decision": 1,
+      "doctor_instruction": 1,
+      "urgent_call": 0,
+      "booking_from_instruction": 2,
+      "booking_help": 2,
+      "cannot_attend": 2,
+      "confirm_test_booking": 2,
+      "contact_needed": 2,
+      "help_booking": 2,
+      "cant_come": 2,
+      "help_request": 1
+    },
+    "escalation": {
+      "coordinator_review": "cover",
+      "call_first": "cover",
+      "doctor_decision": "cover",
+      "doctor_instruction": "reminder",
+      "urgent_call": null,
+      "booking_from_instruction": "cover",
+      "booking_help": "cover",
+      "cannot_attend": "cover",
+      "confirm_test_booking": "cover",
+      "contact_needed": "cover",
+      "help_booking": null,
+      "cant_come": null,
+      "help_request": null
+    },
+    "help_keywords": [
+      "help",
+      "ಸಹಾಯ",
+      "मदद"
+    ],
+    "not_reached_after_attempts": 2,
+    "cant_come_reasons": [
+      "cost",
+      "pre_authorisation",
+      "transport",
+      "work_family",
+      "other"
+    ],
+    "note": "Use Case 2c: the call-today task uses two times of day from the settings (owner 16:00, cover 18:00) and the system moves it to the cover itself, so the day-based escalation is off for it. Proposed; confirm with Dr. Sekhar. Use Case 2b tasks as before."
+  },
+  "message_templates": [
+    {
+      "template_id": "booking_reminder",
+      "language": "English",
+      "version": "1.1",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead)",
+      "effective_from": "2026-10-14",
+      "date_format": "%d-%b",
+      "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. We understand that you have not yet booked your appointment with Dr. Sekhar for your review due on {due_date}. Please select one of the options below.",
+      "closing": "If you have any concerns, please write to us or feel free to leave a voice message.",
+      "buttons": [
+        {
+          "id": "booked",
+          "label": "Booked (I have already booked)",
+          "label_en": "Booked (I have already booked)"
+        },
+        {
+          "id": "help_book",
+          "label": "Please help me book (our team will help me)",
+          "label_en": "Please help me book (our team will help me)"
+        },
+        {
+          "id": "cant_come",
+          "label": "I can't come",
+          "label_en": "I can't come"
+        }
+      ]
+    },
+    {
+      "template_id": "handover_ack",
+      "language": "English",
+      "version": "1.2",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead)",
+      "effective_from": "2026-10-17",
+      "date_format": "%d-%b",
+      "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. We have received your message. Our care team has been informed and will read it.",
+      "closing": null,
+      "buttons": [],
+      "note": "Emergency line to be added when approved (open point D5)."
+    },
+    {
+      "template_id": "handover_ack",
+      "language": "Hindi",
+      "version": "1.2",
+      "approved_by": null,
+      "draft": true,
+      "effective_from": "2026-10-17",
+      "date_format": "%d-%b",
+      "text": "प्रिय {patient_name},\nसंजीवनी क्लिनिक की ओर से नमस्कार। हमें आपका संदेश मिल गया है। हमारी केयर टीम को सूचना दे दी गई है। टीम आपका संदेश पढ़ेगी।",
+      "closing": null,
+      "buttons": [],
+      "note": "DRAFT, not yet approved: clinician and native Hindi review needed."
+    },
+    {
+      "template_id": "instruction_booking",
+      "language": "English",
+      "version": "1.2",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead)",
+      "effective_from": "2026-10-17",
+      "date_format": "%d-%b",
+      "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. Dr. Sekhar has asked you to come for a visit by {due_date}. Please select one of the options below.",
+      "closing": null,
+      "buttons": [
+        {
+          "id": "booked",
+          "label": "Booked (I have already booked)",
+          "label_en": "Booked (I have already booked)"
+        },
+        {
+          "id": "help_book",
+          "label": "Please help me book (our team will help me)",
+          "label_en": "Please help me book (our team will help me)"
+        },
+        {
+          "id": "cant_come",
+          "label": "I can't come",
+          "label_en": "I can't come"
+        }
+      ]
+    },
+    {
+      "template_id": "instruction_booking",
+      "language": "Hindi",
+      "version": "1.2",
+      "approved_by": null,
+      "draft": true,
+      "effective_from": "2026-10-17",
+      "date_format": "%d-%b",
+      "text": "प्रिय {patient_name},\nसंजीवनी क्लिनिक की ओर से नमस्कार। डॉ. शेखर ने आपसे {due_date} तक क्लिनिक आने के लिए कहा है। कृपया नीचे दिए गए विकल्पों में से एक चुनें।",
+      "closing": null,
+      "buttons": [
+        {
+          "id": "booked",
+          "label": "बुक हो गया",
+          "label_en": "Booked (I have already booked)"
+        },
+        {
+          "id": "help_book",
+          "label": "बुक करने में मदद करें",
+          "label_en": "Please help me book (our team will help me)"
+        },
+        {
+          "id": "cant_come",
+          "label": "आना संभव नहीं",
+          "label_en": "I can't come"
+        }
+      ],
+      "note": "DRAFT, not yet approved."
+    }
+  ],
+  "settings": {
+    "version": "1.2",
+    "note": "Use Case 2c: the doctor's Urgent choice creates one call-today task (owner Anita, cover Ravi), owner's deadline 16:00, cover's deadline 18:00, no Not reached, handover closes only after a reached call; routine reminders held while it is open. Use Case 2a and 2b behaviour otherwise.",
+    "gap_rules": [
+      "G0"
+    ],
+    "reminder_cards": "plan_visits",
+    "caregiver_copy": false,
+    "act_on_replies": true,
+    "people_tasks": true,
+    "hold_on_proposal": true,
+    "clinic_name": "Sanjeevini Clinic",
+    "instruction_card": {
+      "name": "Doctor-requested visit",
+      "department": "Review clinic",
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "ai": {
+      "tries": 2,
+      "timeout_seconds": 10,
+      "speech_model": "saaras:v3",
+      "language_model": "sarvam-105b",
+      "note": "UC2a names Sarvam-30B; Sarvam deprecated it (API answer, 17 Oct 2026) and points to sarvam-105b."
+    },
+    "voice_clips": [
+      {
+        "id": "HI-01",
+        "patient": "TP001",
+        "language": "Hindi",
+        "label": "HI-01 — arm pain for a week, wants to see the doctor",
+        "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+      },
+      {
+        "id": "HI-02",
+        "patient": "TP004",
+        "language": "Hindi",
+        "label": "HI-02 — will come on Saturday with her son, morning please",
+        "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+      },
+      {
+        "id": "HI-03",
+        "patient": null,
+        "language": "Hindi",
+        "label": "HI-03 — feeling perfectly OK, no complaints",
+        "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu): \"मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।\""
+      }
+    ],
+    "help_keyword": "task",
+    "hold_on_task": true,
+    "urgent_call": {
+      "owner_deadline": "16:00",
+      "cover_deadline": "18:00",
+      "note": "Proposed times (section 15): confirm with Dr. Sekhar."
+    }
+  },
+  "handover_seed": {
+    "clip": "HI-01",
+    "understood": {
+      "transcript": "पिछले एक हफ्ते से मेरी बांह में दर्द है, मुझे डॉक्टर को दिखाना है।",
+      "translation": "I have been having pain in my arm for the past week, I need to see a doctor.",
+      "flag": "yes"
+    },
+    "reply_time": "10:15",
+    "sent_to_doctor_time": "11:00",
+    "start_date": "2026-11-10",
+    "start_time": "09:30"
+  }
+}

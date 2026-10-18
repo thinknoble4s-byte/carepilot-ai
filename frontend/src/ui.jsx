@@ -115,6 +115,7 @@ export function Dl({ due, label, today }) {
 
 const MARKS = {
   health_mention: ['Health mention', 'unverified'], voice: ['🎙 Voice note', 'hosp'], ai_failed: ['AI could not read it', 'unverified'],
+  urgent: ['Urgent', 'live'],
   task_help_booking: ['Help booking', 'hosp'], task_cant_come: ["Can't come", 'hosp'], task_help_request: ['Help request', 'hosp'],
   overdue: ['Overdue', 'unverified'],
 };

@@ -97,14 +97,16 @@ function ConcernCard({ h, tasks, today, role, patient }) {
       {role === 'coordinator' && (
         <div className="btn-row">
           {h.stage === 'awaiting_coordinator' && <button type="button" className="btn sm primary" onClick={() => openHandover(ui, { ...patient, handover_id: h.handover_id })}>Review handover</button>}
-          {(urgentOpen || h.stage === 'calling') && <button type="button" className="btn sm primary" onClick={() => openCall(ui, patient)}>Call the patient now</button>}
+          {((urgentOpen && !patient.urgent_mode) || h.stage === 'calling') && <button type="button" className="btn sm primary" onClick={() => openCall(ui, patient)}>Call the patient now</button>}
         </div>
       )}
-      {role === 'coordinator' && h.stage === 'ready_to_close' && !urgentOpen && (
+      {urgentOpen && patient.urgent_mode && <div className="d"><span className="tag live">Urgent</span> The doctor asked for the patient to be called today: use the <b>Call the patient today</b> task in Tasks below.</div>}
+      {role === 'coordinator' && h.stage === 'ready_to_close' && (!urgentOpen || patient.urgent_mode) && (
         <div style={{ marginTop: 8 }}>
           <label className="v3-field" htmlFor="clr">Close the handover — reason (your name is recorded)</label>
           <CloseReason id="clr" value={reason} onChange={setReason} />
-          <div className="btn-row"><button type="button" className="btn primary" disabled={!reason.trim()} onClick={close}>Close handover</button></div>
+          <div className="btn-row"><button type="button" className="btn primary" disabled={!reason.trim() || urgentOpen} onClick={close}>Close handover</button></div>
+          {urgentOpen && <div className="small-note">Call task still open — the handover closes after a person reaches the patient.</div>}
         </div>
       )}
       {role === 'oncologist' && h.stage === 'awaiting_doctor' && (

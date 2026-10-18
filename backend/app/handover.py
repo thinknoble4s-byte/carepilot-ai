@@ -9,7 +9,7 @@ Each gate has a deadline that escalates to the named cover.
 """
 from datetime import timedelta
 
-from . import audit, clock, messaging, policy, tasks
+from . import audit, clock, messaging, policy, tasks, urgent_calls
 from .agent import set_next_action
 from .errors import Conflict, Invalid, NotFound
 from .reference import USERS_BY_ID
@@ -125,6 +125,8 @@ def record_call(conn, handover_id: int, user: dict, note: str | None) -> dict:
     urgent = conn.execute(
         "SELECT task_id FROM coordinator_task WHERE handover_id = %s AND task_type = 'urgent_call' AND status = 'open'",
         (handover_id,)).fetchone()
+    if urgent and urgent_calls.config(conn):
+        raise Conflict("Log the urgent call on its task: Log call attempt, then reached with a note")
     if urgent:
         tasks.complete_task(conn, urgent["task_id"], user["user_id"], note.strip())
         conn.execute("UPDATE handover SET called_on = %s WHERE handover_id = %s", (clock.get_today(conn), handover_id))
@@ -157,14 +159,19 @@ def gate2(conn, handover_id: int, user: dict, decision: str | None) -> dict:
                              handover_id=handover_id, reason="Gate 3: record the instruction in the hospital record",
                              actor_type="person", actor=user["user_id"])
     next_action = f"Doctor's instruction (Gate 3) by {_due(task)}"
-    if decision == "urgent":
+    h = _stage(conn, h, "awaiting_instruction", gate2_decision=decision, gate2_by=user["user_id"],
+               gate2_on=clock.get_today(conn), gate2_at_demo=clock.get_now(conn))
+    audit.append(conn, actor_type="person", actor_name=user["user_id"], action="gate2_decided", entity_type="handover",
+                 entity_id=str(handover_id), mrn=h["mrn"], outcome=decision)
+    if decision == "urgent" and urgent_calls.config(conn):
+        # Use Case 2c REQ-01: the call-today task is created at once, before the instruction is typed.
+        call = urgent_calls.create(conn, h, user)
+        next_action = f"Urgent: {call['assigned_name']} to call the patient today by " \
+                      f"{call['owner_deadline_at']:%H:%M}; {next_action}"
+    elif decision == "urgent":
         call = tasks.create_task(conn, mrn=h["mrn"], task_type="urgent_call", handover_id=handover_id,
                                  reason="Urgent: call the patient today", actor_type="person", actor=user["user_id"])
         next_action = f"Urgent call to the patient today ({call['assigned_name']}); {next_action}"
-    h = _stage(conn, h, "awaiting_instruction", gate2_decision=decision, gate2_by=user["user_id"],
-               gate2_on=clock.get_today(conn))
-    audit.append(conn, actor_type="person", actor_name=user["user_id"], action="gate2_decided", entity_type="handover",
-                 entity_id=str(handover_id), mrn=h["mrn"], outcome=decision)
     set_next_action(conn, h["mrn"], next_action)
     return h
 
@@ -211,6 +218,9 @@ def record_instruction(conn, handover_id: int, user: dict, text: str | None, day
                           card_id=card["card_id"], handover_id=handover_id,
                           reason=f"Book the {name} by {card['due_date'].strftime('%d/%m/%Y')} (doctor's instruction)",
                           actor_type="system", actor="system")
+        # Use Case 2c: the call task follows the new card, so Record booking books the doctor-requested visit.
+        conn.execute("UPDATE coordinator_task SET card_id = %s WHERE handover_id = %s AND task_type = 'urgent_call' "
+                     "AND status = 'open'", (card["card_id"], handover_id))
         # The patient is told the same day by the agent; allowed through the open handover (REQ-06/14).
         messaging.send_message(conn, mrn=h["mrn"], template_id="instruction_booking", actor_type="agent",
                                actor="CarePilot agent", reason_code="instruction_booking", card_id=card["card_id"],
@@ -237,7 +247,7 @@ def close(conn, handover_id: int, user: dict, reason: str | None) -> dict:
         raise Conflict(f"Not ready to close: the handover is at stage {h['stage']}")
     if conn.execute("SELECT 1 FROM coordinator_task WHERE handover_id = %s AND task_type = 'urgent_call' "
                     "AND status = 'open'", (handover_id,)).fetchone():
-        raise Conflict("Not ready to close: the urgent call has not been recorded")
+        raise Conflict("Call task still open: the urgent call has not reached the patient yet")
     h = _stage(conn, h, "closed", closed_by=user["user_id"], closed_reason=reason.strip(),
                closed_on=clock.get_today(conn))
     audit.append(conn, actor_type="person", actor_name=user["user_id"], action="handover_closed",

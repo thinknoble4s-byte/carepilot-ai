@@ -30,7 +30,9 @@ export default function Worklist() {
   if (!data) return <div className="card"><div className="empty">Loading…</div></div>;
 
   const other = data.coordinators.find((c) => c !== me) || 'Colleague';
-  const inScope = (p) => mine === 'all' || (mine === 'mine' ? p.coordinator === me : p.coordinator !== me);
+  // Use Case 2c: an urgent call moved to the cover shows in the cover's list too.
+  const isMine = (p) => p.coordinator === me || (p.assignees || []).includes(me);
+  const inScope = (p) => mine === 'all' || (mine === 'mine' ? isMine(p) : !isMine(p));
   const rows = data.patients.filter(inScope);
   const tags = (p) => new Set(p.reasons.map((r) => (r.action ? ['action', r.tag] : [r.tag])).flat());
   const count = Object.fromEntries(FILTERS.map(([k]) => [k, 0]));
@@ -61,8 +63,8 @@ export default function Worklist() {
       ui.toast(e.message);
     }
   };
-  const seg = [['mine', `My patients (${data.patients.filter((p) => p.coordinator === me).length})`],
-    ['other', `${other.split(' ')[0]}'s (${data.patients.filter((p) => p.coordinator !== me).length})`],
+  const seg = [['mine', `My patients (${data.patients.filter(isMine).length})`],
+    ['other', `${other.split(' ')[0]}'s (${data.patients.filter((p) => !isMine(p)).length})`],
     ['all', `All (${data.patients.length})`]];
 
   return (

@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from . import (agent, ai, audit, clock, consent, db, gateway, handover, help_tasks, importer, messaging, patients, plan,
                programme,
-               proposals, rules, seed, tasks, timeline, views, worklist)
+               proposals, rules, seed, tasks, timeline, urgent_calls, views, worklist)
 from .auth import ANY_ROLE, CLINICAL, COORDINATOR, current_user, require_role
 from .errors import DomainError
 from . import policy
@@ -117,7 +117,12 @@ class AdvanceIn(BaseModel):
 
 @app.post("/clock/advance")
 def advance_clock(body: AdvanceIn, user: dict = Depends(require_role(*COORDINATOR))):
-    return {"today": in_tx(clock.advance, body.days, user["user_id"])}
+    def run(conn):
+        today = clock.advance(conn, body.days, user["user_id"])
+        urgent_calls.sweep(conn)
+        return today
+
+    return {"today": in_tx(run)}
 
 
 class ResetIn(BaseModel):
@@ -138,8 +143,9 @@ class SetDateIn(BaseModel):
 def set_clock(body: SetDateIn, user: dict = Depends(require_role(*COORDINATOR))):
     def run(conn):
         clock.set_forward(conn, body.date, user["user_id"], body.time)
+        moved = urgent_calls.sweep(conn)  # Use Case 2c: cover step-in and Overdue at the times of day
         now = clock.get_now(conn)
-        return {"today": now.date(), "time": now.strftime("%H:%M")}
+        return {"today": now.date(), "time": now.strftime("%H:%M"), "urgent": moved}
 
     return in_tx(run)
 
@@ -419,6 +425,8 @@ def task_done(task_id: int, body: NoteIn, user: dict = Depends(require_role(*COO
         t = conn.execute("SELECT task_type FROM coordinator_task WHERE task_id = %s", (task_id,)).fetchone()
         if t and t["task_type"] in help_tasks.TYPES:
             raise HTTPException(status_code=422, detail="Close this task with a result (POST /tasks/{id}/result)")
+        if t and t["task_type"] == urgent_calls.TYPE and urgent_calls.config(conn):
+            raise HTTPException(status_code=422, detail="An urgent call closes only with a reached call attempt and a note")
         return tasks.complete_task(conn, task_id, user["user_id"], body.note)
 
     return in_tx(run)
@@ -441,11 +449,30 @@ def patient_tasks(mrn: str, _user: dict = Depends(require_role(*CLINICAL))):
 class AttemptIn(BaseModel):
     result: str  # reached | no_answer
     note: str | None = None
+    appointment_date: str | None = None  # Use Case 2c: optional Record booking on a reached urgent call
+    appointment_time: str | None = None
 
 
 @app.post("/tasks/{task_id}/attempts", status_code=201)
 def task_attempt(task_id: int, body: AttemptIn, user: dict = Depends(require_role(*COORDINATOR))):
-    return in_tx(help_tasks.log_attempt, task_id, user["user_id"], body.result, body.note)
+    def run(conn):
+        t = conn.execute("SELECT task_type FROM coordinator_task WHERE task_id = %s", (task_id,)).fetchone()
+        if t and t["task_type"] == urgent_calls.TYPE:
+            return urgent_calls.log_attempt(conn, task_id, user["user_id"], body.result, body.note,
+                                            body.appointment_date, body.appointment_time)
+        return help_tasks.log_attempt(conn, task_id, user["user_id"], body.result, body.note)
+
+    return in_tx(run)
+
+
+class PassIn(BaseModel):
+    reason: str | None = None
+
+
+@app.post("/tasks/{task_id}/pass-to-cover")
+def task_pass_to_cover(task_id: int, body: PassIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Use Case 2c REQ-09: the same urgent task moves to the cover at once, with a reason."""
+    return in_tx(urgent_calls.pass_to_cover, task_id, user["user_id"], body.reason)
 
 
 class ResultIn(BaseModel):
@@ -538,8 +565,8 @@ def close_handover(handover_id: int, body: CloseIn, user: dict = Depends(require
 # Screens matching prototype v7.2: worklist, timeline, calls, pause, Care Plan, indicators
 # ---------------------------------------------------------------------------
 @app.get("/worklist")
-def get_worklist(_user: dict = Depends(require_role(*COORDINATOR))):
-    return in_tx(worklist.build)
+def get_worklist(user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(worklist.build, user["name"])
 
 
 @app.get("/department-lists")

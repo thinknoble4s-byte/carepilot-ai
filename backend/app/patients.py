@@ -68,9 +68,12 @@ def log_call(conn, mrn: str, user_id: str, who: str, outcome: str, note: str | N
                                       patient_words=note, source=f"Phone call by {user['name']}")
         result["handover_id"] = h["handover_id"]
     elif open_h and outcome not in ("noans", "wrong"):
-        waiting = open_h["stage"] == "calling" or conn.execute(
+        from . import urgent_calls
+
+        # Use Case 2c: the urgent call is logged on its own task (Log call attempt), not from a general call.
+        waiting = open_h["stage"] == "calling" or (not urgent_calls.config(conn) and conn.execute(
             "SELECT 1 FROM coordinator_task WHERE handover_id = %s AND task_type = 'urgent_call' AND status = 'open'",
-            (open_h["handover_id"],)).fetchone()
+            (open_h["handover_id"],)).fetchone())
         if waiting:
             handover.record_call(conn, open_h["handover_id"], user,
                                  CALL_OUTCOMES[outcome] + (f": {note}" if note else ""))

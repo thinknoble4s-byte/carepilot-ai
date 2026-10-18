@@ -37,7 +37,8 @@ def choose_action(flag: str) -> tuple[str, str]:
 
 def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | None = None, text: str | None = None,
                   in_reply_to: int | None = None, clip_id: str | None = None, event_id: str | None = None,
-                  audio: bytes | None = None, mime: str | None = None, spoken: str | None = None) -> dict:
+                  audio: bytes | None = None, mime: str | None = None, spoken: str | None = None,
+                  understood: dict | None = None) -> dict:
     """A reply from the simulator. A tap together with text or a voice note is two events, handled in turn."""
     content = bool((text or "").strip()) or clip_id is not None
     if button and content:
@@ -48,11 +49,12 @@ def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | N
         return {**second, "handling": first["handling"] + second["handling"],
                 "inbound_ids": [first["inbound_id"], second["inbound_id"]]}
     return _receive(conn, mrn, from_role=from_role, button=button, text=text, clip_id=clip_id,
-                    in_reply_to=in_reply_to, event_id=event_id, audio=audio, mime=mime, spoken=spoken)
+                    in_reply_to=in_reply_to, event_id=event_id, audio=audio, mime=mime, spoken=spoken,
+                    understood=understood)
 
 
 def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_reply_to=None, event_id=None,
-             audio=None, mime=None, spoken=None) -> dict:
+             audio=None, mime=None, spoken=None, understood=None) -> dict:
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
     if from_role not in ("patient", "caregiver"):
@@ -155,7 +157,7 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
         if created:
             _acknowledge(conn, mrn, from_role, ho["handover_id"], "ack_help_keyword")
     else:
-        result.update(_understand_and_act(conn, mrn, inbound, source, from_role, spoken))
+        result.update(_understand_and_act(conn, mrn, inbound, source, from_role, spoken, understood))
     conn.execute("UPDATE inbound_message SET handling = %s, handover_id = %s WHERE inbound_id = %s",
                  ("; ".join(result["handling"]), result["handover_id"], iid))
     return result
@@ -166,10 +168,15 @@ def _acknowledge(conn, mrn, recipient, handover_id, reason) -> dict:
                                   reason_code=reason, recipient=recipient, handover_id=handover_id)
 
 
-def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None) -> dict:
+def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, understood=None) -> dict:
     patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
     iid = inbound["inbound_id"]
-    if inbound["kind"] == "voice":
+    if understood is not None:
+        # Demo seed only (Use Case 2c section 6): the flag and transcript come from the Use Case 2a run, no AI call.
+        u = {"transcript": understood["transcript"], "translation": understood["translation"], "flag": understood["flag"],
+             "failed": False, "unsure": False, "attempts": 0, "model": "seed (no AI call)", "prompt_version": None,
+             "errors": []}
+    elif inbound["kind"] == "voice":
         audio = conn.execute("SELECT data, mime FROM audio_blob WHERE audio_id = %s", (inbound["audio_id"],)).fetchone()
         # The patient may speak a language other than her profile language (UC2a: English profile, Hindi note).
         clip = next((c for c in clips(conn) if c["id"] == inbound["clip_id"]), {})
@@ -185,7 +192,9 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None) -> d
         """,
         (u["transcript"], u["translation"], u["flag"], u["failed"], u["attempts"], u["model"], u["prompt_version"], iid),
     )
-    audit.append(conn, actor_type="ai_suggestion", actor_name=SARVAM, action="ai_understanding",
+    audit.append(conn, actor_type="system" if understood is not None else "ai_suggestion",
+                 actor_name="Demo seed" if understood is not None else SARVAM,
+                 action="ai_understanding_seeded" if understood is not None else "ai_understanding",
                  entity_type="inbound_message", entity_id=str(iid), mrn=mrn, model=u["model"],
                  prompt_version=u["prompt_version"], outcome=f"flag={u['flag']}",
                  reason_code="ai_call_failed" if u["failed"] else ("ai_unsure" if u["unsure"] else None),

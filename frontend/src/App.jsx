@@ -101,6 +101,14 @@ function ResetChoice({ onReset }) {
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2b')}>Reset to Use Case 2b</button></div>
       </div>
       <div className="card-flat">
+        <div className="card-title">Use Case 2c — urgent: call the patient today</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>After Use Case 2a step 6: Meena (TP001), Kavita (TP004), Lakshmi
+          (TP005), Rekha (TP007) and Farida (TP006) each sent voice note HI-01 (arm pain); the agent stopped and Anita sent the
+          handover to Dr. Sekhar. Clock Tue 10 Nov 09:30. Urgent creates a call-today task for Anita by 16:00, then Ravi by 18:00,
+          then Overdue; set the demo time to see the cover step in.</div>
+        <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2c')}>Reset to Use Case 2c</button></div>
+      </div>
+      <div className="card-flat">
         <div className="card-title">Golden Path data</div>
         <div className="small-note" style={{ lineHeight: 1.7 }}>The 25 Step A patients (Sunita Verma is the demo patient); Priya and
           Meera. Everything switched on: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
@@ -229,6 +237,7 @@ export default function App() {
     }
     setScreen(null);
     setModal(null);
+    setVersion((v) => v + 1); // same screen for another coordinator (Anita -> Ravi): reload, the lists differ (Use Case 2c)
     if (dbUp) api('session', { method: 'POST' }).catch(() => {});
   };
 
@@ -339,7 +348,7 @@ export default function App() {
                   )}
                   <button type="button" className="scope-btn" disabled={busy}
                     onClick={() => ui.showModal('Reset demo', 'All demo data and the audit trail go back to a starting state. Choose the data set.',
-                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${{ uc1: 'Use Case 1', uc2a: 'after Use Case 1', uc2b: 'Use Case 2b', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
+                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${{ uc1: 'Use Case 1', uc2a: 'after Use Case 1', uc2b: 'Use Case 2b', uc2c: 'Use Case 2c', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
                     Reset demo
                   </button>
                 </>

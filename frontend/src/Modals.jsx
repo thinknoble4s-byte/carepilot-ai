@@ -5,7 +5,8 @@ import { api, post, upload } from './api.js';
 import { buttonLabel, fmt, useUI, VoiceClip } from './ui.jsx';
 
 export const CLOSE_REASONS = ['Nothing clinical', 'Travel or booking plans only', 'Patient called; matter resolved',
-  'Doctor instruction done, patient messaged', 'Review booked; doctor\'s plan in place'];
+  'Doctor instruction done, patient messaged', 'Review booked; doctor\'s plan in place',
+  'Patient reached, visit booked', 'Patient reached by cover'];
 
 // Close reasons from a pick-list, with "Other" for anything else (UC2a step 11).
 export function CloseReason({ value, onChange, id }) {

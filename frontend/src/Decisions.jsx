@@ -75,6 +75,7 @@ export default function Decisions() {
                 <div className="t">{c.full_name} — {c.gate2_decision === 'urgent' ? 'Urgent' : 'Routine'}</div>
                 <Dl due={c.due_date} label="Instruction" today={ui.today} />
               </div>
+              {c.call_line && <div className="d"><span className="tag live">Urgent</span> Call: <b>{c.call_line}</b> <span className="small-note">(read-only)</span></div>}
               <div className="d">Write your instruction in the hospital record as usual — CarePilot picks it up and creates the card.</div>
               <InstructionForm item={c} inline />
             </div>
@@ -92,11 +93,11 @@ export default function Decisions() {
           <div className="card-title">Recent decisions</div>
           <div className="v4-scroll">
             <table className="v4-table">
-              <thead><tr><th>Patient</th><th>Decision</th><th>Instruction</th></tr></thead>
+              <thead><tr><th>Patient</th><th>Decision</th><th>Instruction</th><th>Call (read-only)</th></tr></thead>
               <tbody>{recent.map((d) => (
                 <tr key={d.handover_id}><td>{d.full_name}</td>
                   <td>{d.gate2_decision === 'urgent' ? 'Urgent' : 'Routine'} · {fmt(d.gate2_on)}</td>
-                  <td>{d.instruction || 'Awaiting instruction'}</td></tr>
+                  <td>{d.instruction || 'Awaiting instruction'}</td><td>{d.call_line || '—'}</td></tr>
               ))}</tbody>
             </table>
           </div>

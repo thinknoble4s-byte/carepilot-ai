@@ -44,9 +44,12 @@ def unanswered_run(outbox: list[dict], inbound: list[dict], calls: list[dict]) -
                and (last_contact is None or m["created_at"] > last_contact))
 
 
-def build(conn) -> dict:
+def build(conn, viewer: str | None = None) -> dict:
+    """viewer: the coordinator looking (Use Case 2c REQ-11: an urgent call moved to the cover leaves the
+    owner's action count but stays visible to her)."""
     today = clock.get_today(conn)
     rules = policy.deadlines(conn)
+    urgent_mode = bool(policy.settings(conn).get("urgent_call"))
     patients = conn.execute(
         """
         SELECT p.*, c.scopes,
@@ -94,7 +97,8 @@ def build(conn) -> dict:
                 "therapy": p["therapy"], "treatment_end": p["treatment_end"], "last_reply": last_reply,
                 "caregiver": p["caregiver_name"], "caregiver_in_loop": bool(p["caregiver_phone"] and p["scopes"]
                                                                           and "whatsapp_caregiver" in p["scopes"]),
-                "handover_id": None, "unanswered": un, "hold": bool(open_proposals[mrn])}
+                "handover_id": None, "unanswered": un, "hold": bool(open_proposals[mrn]),
+                "assignees": sorted({t["assigned_name"] for t in tasks[mrn] if t["assigned_name"]}), "urgent": None}
         if p["status"] in CLOSED:
             rows.append({**base, "main": "closed", "reasons": [{"tag": "closed", "txt": f"Closed — {p['status'].lower()}",
                                                                 "action": False, "due": None}], "next": None})
@@ -139,9 +143,26 @@ def build(conn) -> dict:
             elif h["stage"] == "awaiting_instruction":
                 add("verify", "Waiting for the doctor's instruction in the hospital record", False,
                     task_due("doctor_instruction"))
-            elif h["stage"] == "ready_to_close":
+            elif h["stage"] == "ready_to_close" and not (urgent_mode and by_type.get("urgent_call")):
                 add("action", "Close the handover with a reason — follow-up resumes after closure", True)
-            if by_type.get("urgent_call"):
+            if by_type.get("urgent_call") and urgent_mode:
+                # Use Case 2c: the call-today task, above everything else, with a red Urgent tag.
+                t = by_type["urgent_call"][0]
+                state = "Overdue" if t["overdue_at_demo"] else "Moved to cover" if t["moved_at_demo"] else "Open"
+                base["urgent"] = {"task_id": t["task_id"], "assigned": t["assigned_name"], "moved_from": t["moved_from"],
+                                  "state": state}
+                marks = ["urgent"] + (["overdue"] if state == "Overdue" else [])
+                if viewer and t["moved_from"] == viewer and t["assigned_name"] != viewer:
+                    add("verify", f"Urgent call moved to {t['assigned_name']} (cover) — you can still open it", False,
+                        None, marks)
+                else:
+                    by = t["cover_deadline_at"] if t["moved_at_demo"] else t["owner_deadline_at"]
+                    text = (f"Urgent — call the patient today: {t['assigned_name']}"
+                            + (f", moved to cover, from {t['moved_from']}" if t["moved_from"] else f", cover {t['cover_name']}")
+                            + (f" — Overdue after {t['cover_deadline_at']:%H:%M}, not reached yet" if state == "Overdue"
+                               else f" — by {by:%H:%M}" if by else ""))
+                    add("action", text, True, today, marks)
+            elif by_type.get("urgent_call"):
                 add("action", "Doctor marked the concern urgent — call the patient today" + escalated("urgent_call"),
                     True, task_due("urgent_call"))
 
@@ -219,12 +240,14 @@ def build(conn) -> dict:
 
         main = next((t for t in PRIORITY if t in tags), "ontrack")
         order = {t: i for i, t in enumerate(PRIORITY)}
-        reasons.sort(key=lambda r: (not r["action"], order.get(r["tag"], 9), r["due"] or date.max))
+        reasons.sort(key=lambda r: ("urgent" not in r["marks"], not r["action"], order.get(r["tag"], 9),
+                                    r["due"] or date.max))
         dues = sorted(r["due"] for r in reasons if r["due"])
         rows.append({**base, "main": main, "reasons": reasons, "next": dues[0] if dues else None})
 
     rank = {t: i for i, t in enumerate(PRIORITY + ["ontrack", "paused", "closed"])}
-    rows.sort(key=lambda r: (rank[r["main"]], r["next"] or date.max, r["mrn"]))
+    rows.sort(key=lambda r: (not any("urgent" in x.get("marks", []) and x["action"] for x in r["reasons"]),
+                             rank[r["main"]], r["next"] or date.max, r["mrn"]))
     return {"today": today, "patients": rows, "glance": _glance(conn, today, rows), "feed": agent_feed(conn, today),
             "proposals": _proposals(conn), "appointments": _last_appointments(conn),
             "coordinators": sorted({r["coordinator"] for r in rows if r["coordinator"]}),

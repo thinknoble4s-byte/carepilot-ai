@@ -41,6 +41,8 @@ export default function Indicators() {
               'Handover response', `median from a handover opening to the coordinator's decision (${k.handovers_decided} decided)`)}
             {tile(k.handover_response_median_minutes == null ? '—' : `${k.handover_response_median_minutes} min`,
               'Handover response (demo clock)', 'median minutes from the agent stopping to the coordinator reviewing')}
+            {tile(k.time_to_call_median_minutes == null ? '—' : `${k.time_to_call_median_minutes} min`, 'Urgent: time to call',
+              `median minutes from the doctor's Urgent choice to the call that reached the patient (${k.urgent_calls_reached} reached${k.time_to_call_max_minutes != null ? `, longest ${k.time_to_call_max_minutes} min` : ''})`)}
             {tile(k.draft_acceptance == null ? '—' : `${k.draft_acceptance}%`, 'AI drafts accepted unedited',
               `${k.proposals_approved_unedited} of ${k.proposals_decided} proposals decided`)}
             {tile(`${k.g0_booked_after_reminder} of ${k.g0_gaps}`, 'Booked after the T-7 reminder', 'G0 gaps whose item left "Due"')}

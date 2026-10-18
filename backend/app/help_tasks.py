@@ -236,11 +236,22 @@ def tasks_for(conn, mrn: str) -> list[dict]:
     rows = conn.execute(
         """SELECT t.*, c.name AS card_name, c.item_code, c.card_type FROM coordinator_task t
            LEFT JOIN order_card c USING (card_id) WHERE t.mrn = %s
-           ORDER BY (t.status = 'open') DESC, t.task_id DESC""", (mrn,)).fetchall()
+           ORDER BY (t.status = 'open') DESC, (t.task_type = 'urgent_call') DESC, t.task_id DESC""", (mrn,)).fetchall()
     out = []
     for t in rows:
         state = "Done" if t["status"] == "done" else ("Cancelled" if t["status"] == "cancelled"
                                                       else "Overdue" if t["due_date"] and t["due_date"] < today else "Open")
-        out.append({**t, "state": state, "label": LABEL.get(t["task_type"]), "help_task": t["task_type"] in TYPES,
-                    "attempts": attempts(conn, t["task_id"]) if t["task_type"] in TYPES else []})
+        row = {**t, "state": state, "label": LABEL.get(t["task_type"]), "help_task": t["task_type"] in TYPES,
+               "attempts": attempts(conn, t["task_id"]) if t["task_type"] in TYPES else []}
+        if t["task_type"] == "urgent_call" and t["created_at_demo"]:  # Use Case 2c call-today task
+            from . import urgent_calls
+
+            h = conn.execute(
+                """SELECT h.patient_words, h.translation, h.source, h.inbound_id, h.gate2_by, h.gate2_at_demo, h.instruction,
+                          h.instruction_card, h.stage, i.kind AS inbound_kind
+                   FROM handover h LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id
+                   WHERE h.handover_id = %s""", (t["handover_id"],)).fetchone()
+            row.update(state=urgent_calls.state(t), label=urgent_calls.LABEL, urgent_task=True, handover=h,
+                       attempts=attempts(conn, t["task_id"]))
+        out.append(row)
     return out
