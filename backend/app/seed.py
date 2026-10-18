@@ -14,12 +14,12 @@ from psycopg.types.json import Jsonb
 from . import audit, clock, consent, importer, plan, states
 from .errors import Invalid
 from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy, message_templates,
-                        plan_template, read_seed, step_a_settings, uc1, uc2a)
+                        plan_template, read_seed, step_a_settings, uc1, uc2a, uc2b)
 
 SEED_USER = "u_priya"
 
 DEMO_TABLES = (
-    "demo_setting", "proposal", "call_log", "inbound_message", "audio_blob", "outbox_message", "gap_event", "handover",
+    "demo_setting", "task_call_attempt", "proposal", "call_log", "inbound_message", "audio_blob", "outbox_message", "gap_event", "handover",
     "order_card", "care_plan", "coordinator_task", "consent", "appointment", "import_exception",
     "patient", "import_batch", "app_user", "demo_clock", "config_versions", "audit_ledger",
 )
@@ -32,7 +32,7 @@ RULE_THRESHOLDS = {
 }
 
 
-SCENARIOS = ("uc1", "uc2a", "step_a")
+SCENARIOS = ("uc1", "uc2a", "uc2b", "step_a")
 DEFAULT_SCENARIO = "uc1"
 
 
@@ -41,6 +41,7 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
 
     uc1     Use Case 1 (default): TP001-TP003, Anita and Ravi, Sanjeevini Clinic, the narrow switches.
     uc2a    Use Case 2a "after Use Case 1": TP001 and TP004, reminders sent 9 Nov 07:30, clock 10:15, replies on.
+    uc2b    Use Case 2b "after Use Case 1": TP001, TP004-TP007, same start; taps and HELP become tasks.
     step_a  Step A / Golden Path: 25 patients from the register, Priya and Meera, everything switched on.
     """
     if scenario not in SCENARIOS:
@@ -61,8 +62,8 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     )
     if scenario == "uc1":
         _seed_uc1(conn)
-    elif scenario == "uc2a":
-        _seed_uc2a(conn)
+    elif scenario in ("uc2a", "uc2b"):
+        _seed_after_uc1(conn, uc2a() if scenario == "uc2a" else uc2b())
     else:
         _seed_step_a(conn)
     return {**counts(conn), "scenario": scenario, "fingerprint": fingerprint(conn)}
@@ -111,14 +112,13 @@ def _seed_step_a(conn) -> None:
                                row["scopes"].split(";"), row["recorded_on"])
 
 
-def _seed_uc2a(conn) -> None:
-    """Use Case 2a "after Use Case 1": TP001 and TP004 with plans confirmed on D0, the T-7 reminder already
-    sent at 07:30 on Mon 9 Nov, demo clock at 10:15 when the patients reply."""
+def _seed_after_uc1(conn, uc: dict) -> None:
+    """Use Case 2a / 2b "after Use Case 1": plans confirmed on D0, the T-7 reminder already sent at 07:30 on
+    Mon 9 Nov, demo clock at 10:15 when the patients reply."""
     from datetime import date, time
 
     from . import agent, rules
 
-    uc = uc2a()
     _seed_uc1(conn, uc)
     clock.set_today(conn, date.fromisoformat(uc["seed_date"]))
     rules.run_gap_check(conn)

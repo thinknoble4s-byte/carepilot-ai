@@ -113,7 +113,15 @@ export function Dl({ due, label, today }) {
   return <span className={`dl ${cls}`}>⏱ {text}</span>;
 }
 
-const MARKS = { health_mention: ['Health mention', 'unverified'], voice: ['🎙 Voice note', 'hosp'], ai_failed: ['AI could not read it', 'unverified'] };
+const MARKS = {
+  health_mention: ['Health mention', 'unverified'], voice: ['🎙 Voice note', 'hosp'], ai_failed: ['AI could not read it', 'unverified'],
+  task_help_booking: ['Help booking', 'hosp'], task_cant_come: ["Can't come", 'hosp'], task_help_request: ['Help request', 'hosp'],
+  overdue: ['Overdue', 'unverified'],
+};
+
+// The patient's reply buttons, as the patient sees them (English labels of the approved template).
+export const BUTTON_LABEL = { booked: 'Booked', help_book: 'Please help me book', cant_come: "I can't come" };
+export const buttonLabel = (id) => BUTTON_LABEL[id] || id.replaceAll('_', ' ');
 
 export function Marks({ marks }) {
   return (marks || []).map((m) => <React.Fragment key={m}> <span className={`tag ${MARKS[m]?.[1] || ''}`}>{MARKS[m]?.[0] || m}</span></React.Fragment>);

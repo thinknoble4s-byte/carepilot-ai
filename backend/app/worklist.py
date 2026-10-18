@@ -17,7 +17,11 @@ CLOSED = ("Lost to follow-up", "Followed up elsewhere")
 PEOPLE_TASKS = {
     "contact_needed": "action", "booking_help": "action", "cannot_attend": "action",
     "confirm_test_booking": "action", "consent_scope_missing": "action",
+    "help_booking": "action", "cant_come": "action", "help_request": "action",
 }
+HELP_TAGS = {"help_booking": "Help booking", "cant_come": "Can't come", "help_request": "Help request"}
+ESCALATED = {"patient_asked_help_booking": "Escalated: help booking", "patient_cannot_come": "Escalated: can't come",
+             "help_keyword": "Escalated: help request"}
 
 
 def _d(day: date) -> str:
@@ -154,8 +158,13 @@ def build(conn) -> dict:
             if tag:
                 text = ("Consent does not include automated messaging — the agent stays off"
                         if t["task_type"] == "consent_scope_missing" else t["reason"])
+                if t["task_type"] in HELP_TAGS:  # Use Case 2b: type tag, owner and cover, Overdue when late
+                    text = f"{HELP_TAGS[t['task_type']]}: {t['reason']} — {t['assigned_name']}" + \
+                        (f", cover {t['cover_name']}" if t["cover_name"] else "")
+                marks = ([f"task_{t['task_type']}"] if t["task_type"] in HELP_TAGS else []) + \
+                    (["overdue"] if t["due_date"] and t["due_date"] < today else [])
                 add(tag, text + (f" (escalated to {t['assigned_name']})" if t["escalated_on"] else ""), True,
-                    t["due_date"])
+                    t["due_date"], marks)
 
         task_cards = {t["card_id"] for t in open_tasks if t["card_id"]}
         for c in cards[mrn]:
@@ -246,7 +255,8 @@ def agent_feed(conn, today: date) -> list[dict]:
         """
         SELECT a.demo_date AS day, a.occurred_at AS ts, a.mrn, p.full_name, a.reason_code
         FROM audit_ledger a JOIN patient p USING (mrn)
-        WHERE a.action = 'agent_decision' AND a.reason_code IN ('health_flag_handover', 'held_open_proposal')
+        WHERE a.action = 'agent_decision' AND a.reason_code IN ('health_flag_handover', 'held_open_proposal',
+              'patient_asked_help_booking', 'patient_cannot_come', 'help_keyword')
           AND a.demo_date >= %s
         """,
         (since,),
@@ -259,7 +269,8 @@ def agent_feed(conn, today: date) -> list[dict]:
     rows += [{"day": t["day"], "ts": t["ts"], "mrn": t["mrn"], "full_name": t["full_name"],
               "text": f"Logged the \"{t['button'].replace('_', ' ')}\" button reply: {t['handling']}"} for t in taps]
     rows += [{"day": s["day"], "ts": s["ts"], "mrn": s["mrn"], "full_name": s["full_name"],
-              "text": ("Stopped: health mention" if s["reason_code"] == "health_flag_handover" else "Held: open proposal")
+              "text": ESCALATED.get(s["reason_code"]) or ("Stopped: health mention" if s["reason_code"] == "health_flag_handover"
+                                                         else "Held: open proposal")
               + f" ({s['reason_code']})"} for s in stops]
     return sorted(rows, key=lambda r: r["ts"], reverse=True)
 

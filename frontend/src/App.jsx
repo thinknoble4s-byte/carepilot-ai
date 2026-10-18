@@ -93,6 +93,14 @@ function ResetChoice({ onReset }) {
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2a')}>Reset to after Use Case 1</button></div>
       </div>
       <div className="card-flat">
+        <div className="card-title">Use Case 2b — button replies and HELP</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>After Use Case 1: Meena (TP001), Kavita (TP004), Lakshmi (TP005), Farida
+          (TP006) and Rekha (TP007), reminder sent at 07:30 on Mon 9 Nov, clock 10:15. "Please help me book", "I can't come" and
+          a typed HELP each create a task for Anita (cover Ravi) with no AI and nothing sent to the patient; routine reminders
+          are held while the task is open.</div>
+        <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2b')}>Reset to Use Case 2b</button></div>
+      </div>
+      <div className="card-flat">
         <div className="card-title">Golden Path data</div>
         <div className="small-note" style={{ lineHeight: 1.7 }}>The 25 Step A patients (Sunita Verma is the demo patient); Priya and
           Meera. Everything switched on: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
@@ -331,7 +339,7 @@ export default function App() {
                   )}
                   <button type="button" className="scope-btn" disabled={busy}
                     onClick={() => ui.showModal('Reset demo', 'All demo data and the audit trail go back to a starting state. Choose the data set.',
-                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${{ uc1: 'Use Case 1', uc2a: 'after Use Case 1', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
+                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${{ uc1: 'Use Case 1', uc2a: 'after Use Case 1', uc2b: 'Use Case 2b', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
                     Reset demo
                   </button>
                 </>

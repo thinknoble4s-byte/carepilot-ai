@@ -1,4 +1,5 @@
 """Read side for the Workspace, Patient journey and Summary screens."""
+from . import messaging
 from .errors import NotFound
 
 
@@ -71,6 +72,7 @@ def patient_detail(conn, mrn: str) -> dict:
         "send_block": conn.execute("SELECT 1 FROM handover WHERE mrn = %s AND stage <> 'closed'",
                                    (mrn,)).fetchone() is not None,
         "hold": conn.execute("SELECT 1 FROM proposal WHERE mrn = %s AND status = 'drafted'", (mrn,)).fetchone() is not None,
+        "task_hold": messaging.task_hold(conn, mrn),
         "appointments": conn.execute(
             "SELECT appointment_date, department FROM appointment WHERE mrn = %s ORDER BY appointment_date",
             (mrn,),
@@ -84,7 +86,7 @@ def patient_cards(conn, mrn: str) -> list[dict]:
     return conn.execute(
         """
         SELECT c.card_id, c.item_code, c.card_type, c.name, c.department, c.due_date, c.state, c.appointment_date,
-               c.booking_source, c.owner_name, c.cover_name, c.origin, c.care_plan_id,
+               c.appointment_time, c.booking_source, c.owner_name, c.cover_name, c.origin, c.care_plan_id,
                g.rule AS gap_rule, g.status AS gap_status, g.blocked_reason AS gap_reason, g.detected_on AS gap_detected_on,
                g.acted_on AS gap_acted_on
         FROM order_card c
@@ -134,15 +136,17 @@ def messages(conn, mrn: str) -> list[dict]:
         SELECT 'out' AS direction, message_id AS id, created_at, created_on AS day, NULL::time AS at, recipient AS party,
                body, body_en, buttons, status, blocked_reason, template_id, actor, NULL::text AS button,
                NULL::text AS handling, language, NULL::text AS kind, NULL::text AS transcript, NULL::text AS translation,
-               NULL::text AS ai_flag, NULL::boolean AS ai_failed, NULL::bigint AS audio_id, NULL::text AS clip_id
+               NULL::text AS ai_flag, NULL::boolean AS ai_failed, NULL::bigint AS audio_id, NULL::text AS clip_id,
+               NULL::bigint AS reply_to
         FROM outbox_message WHERE mrn = %(mrn)s
         UNION ALL
         SELECT 'in', inbound_id, created_at, received_on, received_time, from_role, text, NULL, NULL, NULL, NULL, NULL,
-               NULL, button, handling, NULL, kind, transcript, translation, ai_flag, ai_failed, audio_id, clip_id
+               NULL, button, handling, NULL, kind, transcript, translation, ai_flag, ai_failed, audio_id, clip_id,
+               in_reply_to
         FROM inbound_message WHERE mrn = %(mrn)s
         UNION ALL
         SELECT 'call', call_id, created_at, called_on, NULL, who, note, NULL, NULL, outcome, NULL, NULL, called_by,
-               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
         FROM call_log WHERE mrn = %(mrn)s
         ORDER BY created_at
         """,

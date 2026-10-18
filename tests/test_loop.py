@@ -132,9 +132,10 @@ def test_other_buttons_create_people_tasks(seeded, client):
     client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "help_book"})
     client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "cant_come"})
     tasks = {t["task_type"]: t for t in client.get("/needs-you", headers=PRIYA).json()["tasks"]}
-    assert set(tasks) >= {"confirm_test_booking", "booking_help", "cannot_attend"}
-    assert tasks["booking_help"]["due_date"] == "2026-11-04"  # 2 working days
-    assert tasks["booking_help"]["cover_name"] == "Meera Joseph"
+    # Use Case 2b: help-booking and can't-come tasks, owned by the card's owner (T1: Laboratory) and cover.
+    assert set(tasks) >= {"confirm_test_booking", "help_booking", "cant_come"}
+    assert tasks["help_booking"]["due_date"] == "2026-11-04"  # 2 working days
+    assert (tasks["help_booking"]["owner_name"], tasks["help_booking"]["cover_name"]) == ("Sunil Kumar", "Priya Nair")
 
 
 def test_still_unbooked_at_t3_goes_to_the_coordinator_once(seeded, client):

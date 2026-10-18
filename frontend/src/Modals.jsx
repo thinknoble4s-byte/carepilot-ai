@@ -2,7 +2,7 @@
 // the doctor's instruction in the hospital record, and the morning department lists.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, post, upload } from './api.js';
-import { fmt, useUI, VoiceClip } from './ui.jsx';
+import { buttonLabel, fmt, useUI, VoiceClip } from './ui.jsx';
 
 export const CLOSE_REASONS = ['Nothing clinical', 'Travel or booking plans only', 'Patient called; matter resolved',
   'Doctor instruction done, patient messaged', 'Review booked; doctor\'s plan in place'];
@@ -410,7 +410,7 @@ function Messages({ patient }) {
             {thread.map((m) => (
               <div key={`${m.direction}-${m.id}`} className={`v31-b ${m.direction === 'out' ? 'hosp' : 'fam'}`}
                 style={m.status && m.status !== 'sent' ? { opacity: 0.6, borderStyle: 'dashed' } : undefined}>
-                {m.direction === 'in' && m.button && <span className="v31-en"><b>Tapped: {m.button.replaceAll('_', ' ')}</b></span>}
+                {m.direction === 'in' && m.button && <span className="v31-en"><b>Tapped: {buttonLabel(m.button)}</b></span>}
                 {m.kind === 'voice' && (
                   <>
                     <span className="v31-en"><b>🎙 Voice note ({m.clip_id || 'recorded'})</b></span>
@@ -429,7 +429,10 @@ function Messages({ patient }) {
                 {m.direction === 'out' && m.buttons?.length > 0 && (
                   <div className="rbtns">{m.buttons.map((b) => (coordinator && m.status === 'sent'
                     ? <button key={b.id} type="button" className="rbtn" title={`Demo: the patient taps "${b.label_en}"`}
-                      style={{ cursor: 'pointer', font: 'inherit' }}
+                      aria-pressed={thread.some((x) => x.direction === 'in' && x.reply_to === m.id && x.button === b.id)}
+                      style={{ cursor: 'pointer', font: 'inherit',
+                        ...(thread.some((x) => x.direction === 'in' && x.reply_to === m.id && x.button === b.id)
+                          ? { background: 'var(--brand)', color: '#fff' } : {}) }}
                       onClick={() => reply({ button: b.id, in_reply_to: m.id })}>{b.label}</button>
                     : <span key={b.id} className="rbtn">{b.label}</span>))}</div>
                 )}
@@ -451,7 +454,7 @@ function Messages({ patient }) {
             <div className="card-title">Demo: reply as the patient</div>
             <div className="small-note">
               {actOnReplies
-                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI. Text and voice notes go to the AI (Sarvam) for one yes/no question: does it mention health? Yes, or any doubt or AI failure, hands it to a person; no makes a proposal for you to approve.'
+                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI: Booked moves the card; Please help me book and I can\'t come create a task for a person. Typing just HELP (or मदद / ಸಹಾಯ) asks for a person too. Other text and voice notes go to the AI (Sarvam) for one yes/no question: does it mention health? Yes, or any doubt or AI failure, hands it to a person; no makes a proposal for you to approve.'
                 : 'Use Case 1: a reply (button, text or HELP) is saved in the message history and CarePilot takes no action. Reply handling arrives with Use Case 2.'}
             </div>
             {lastSent && (

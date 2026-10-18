@@ -102,6 +102,24 @@ def build(conn, mrn: str) -> dict:
             events.append(_ev(h["closed_on"], f"Handover closed: {h['closed_reason']}", "routine", "hosp",
                               f"Handover #{h['handover_id']}", f"Closed by {_who(h['closed_by'])}"))
 
+    labels = {"help_booking": "Help booking", "cant_come": "Can't come", "help_request": "Help request"}
+    for t in conn.execute("SELECT * FROM coordinator_task WHERE mrn = %s AND task_type = ANY(%s) ORDER BY task_id",
+                          (mrn, list(labels))).fetchall():
+        events.append(_ev(t["created_at_demo"].date() if t["created_at_demo"] else t["due_date"],
+                          f"Task: {labels[t['task_type']]} for {t['owner_name']} (cover {t['cover_name'] or '—'}), "
+                          f"due {t['due_date']:%d %b %Y}", "routine", "carepilot", f"Task #{t['task_id']}",
+                          f"Reply #{t['inbound_id']}" if t["inbound_id"] else "Patient request"))
+        for a in conn.execute("SELECT * FROM task_call_attempt WHERE task_id = %s ORDER BY attempt_id",
+                              (t["task_id"],)).fetchall():
+            events.append(_ev(a["called_at_demo"].date(), f"Call attempt by {_who(a['called_by'])}: "
+                              f"{'reached' if a['result'] == 'reached' else 'no answer'}", "routine", "hosp",
+                              f"Task #{t['task_id']}", "Coordinator's call log"))
+        if t["status"] == "done":
+            what = (t["result"] or "done").replace("_", " ") + (f" ({t['result_code'].replace('_', ' ')})" if t["result_code"] else "") \
+                + (f", appointment {t['appointment_date']:%d %b %Y}" if t["appointment_date"] else "") \
+                + (f" — \"{t['done_note']}\"" if t["done_note"] else "")
+            events.append(_ev(t["done_on"], f"Task closed by {_who(t['done_by'])}: {what}", "routine", "hosp",
+                              f"Task #{t['task_id']}", "Coordinator's result"))
     for pr in conn.execute("SELECT * FROM proposal WHERE mrn = %s ORDER BY proposal_id", (mrn,)).fetchall():
         events.append(_ev(pr["created_at_demo"].date(), f"Proposal drafted by AI: {pr['summary'] or 'no draft'} "
                           f"(intent {pr['intent'] or 'none'}) — {pr['status']}", "routine", "carepilot",

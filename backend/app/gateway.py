@@ -14,7 +14,7 @@ HELP (or ಸಹಾಯ / मदद) always reaches a person directly. In data set
 """
 from pathlib import Path
 
-from . import ai, audit, clock, handover, messaging, policy, states, tasks
+from . import ai, audit, clock, handover, help_tasks, messaging, policy, states, tasks
 from .agent import AGENT, set_next_action
 from .errors import Invalid, NotFound
 
@@ -137,7 +137,17 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
 
     if button:
         result["handling"].append(_apply_button(conn, mrn, button, target, iid))
-    elif text and text.lower() in [k.lower() for k in policy.deadlines(conn)["help_keywords"]]:
+    elif help_tasks.is_keyword(text, policy.deadlines(conn)["help_keywords"]) and \
+            policy.settings(conn).get("help_keyword") == "task":
+        # Use Case 2b: HELP (whole message, exact match) is a help-request task for a person. No AI, no message.
+        audit.append(conn, actor_type="system", actor_name=GATEWAY, action="keyword_matched", entity_type="inbound_message",
+                     entity_id=str(iid), mrn=mrn, reason_code="help_keyword", details={"text": text})
+        card = conn.execute("SELECT * FROM order_card WHERE card_id = %s", (target["card_id"],)).fetchone() \
+            if target and target["card_id"] else None
+        r = help_tasks.escalate(conn, mrn=mrn, task_type="help_request", card=card, inbound_id=iid, actor=GATEWAY)
+        result["handling"].append(f"help_request_{'created' if r['created'] else 'already_open'}:help_keyword")
+        result["task_id"] = r["task"]["task_id"]
+    elif help_tasks.is_keyword(text, policy.deadlines(conn)["help_keywords"]):
         ho, created = handover.open_handover(conn, mrn, trigger="help_keyword", actor_type="system", actor=GATEWAY,
                                              patient_words=text, source=source, inbound_id=iid)
         result["handover_id"] = ho["handover_id"]
@@ -254,12 +264,9 @@ def _apply_button(conn, mrn: str, button: str, target: dict | None, inbound_id: 
     elif button == "booked":
         outcome = "already_progressed" if card else "no_card"
     else:
-        task_type = "booking_help" if button == "help_book" else "cannot_attend"
-        tasks.create_task(conn, mrn=mrn, task_type=task_type, card_id=card["card_id"] if card else None,
-                          reason=("Patient asked for help booking " if button == "help_book"
-                                  else "Patient says they cannot come for ") + (card["name"] if card else "a visit"),
-                          actor_type="system", actor=GATEWAY, dedupe_key=f"{button}:{inbound_id}")
-        outcome = f"task_{task_type}"
-        set_next_action(conn, mrn, "Coordinator to help book" if button == "help_book"
-                        else "Coordinator to follow up: patient cannot come")
+        # Use Case 2b: the agent escalates to the coordinator; one task, owner and cover from the card; the
+        # card stays Due (no state for "can't come"); nothing is sent to the patient.
+        task_type = "help_booking" if button == "help_book" else "cant_come"
+        r = help_tasks.escalate(conn, mrn=mrn, task_type=task_type, card=card, inbound_id=inbound_id, actor=GATEWAY)
+        outcome = f"{task_type}_{'created' if r['created'] else 'already_open'}"
     return f"button_{button}:{outcome}"

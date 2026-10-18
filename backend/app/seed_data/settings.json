@@ -46,5 +46,7 @@
       "label": "HI-03 — feeling perfectly OK, no complaints",
       "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu): \"मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।\""
     }
-  ]
+  ],
+  "help_keyword": "handover",
+  "hold_on_task": false
 }

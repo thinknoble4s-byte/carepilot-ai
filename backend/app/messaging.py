@@ -18,6 +18,17 @@ ALWAYS_ALLOWED_AUTOMATED = ("handover_ack",)  # the fixed acknowledgement after 
 # While a handover is open only these two pass, whoever sends (UC2a REQ-06): the acknowledgement and the
 # booking message for a doctor's instruction (a person decided that one). Everything else is refused.
 ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking")
+# Use Case 2b: while a help-booking, can't-come or help-request task is open, routine reminders (and, later,
+# slot offers) to the patient are held for every sender (held_open_task). A setting, pending decision 10.
+HELP_TASK_TYPES = ("help_booking", "cant_come", "help_request")
+ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder")
+
+
+def task_hold(conn, mrn: str) -> bool:
+    if not policy.settings(conn).get("hold_on_task", False):
+        return False
+    return conn.execute("SELECT 1 FROM coordinator_task WHERE mrn = %s AND status = 'open' AND task_type = ANY(%s)",
+                        (mrn, list(HELP_TASK_TYPES))).fetchone() is not None
 
 
 def latest_scopes(conn, mrn: str) -> list[str]:
@@ -44,6 +55,9 @@ def guard(conn, patient: dict, template_id: str, recipient: str, actor_type: str
         return "no_caregiver_phone", inputs
     if handover is not None and template_id not in ALLOWED_DURING_HANDOVER:
         return "held_handover_open", inputs
+    if template_id in ROUTINE_TEMPLATES and task_hold(conn, patient["mrn"]):
+        inputs["open_help_task"] = True
+        return "held_open_task", inputs
     if actor_type in AUTOMATED and template_id not in ALWAYS_ALLOWED_AUTOMATED:
         if "automated_messaging" not in scopes:
             return "no_automated_consent", inputs

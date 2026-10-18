@@ -3,7 +3,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { CloseReason, openCall, openHandover, openMessages, openPause, PatientWords } from './Modals.jsx';
 import ProposalCard from './Proposals.jsx';
-import { Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, useUI } from './ui.jsx';
+import { TasksSection } from './Tasks.jsx';
+import { buttonLabel, Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, useUI } from './ui.jsx';
 
 const LIFE = { visit: ['Due', 'Booked', 'Attended'], test: ['Due', 'Ordered', 'Scheduled', 'Completed', 'Report received', 'Report verified'] };
 const SCOPES = [['whatsapp_patient', 'WhatsApp to patient'], ['whatsapp_caregiver', 'WhatsApp to caregiver'],
@@ -32,7 +33,12 @@ function OrderCard({ card, today, task }) {
   const instruction = card.item_code.startsWith('X');
   let state;
   if (done) state = <Pill tone="good">Complete</Pill>;
-  else if (card.state !== 'Due') state = <Pill tone="good">{card.state}{card.appointment_date ? ` ${fmt(card.appointment_date)}` : ''}</Pill>;
+  else if (card.state !== 'Due') {
+    // Use Case 2b REQ-12: who booked it — the patient's tap or the coordinator, with the appointment date.
+    const label = card.state === 'Booked' && card.booking_source === 'coordinator' ? 'Booked (confirmed by coordinator)'
+      : card.state === 'Booked' && card.booking_source === 'patient_button' ? 'Booked (patient-reported)' : card.state;
+    state = <Pill tone="good">{label}{card.appointment_date ? ` ${fmt(card.appointment_date)}` : ''}{card.appointment_time ? ` ${String(card.appointment_time).slice(0, 5)}` : ''}</Pill>;
+  }
   else if (instruction) state = <Pill tone="brand">From doctor's instruction</Pill>;
   else if (d > 0) state = <Pill tone="bad">{d} days overdue</Pill>;
   else state = <Pill tone="warn">Not booked · due {d === 0 ? 'today' : `in ${-d} days`}</Pill>;
@@ -351,6 +357,8 @@ export default function PatientPage({ mrn }) {
         )) : <div className="small-note">{plan ? 'Nothing open in the next 30 days.' : 'No order cards until the plan is confirmed.'}</div>}
       </div>
 
+      <TasksSection mrn={mrn} />
+
       <div className="card">
         <div className="card-title">Messages and contact attempts</div>
         <div className="v4-scroll">
@@ -363,7 +371,7 @@ export default function PatientPage({ mrn }) {
                   <td>{m.direction === 'call' ? 'Call' : 'WhatsApp'}</td>
                   <td>{m.direction === 'out' ? `To ${m.party}` : m.direction === 'in' ? `From ${m.party}` : `${m.party} (by ${ui.name(m.actor)})`}</td>
                   <td>{m.direction === 'out' ? <>{m.template_id.replaceAll('_', ' ')}<div className="small-note">{m.body_en}</div></>
-                    : m.direction === 'in' ? <>{m.button && <b>Tapped “{m.button.replaceAll('_', ' ')}” </b>}{m.kind === 'voice' && <b>Voice note ({m.clip_id || 'recorded'}): </b>}{m.transcript || m.body}{m.translation && m.translation !== m.body && <div className="small-note">AI translation: {m.translation}</div>}{m.ai_flag && <div className="small-note">AI health flag: {m.ai_flag}{m.ai_failed ? ' (AI failed — safe path)' : ''}</div>}</> : m.body || '—'}</td>
+                    : m.direction === 'in' ? <>{m.button && <b>Tapped “{buttonLabel(m.button)}” </b>}{m.kind === 'voice' && <b>Voice note ({m.clip_id || 'recorded'}): </b>}{m.transcript || m.body}{m.translation && m.translation !== m.body && <div className="small-note">AI translation: {m.translation}</div>}{m.ai_flag && <div className="small-note">AI health flag: {m.ai_flag}{m.ai_failed ? ' (AI failed — safe path)' : ''}</div>}</> : m.body || '—'}</td>
                   <td>{m.direction === 'out'
                     ? <span className={`tag ${m.status === 'sent' ? 'verified' : 'unverified'}`}>{m.status === 'sent' ? 'Sent' : m.status.replaceAll('_', ' ')}{m.blocked_reason ? `: ${m.blocked_reason}` : ''}</span>
                     : m.direction === 'in' ? <span className="tag verified">Reply</span> : <span className="tag">{CALL_OUTCOME[m.status] || m.status}</span>}</td>

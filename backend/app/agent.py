@@ -18,6 +18,7 @@ HELD_TEXT = {
     "held_policy_off": "task not allowed by the autonomy policy",
     "held_template_missing": "no approved template in the patient's language",
     "held_open_proposal": "a proposal is waiting for the coordinator",
+    "held_open_task": "a person is already helping the patient (open task)",
 }
 
 
@@ -56,6 +57,8 @@ def select_action(conn, gap: dict) -> dict:
     if policy.settings(conn).get("hold_on_proposal", True) and conn.execute(
             "SELECT 1 FROM proposal WHERE mrn = %s AND status = 'drafted'", (gap["mrn"],)).fetchone():
         return decide("held_open_proposal")
+    if messaging.task_hold(conn, gap["mrn"]):
+        return decide("held_open_task")
     if mode == "off":
         return decide("held_policy_off")
     if not has_template:

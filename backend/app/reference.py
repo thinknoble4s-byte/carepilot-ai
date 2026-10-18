@@ -36,6 +36,11 @@ def uc1() -> dict:
     return _json("uc1/scenario.json")
 
 
+def uc2b() -> dict:
+    """Use Case 2b "after Use Case 1" seed (seed_data/uc2b)."""
+    return _json("uc2b/scenario.json")
+
+
 def uc2a() -> dict:
     """Use Case 2a "after Use Case 1" seed (seed_data/uc2a)."""
     return _json("uc2a/scenario.json")

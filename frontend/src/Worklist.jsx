@@ -223,7 +223,7 @@ export default function Worklist() {
                 <tr key={c.card_id}>
                   <td><a role="button" tabIndex={0} onClick={() => open(c.mrn)}>{c.full_name}</a> <span className="small-note">{c.mrn}</span></td>
                   <td>{c.name}</td><td>{fmt(c.due_date)}</td>
-                  <td><span className={`tag ${c.state === 'Due' ? '' : 'verified'}`}>{c.state}{c.booking_source ? ` (${c.booking_source.replaceAll('_', ' ')})` : ''}</span></td>
+                  <td><span className={`tag ${c.state === 'Due' ? '' : 'verified'}`}>{c.state}{c.booking_source === 'coordinator' ? ' (confirmed by coordinator)' : c.booking_source === 'patient_button' ? ' (patient-reported)' : c.booking_source ? ` (${c.booking_source.replaceAll('_', ' ')})` : ''}</span></td>
                   <td>{c.owner_name}<div className="small-note">cover {c.cover_name}</div></td>
                   <td>{c.origin === 'plan_item' ? 'Plan item' : "Doctor's instruction"}</td>
                   <td><GapState status={c.gap_status} reason={c.gap_reason} rule={c.gap_rule} /></td>

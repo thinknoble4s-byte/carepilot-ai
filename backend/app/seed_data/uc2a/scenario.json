@@ -114,7 +114,10 @@
       "booking_help": 2,
       "cannot_attend": 2,
       "confirm_test_booking": 2,
-      "contact_needed": 2
+      "contact_needed": 2,
+      "help_booking": 2,
+      "cant_come": 2,
+      "help_request": 1
     },
     "escalation": {
       "coordinator_review": "cover",
@@ -126,12 +129,23 @@
       "booking_help": "cover",
       "cannot_attend": "cover",
       "confirm_test_booking": "cover",
-      "contact_needed": "cover"
+      "contact_needed": "cover",
+      "help_booking": "cover",
+      "cant_come": "cover",
+      "help_request": "cover"
     },
     "help_keywords": [
       "help",
       "ಸಹಾಯ",
       "मदद"
+    ],
+    "not_reached_after_attempts": 2,
+    "cant_come_reasons": [
+      "cost",
+      "pre_authorisation",
+      "transport",
+      "work_family",
+      "other"
     ]
   },
   "message_templates": [
@@ -291,6 +305,8 @@
         "label": "HI-03 — feeling perfectly OK, no complaints",
         "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu): \"मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।\""
       }
-    ]
+    ],
+    "help_keyword": "handover",
+    "hold_on_task": false
   }
 }

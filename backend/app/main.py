@@ -14,7 +14,8 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFi
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from . import (agent, ai, audit, clock, consent, db, gateway, handover, importer, messaging, patients, plan, programme,
+from . import (agent, ai, audit, clock, consent, db, gateway, handover, help_tasks, importer, messaging, patients, plan,
+               programme,
                proposals, rules, seed, tasks, timeline, views, worklist)
 from .auth import ANY_ROLE, CLINICAL, COORDINATOR, current_user, require_role
 from .errors import DomainError
@@ -414,7 +415,52 @@ class NoteIn(BaseModel):
 
 @app.post("/tasks/{task_id}/done")
 def task_done(task_id: int, body: NoteIn, user: dict = Depends(require_role(*COORDINATOR))):
-    return in_tx(tasks.complete_task, task_id, user["user_id"], body.note)
+    def run(conn):
+        t = conn.execute("SELECT task_type FROM coordinator_task WHERE task_id = %s", (task_id,)).fetchone()
+        if t and t["task_type"] in help_tasks.TYPES:
+            raise HTTPException(status_code=422, detail="Close this task with a result (POST /tasks/{id}/result)")
+        return tasks.complete_task(conn, task_id, user["user_id"], body.note)
+
+    return in_tx(run)
+
+
+# ---------------------------------------------------------------------------
+# Use Case 2b: help-booking, can't-come and help-request tasks
+# ---------------------------------------------------------------------------
+@app.get("/patients/{mrn}/tasks")
+def patient_tasks(mrn: str, _user: dict = Depends(require_role(*CLINICAL))):
+    def run(conn):
+        rules = policy.deadlines(conn)
+        return {"tasks": help_tasks.tasks_for(conn, mrn), "hold": help_tasks.task_hold_on(conn, mrn),
+                "reasons": rules.get("cant_come_reasons") or help_tasks.DEFAULT_REASONS,
+                "attempts_needed": int(rules.get("not_reached_after_attempts", 2))}
+
+    return in_tx(run)
+
+
+class AttemptIn(BaseModel):
+    result: str  # reached | no_answer
+    note: str | None = None
+
+
+@app.post("/tasks/{task_id}/attempts", status_code=201)
+def task_attempt(task_id: int, body: AttemptIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(help_tasks.log_attempt, task_id, user["user_id"], body.result, body.note)
+
+
+class ResultIn(BaseModel):
+    result: str
+    note: str | None = None
+    appointment_date: str | None = None
+    appointment_time: str | None = None
+    reason_code: str | None = None
+
+
+@app.post("/tasks/{task_id}/result")
+def task_result(task_id: int, body: ResultIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(help_tasks.record_result, task_id, user["user_id"], result=body.result, note=body.note,
+                 appointment_date=body.appointment_date, appointment_time=body.appointment_time,
+                 reason_code=body.reason_code)
 
 
 # ---------------------------------------------------------------------------
