@@ -193,38 +193,10 @@ def record_instruction(conn, handover_id: int, user: dict, text: str | None, day
                  details={"instruction": text.strip(), "days": days, "source": "SIMULATED hospital record"})
     card = None
     if days is not None:
-        today = clock.get_today(conn)
-        spec = policy.settings(conn).get("instruction_card") or {}
-        name = spec.get("name", "Doctor-requested visit")
-        plan = conn.execute("SELECT care_plan_id FROM care_plan WHERE mrn = %s", (h["mrn"],)).fetchone()
-        n = conn.execute("SELECT count(*) AS n FROM order_card WHERE mrn = %s AND origin = 'instruction'",
-                         (h["mrn"],)).fetchone()["n"]
-        card = conn.execute(
-            """
-            INSERT INTO order_card (mrn, care_plan_id, item_code, card_type, name, department, due_date, state,
-                                    owner_name, cover_name, origin, handover_id)
-            VALUES (%s, %s, %s, 'visit', %s, %s, %s, 'Due', %s, %s, 'instruction', %s) RETURNING *
-            """,
-            (h["mrn"], plan["care_plan_id"] if plan else None, f"X{n + 1}", name, spec.get("department", "Oncology OPD"),
-             today + timedelta(days=days), spec.get("owner", "Priya Nair"), spec.get("cover", "Meera Joseph"),
-             handover_id),
-        ).fetchone()
-        audit.append(conn, actor_type="system", actor_name="system", action="card_created", entity_type="order_card",
-                     entity_id=str(card["card_id"]), mrn=h["mrn"],
-                     details={"card": card["item_code"], "name": name, "due_date": card["due_date"].isoformat(),
-                              "owner": card["owner_name"], "cover": card["cover_name"], "origin": "instruction",
-                              "handover_id": handover_id})
-        tasks.create_task(conn, mrn=h["mrn"], task_type="booking_from_instruction", owner_name=card["owner_name"],
-                          card_id=card["card_id"], handover_id=handover_id,
-                          reason=f"Book the {name} by {card['due_date'].strftime('%d/%m/%Y')} (doctor's instruction)",
-                          actor_type="system", actor="system")
+        card = create_instruction_card(conn, h["mrn"], days, handover_id=handover_id)
         # Use Case 2c: the call task follows the new card, so Record booking books the doctor-requested visit.
         conn.execute("UPDATE coordinator_task SET card_id = %s WHERE handover_id = %s AND task_type = 'urgent_call' "
                      "AND status = 'open'", (card["card_id"], handover_id))
-        # The patient is told the same day by the agent; allowed through the open handover (REQ-06/14).
-        messaging.send_message(conn, mrn=h["mrn"], template_id="instruction_booking", actor_type="agent",
-                               actor="CarePilot agent", reason_code="instruction_booking", card_id=card["card_id"],
-                               handover_id=handover_id)
     tasks.complete_open(conn, handover_id, "doctor_instruction", user["user_id"], text.strip())
     h = _stage(conn, h, "ready_to_close", instruction=text.strip(), instruction_by=user["user_id"],
                instruction_card=card["card_id"] if card else None, instruction_on=clock.get_today(conn))
@@ -234,6 +206,42 @@ def record_instruction(conn, handover_id: int, user: dict, text: str | None, day
     set_next_action(conn, h["mrn"], "Urgent call still to be recorded, then close the handover" if pending_call
                     else "Coordinator to close the handover with a reason")
     return h
+
+
+def create_instruction_card(conn, mrn: str, days: int, *, handover_id: int | None = None,
+                            review_id: int | None = None) -> dict:
+    """One neutral "Doctor-requested visit" card from a doctor's instruction (UC2a REQ-12/13, UC2T REQ-17): Due,
+    due = decision day + days, booking task due in 2 working days, owner and cover from the settings, no G0.
+    The approved booking message goes out the same day, allowed through an open handover (REQ-06/14)."""
+    today = clock.get_today(conn)
+    spec = policy.settings(conn).get("instruction_card") or {}
+    name = spec.get("name", "Doctor-requested visit")
+    plan = conn.execute("SELECT care_plan_id FROM care_plan WHERE mrn = %s", (mrn,)).fetchone()
+    n = conn.execute("SELECT count(*) AS n FROM order_card WHERE mrn = %s AND origin = 'instruction'",
+                     (mrn,)).fetchone()["n"]
+    card = conn.execute(
+        """
+        INSERT INTO order_card (mrn, care_plan_id, item_code, card_type, name, department, due_date, state,
+                                owner_name, cover_name, origin, handover_id)
+        VALUES (%s, %s, %s, 'visit', %s, %s, %s, 'Due', %s, %s, 'instruction', %s) RETURNING *
+        """,
+        (mrn, plan["care_plan_id"] if plan else None, f"X{n + 1}", name, spec.get("department", "Oncology OPD"),
+         today + timedelta(days=days), spec.get("owner", "Priya Nair"), spec.get("cover", "Meera Joseph"),
+         handover_id),
+    ).fetchone()
+    audit.append(conn, actor_type="system", actor_name="system", action="card_created", entity_type="order_card",
+                 entity_id=str(card["card_id"]), mrn=mrn,
+                 details={"card": card["item_code"], "name": name, "due_date": card["due_date"].isoformat(),
+                          "owner": card["owner_name"], "cover": card["cover_name"], "origin": "instruction",
+                          "handover_id": handover_id, "report_review_id": review_id})
+    tasks.create_task(conn, mrn=mrn, task_type="booking_from_instruction", owner_name=card["owner_name"],
+                      card_id=card["card_id"], handover_id=handover_id,
+                      reason=f"Book the {name} by {card['due_date'].strftime('%d/%m/%Y')} (doctor's instruction)",
+                      actor_type="system", actor="system")
+    messaging.send_message(conn, mrn=mrn, template_id="instruction_booking", actor_type="agent",
+                           actor="CarePilot agent", reason_code="instruction_booking", card_id=card["card_id"],
+                           handover_id=handover_id)
+    return card
 
 
 def close(conn, handover_id: int, user: dict, reason: str | None) -> dict:

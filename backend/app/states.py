@@ -5,10 +5,13 @@ from .errors import DomainError, NotFound
 
 VISIT_FLOW = {"Due": {"Booked"}, "Booked": {"Attended"}, "Attended": set()}
 
+# Use Case 2T: Ordered stays in the list but the sprint skips it (Due -> Scheduled). Two extra moves: Due ->
+# Completed for a walk-in on the appointment list, and Due/Scheduled -> Report received for an outside report
+# verified by a coordinator.
 TEST_FLOW = {
-    "Due": {"Ordered"},
+    "Due": {"Ordered", "Scheduled", "Completed", "Report received"},
     "Ordered": {"Scheduled"},
-    "Scheduled": {"Completed"},
+    "Scheduled": {"Completed", "Report received"},
     "Completed": {"Report received"},
     "Report received": {"Report verified"},
     "Report verified": set(),
@@ -34,9 +37,16 @@ def check_transition(card_type: str, from_state: str, to_state: str, **ctx) -> N
         raise IllegalTransition("A booking is recorded from a patient button or by a coordinator")
     if move == ("visit", "Booked", "Attended") and ctx.get("source") not in ("appointment_list", "hospital_feed"):
         raise IllegalTransition("Attendance comes only from the appointment list or a hospital feed, never a reply")
-    if move == ("test", "Ordered", "Scheduled") and not ctx.get("appointment_date"):
+    if move in (("test", "Ordered", "Scheduled"), ("test", "Due", "Scheduled")) and not ctx.get("appointment_date"):
         raise IllegalTransition("A test cannot be Scheduled without an appointment date")
-    if move == ("test", "Completed", "Report received") and not ctx.get("file_ref"):
+    if move in (("test", "Due", "Completed"), ("test", "Scheduled", "Completed")) and \
+            ctx.get("source") not in ("appointment_list", "hospital_feed"):
+        raise IllegalTransition("A test becomes Completed only from the appointment list, never a patient message")
+    if move in (("test", "Due", "Report received"), ("test", "Scheduled", "Report received")) and \
+            ctx.get("source") != "outside_report_verified":
+        raise IllegalTransition("Only a coordinator-verified outside report skips Completed; a hospital report "
+                                "needs the test Completed first")
+    if to_state == "Report received" and card_type == "test" and not ctx.get("file_ref"):
         raise IllegalTransition("A report needs an attached file (file_ref)")
     if move == ("test", "Report received", "Report verified") and int(ctx.get("matched_identifiers") or 0) < 2:
         raise IllegalTransition("Verification needs two or more matching identifiers")

@@ -4,6 +4,7 @@ import { api, post } from './api.js';
 import { CloseReason, openCall, openHandover, openMessages, openPause, PatientWords } from './Modals.jsx';
 import ProposalCard from './Proposals.jsx';
 import { TasksSection } from './Tasks.jsx';
+import { openReportFile, ReportsSection } from './TestCycle.jsx';
 import { buttonLabel, Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, useUI } from './ui.jsx';
 
 const LIFE = { visit: ['Due', 'Booked', 'Attended'], test: ['Due', 'Ordered', 'Scheduled', 'Completed', 'Report received', 'Report verified'] };
@@ -12,8 +13,9 @@ const SCOPES = [['whatsapp_patient', 'WhatsApp to patient'], ['whatsapp_caregive
 const CALL_OUTCOME = { noans: 'No answer', book: 'Will come', concern: 'Reported a concern', away: 'Away', ok: 'All well', wrong: 'Wrong number' };
 const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
-function Stepper({ card }) {
-  const steps = LIFE[card.card_type];
+function Stepper({ card, testMode }) {
+  // Use Case 2T: Ordered is skipped in this sprint (Due -> Scheduled).
+  const steps = LIFE[card.card_type].filter((s) => !(testMode && s === 'Ordered' && card.state !== 'Ordered'));
   const at = steps.indexOf(card.state);
   return (
     <div className="v5-steps">
@@ -27,12 +29,22 @@ function Stepper({ card }) {
   );
 }
 
-function OrderCard({ card, today, task }) {
+function OrderCard({ card, today, task, testMode }) {
+  const ui = useUI();
   const d = Math.round((new Date(`${today}T00:00:00`) - new Date(`${card.due_date}T00:00:00`)) / 864e5);
   const done = card.state === 'Attended' || card.state === 'Report verified';
   const instruction = card.item_code.startsWith('X');
   let state;
-  if (done) state = <Pill tone="good">Complete</Pill>;
+  // Use Case 2T labels: a tap has no date; who scheduled it; an outside report verified by a coordinator.
+  if (testMode && card.card_type === 'test' && card.state === 'Report verified') {
+    state = <Pill tone="good">{card.report_road === 'outside' ? 'Outside report (verified by coordinator)' : 'Report verified'}</Pill>;
+  } else if (testMode && card.card_type === 'test' && card.state === 'Scheduled') {
+    state = <Pill tone="good">Scheduled ({card.booking_source === 'appointment_list' ? 'appointment list' : 'confirmed by coordinator'}){card.appointment_date ? ` ${fmt(card.appointment_date)}` : ''}{card.appointment_time ? ` ${String(card.appointment_time).slice(0, 5)}` : ''}</Pill>;
+  } else if (testMode && card.card_type === 'test' && card.state === 'Due' && card.patient_says_booked) {
+    state = <Pill tone="warn">Patient says booked (no date)</Pill>;
+  } else if (testMode && card.card_type === 'test' && card.state === 'Completed') {
+    state = <Pill tone="good">Completed {fmt(card.completed_on)} — waiting for the report</Pill>;
+  } else if (done) state = <Pill tone="good">Complete</Pill>;
   else if (card.state !== 'Due') {
     // Use Case 2b REQ-12: who booked it — the patient's tap or the coordinator, with the appointment date.
     const label = card.state === 'Booked' && card.booking_source === 'coordinator' ? 'Booked (confirmed by coordinator)'
@@ -52,7 +64,11 @@ function OrderCard({ card, today, task }) {
       <div className="d">Origin: {instruction ? "Doctor's instruction (hospital record)" : `Plan item (plan #${card.care_plan_id}, item ${card.item_code})`}
         {card.booking_source ? ` · booked via ${card.booking_source.replaceAll('_', ' ')}` : ''}</div>
       {card.gap_status && <div className="d">Reminder gap: <GapState status={card.gap_status} reason={card.gap_reason} rule={card.gap_rule} /></div>}
-      <Stepper card={card} />
+      <Stepper card={card} testMode={testMode} />
+      {card.report && (
+        <div className="d">Report: {card.report.file_name} · received {fmt(String(card.report.received_at_demo).slice(0, 10))} {String(card.report.received_at_demo).slice(11, 16)}
+          {' '}<button type="button" className="btn sm" onClick={() => openReportFile(ui, card.report.report_id)}>Open source file</button></div>
+      )}
       {task && <div className="d"><Dl due={task.due_date} label={`Booking by ${task.assigned_name}`} today={today} /></div>}
     </div>
   );
@@ -250,7 +266,7 @@ export default function PatientPage({ mrn }) {
   const plan = p.plan;
   const month = plan ? Math.max(0, Math.round((new Date(today) - new Date(plan.treatment_end_date)) / 864e5 / 30.4)) : null;
   const horizon = new Date(`${today}T00:00:00`); horizon.setDate(horizon.getDate() + 30);
-  const open = cards.filter((c) => !['Attended', 'Report verified'].includes(c.state)
+  const open = cards.filter((c) => (!['Attended', 'Report verified'].includes(c.state) || (p.test_mode && c.card_type === 'test'))
     && (new Date(`${c.due_date}T00:00:00`) <= horizon || c.item_code.startsWith('X')));
   const act = async (fn, msg) => {
     try { await fn(); ui.toast(msg); ui.refresh(); } catch (e) { ui.toast(e.message); }
@@ -354,12 +370,14 @@ export default function PatientPage({ mrn }) {
         <div className="card-title">Order cards — open follow-up items</div>
         <div className="card-desc">Overdue, due in the next 30 days, booked, or from a doctor's instruction. Each card runs from due to verified evidence.</div>
         {open.length ? open.map((c) => (
-          <OrderCard key={c.card_id} card={c} today={today}
+          <OrderCard key={c.card_id} card={c} today={today} testMode={p.test_mode}
             task={p.open_tasks.find((t) => t.task_type === 'booking_from_instruction' && c.item_code.startsWith('X'))} />
         )) : <div className="small-note">{plan ? 'Nothing open in the next 30 days.' : 'No order cards until the plan is confirmed.'}</div>}
       </div>
 
       <TasksSection mrn={mrn} />
+
+      {p.test_mode && <ReportsSection mrn={mrn} />}
 
       <div className="card">
         <div className="card-title">Messages and contact attempts</div>

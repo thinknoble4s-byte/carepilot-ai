@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { InstructionForm, PatientWords } from './Modals.jsx';
+import { ReportReviews } from './TestCycle.jsx';
 import { Dl, fmt, ScreenHead, useUI } from './ui.jsx';
 
 export default function Decisions() {
@@ -82,6 +83,8 @@ export default function Decisions() {
           ))}
         </div>
       )}
+
+      <ReportReviews />
 
       <div className="card">
         <div className="card-title">Sources disagree — flagged for the care team (0)</div>

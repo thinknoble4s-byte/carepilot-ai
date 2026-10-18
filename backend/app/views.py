@@ -1,5 +1,5 @@
 """Read side for the Workspace, Patient journey and Summary screens."""
-from . import messaging, urgent_calls
+from . import messaging, policy, urgent_calls
 from .errors import NotFound
 
 
@@ -74,6 +74,7 @@ def patient_detail(conn, mrn: str) -> dict:
         "hold": conn.execute("SELECT 1 FROM proposal WHERE mrn = %s AND status = 'drafted'", (mrn,)).fetchone() is not None,
         "task_hold": messaging.task_hold(conn, mrn),
         "urgent_mode": bool(urgent_calls.config(conn)),
+        "test_mode": bool(policy.settings(conn).get("test_cycle")),
         "appointments": conn.execute(
             "SELECT appointment_date, department FROM appointment WHERE mrn = %s ORDER BY appointment_date",
             (mrn,),
@@ -88,6 +89,9 @@ def patient_cards(conn, mrn: str) -> list[dict]:
         """
         SELECT c.card_id, c.item_code, c.card_type, c.name, c.department, c.due_date, c.state, c.appointment_date,
                c.appointment_time, c.booking_source, c.owner_name, c.cover_name, c.origin, c.care_plan_id,
+               c.test_code, c.patient_says_booked, c.completed_on, c.report_road,
+               (SELECT row_to_json(r) FROM (SELECT report_id, file_name, received_at_demo, status FROM test_report
+                  WHERE card_id = c.card_id AND status = 'verified' ORDER BY report_id DESC LIMIT 1) r) AS report,
                g.rule AS gap_rule, g.status AS gap_status, g.blocked_reason AS gap_reason, g.detected_on AS gap_detected_on,
                g.acted_on AS gap_acted_on
         FROM order_card c

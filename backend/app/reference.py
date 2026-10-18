@@ -41,6 +41,11 @@ def uc2b() -> dict:
     return _json("uc2b/scenario.json")
 
 
+def uc2t() -> dict:
+    """Use Case 2T test-cycle seed (seed_data/uc2t)."""
+    return _json("uc2t/scenario.json")
+
+
 def uc2c() -> dict:
     """Use Case 2c "after Use Case 2a, step 6" seed (seed_data/uc2c)."""
     return _json("uc2c/scenario.json")

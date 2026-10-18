@@ -8,6 +8,11 @@ GUARDS = {
     ("visit", "Due", "Booked"): {"source": "button_tap"},
     ("visit", "Booked", "Attended"): {"source": "appointment_list"},
     ("test", "Ordered", "Scheduled"): {"appointment_date": "2026-11-12"},
+    ("test", "Due", "Scheduled"): {"appointment_date": "2026-11-12"},
+    ("test", "Scheduled", "Completed"): {"source": "appointment_list"},
+    ("test", "Due", "Completed"): {"source": "appointment_list"},
+    ("test", "Due", "Report received"): {"source": "outside_report_verified", "file_ref": "photo.pdf"},
+    ("test", "Scheduled", "Report received"): {"source": "outside_report_verified", "file_ref": "photo.pdf"},
     ("test", "Completed", "Report received"): {"file_ref": "report.pdf"},
     ("test", "Report received", "Report verified"): {"matched_identifiers": 2},
 }
@@ -37,6 +42,12 @@ def test_only_legal_moves_pass(card_type, a, b, legal):
     ("visit", "Booked", "Attended", {"source": "patient_reply"}),     # attendance never from a reply
     ("test", "Ordered", "Scheduled", {}),
     ("test", "Completed", "Report received", {}),
+    # Use Case 2T-T3: illegal moves
+    ("test", "Due", "Scheduled", {}),                                          # no date
+    ("test", "Due", "Report received", {"file_ref": "report.pdf"}),            # hospital report, not Completed
+    ("test", "Due", "Report received", {"source": "outside_report_verified"}),  # no file
+    ("test", "Scheduled", "Completed", {"source": "patient_reply"}),           # never from a patient message
+    ("test", "Due", "Completed", {}),
     ("test", "Report received", "Report verified", {"matched_identifiers": 1}),
 ])
 def test_guards(card_type, a, b, ctx):

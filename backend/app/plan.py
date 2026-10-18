@@ -48,6 +48,7 @@ def generate_cards(template: dict, treatment_end_date: date | None = None,
             "owner_name": dept["owner"],
             "cover_name": dept["cover"],
             "origin": "plan_item",
+            "test_code": item.get("test_code"),  # Use Case 2T: with the MRN it links a hospital report
         })
     return cards
 
@@ -129,9 +130,9 @@ def confirm_plan(conn, user_id, mrn, template_id, therapy=None, treatment_end_da
         conn.execute(
             """
             INSERT INTO order_card (mrn, care_plan_id, item_code, card_type, name, department, due_date,
-                                    state, owner_name, cover_name, origin)
+                                    state, owner_name, cover_name, origin, test_code)
             VALUES (%(mrn)s, %(care_plan_id)s, %(item_code)s, %(card_type)s, %(name)s, %(department)s,
-                    %(due_date)s, %(state)s, %(owner_name)s, %(cover_name)s, %(origin)s)
+                    %(due_date)s, %(state)s, %(owner_name)s, %(cover_name)s, %(origin)s, %(test_code)s)
             RETURNING card_id, item_code, card_type, name, department, due_date, state, appointment_date,
                       owner_name, cover_name, origin
             """,

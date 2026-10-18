@@ -197,6 +197,10 @@ def _book_card(conn, card_id: int, day: date, at: time | None, user_id: str) -> 
     patient-reported booking is upgraded; a coordinator booking is never overwritten by a patient tap.
     A test card (Golden Path) becomes Scheduled with the appointment date."""
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s FOR UPDATE", (card_id,)).fetchone()
+    if card["card_type"] == "test" and policy.settings(conn).get("test_cycle"):
+        from . import test_cycle
+
+        return test_cycle.schedule_by_coordinator(conn, card, day, at, user_id)  # Use Case 2T: Due -> Scheduled
     if card["card_type"] == "test":
         # A test has no "Booked" state: a booking with a date is Ordered -> Scheduled (Golden Path test cards).
         if card["state"] == "Due":

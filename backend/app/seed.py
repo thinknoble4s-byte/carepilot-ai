@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 from . import audit, clock, consent, importer, plan, states
 from .errors import Invalid
 from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy, message_templates,
-                        plan_template, read_seed, step_a_settings, uc1, uc2a, uc2b, uc2c)
+                        plan_template, read_seed, step_a_settings, uc1, uc2a, uc2b, uc2c, uc2t)
 
 SEED_USER = "u_priya"
 
@@ -32,7 +32,7 @@ RULE_THRESHOLDS = {
 }
 
 
-SCENARIOS = ("uc1", "uc2a", "uc2b", "uc2c", "step_a")
+SCENARIOS = ("uc1", "uc2a", "uc2b", "uc2c", "uc2t", "step_a")
 DEFAULT_SCENARIO = "uc1"
 
 
@@ -43,6 +43,7 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     uc2a    Use Case 2a "after Use Case 1": TP001 and TP004, reminders sent 9 Nov 07:30, clock 10:15, replies on.
     uc2b    Use Case 2b "after Use Case 1": TP001, TP004-TP007, same start; taps and HELP become tasks.
     uc2c    Use Case 2c "after Use Case 2a, step 6": TP001, TP004-TP007, each handover with the doctor; Tue 10 Nov 09:30.
+    uc2t    Use Case 2T test cycle: TP001, TP004-TP007, Blood test (CBC) due 23 Nov and a Review visit; D0 Mon 2 Nov.
     step_a  Step A / Golden Path: 25 patients from the register, Priya and Meera, everything switched on.
     """
     if scenario not in SCENARIOS:
@@ -67,6 +68,8 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
         _seed_after_uc1(conn, uc2a() if scenario == "uc2a" else uc2b())
     elif scenario == "uc2c":
         _seed_uc2c(conn, uc2c())
+    elif scenario == "uc2t":
+        _seed_uc1(conn, uc2t())
     else:
         _seed_step_a(conn)
     return {**counts(conn), "scenario": scenario, "fingerprint": fingerprint(conn)}
@@ -163,9 +166,10 @@ def _seed_uc1(conn, uc: dict | None = None) -> None:
     _users(conn, uc["users"])
     clock.set_today(conn, DEMO_START_DATE)
     template = uc["plan_template"]
+    templates = {t["template_id"]: t for t in [template, *uc.get("more_plan_templates", [])]}
     _config(conn, (
         ("rule_thresholds", "default", RULE_THRESHOLDS, "Synthetic seed (pending clinical sign-off)"),
-        ("plan_template", template["template_id"], template, template["signed_off_by"]),
+        *(("plan_template", t["template_id"], t, t["signed_off_by"]) for t in templates.values()),
         ("autonomy_policy", "default", autonomy_policy(), autonomy_policy()["signed_off_by"]),
         ("deadline_policy", "default", uc["deadline_policy"], uc["deadline_policy"]["signed_off_by"]),
         ("scenario_settings", "default", {**uc["settings"], "scenario": uc["scenario"]}, f"Demo data set: {uc['title']}"),
@@ -198,12 +202,18 @@ def _seed_uc1(conn, uc: dict | None = None) -> None:
     for pt in uc["patients"]:
         if not pt["plan"]:
             continue
-        result = plan.confirm_plan(conn, coordinator, pt["mrn"], template["template_id"],
+        result = plan.confirm_plan(conn, coordinator, pt["mrn"], pt["plan"].get("template_id", template["template_id"]),
                                    due_dates=pt["plan"]["due_dates"])
         if booked := pt["plan"].get("booked"):
             for card in result["cards"]:
                 states.transition_card(conn, card["card_id"], "Booked", "person", coordinator,
                                        source=booked["source"], appointment_date=booked["appointment_date"])
+        for code, b in (pt["plan"].get("booked_items") or {}).items():  # Use Case 2T: one item already booked
+            card = next(c for c in result["cards"] if c["item_code"] == code)
+            states.transition_card(conn, card["card_id"], "Booked", "person", coordinator, source=b["source"],
+                                   appointment_date=b["appointment_date"])
+            conn.execute("UPDATE order_card SET appointment_time = %s WHERE card_id = %s",
+                         (b.get("appointment_time"), card["card_id"]))
 
 
 def counts(conn) -> dict:

@@ -163,6 +163,38 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
     return result
 
 
+def receive_document(conn, mrn: str, *, data: bytes, mime: str, file_name: str, from_role: str = "patient",
+                     event_id: str | None = None) -> dict:
+    """Use Case 2T REQ-11: a photo or PDF from the patient. Always saved; held Unverified; moves no card."""
+    from . import test_cycle
+
+    if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
+        raise NotFound(f"Patient {mrn} not found")
+    if from_role not in ("patient", "caregiver"):
+        raise Invalid("from_role must be patient or caregiver")
+    if len(data or b"") > MAX_AUDIO_BYTES:
+        raise Invalid("The file is too large (5 MB at most)")
+    if event_id:
+        seen = conn.execute("SELECT * FROM inbound_message WHERE event_id = %s", (event_id,)).fetchone()
+        if seen:
+            return {"inbound_id": seen["inbound_id"], "duplicate": True}
+    now = clock.get_now(conn)
+    blob = conn.execute("INSERT INTO audio_blob (mime, data) VALUES (%s, %s) RETURNING audio_id",
+                        (mime, data)).fetchone()["audio_id"] if data else None
+    inbound = conn.execute(
+        """INSERT INTO inbound_message (mrn, from_role, text, handling, received_on, received_time, kind, event_id, audio_id)
+           VALUES (%s, %s, %s, 'document_held_unverified', %s, %s, 'document', %s, %s) RETURNING *""",
+        (mrn, from_role, file_name, now.date(), now.time(), event_id, blob)).fetchone()
+    audit.append(conn, actor_type="system", actor_name=GATEWAY, action="document_received", entity_type="inbound_message",
+                 entity_id=str(inbound["inbound_id"]), mrn=mrn,
+                 details={"file": file_name, "mime": mime, "from_role": from_role, "bytes": len(data or b"")})
+    report = test_cycle.receive_outside(conn, mrn, data=data, mime=mime, file_name=file_name,
+                                        channel=f"WhatsApp from {from_role}", inbound_id=inbound["inbound_id"],
+                                        actor=GATEWAY)
+    return {"inbound_id": inbound["inbound_id"], "report_id": report["report_id"], "status": report["status"],
+            "identifiers": report["identifiers"]}
+
+
 def _acknowledge(conn, mrn, recipient, handover_id, reason) -> dict:
     return messaging.send_message(conn, mrn=mrn, template_id="handover_ack", actor_type="agent", actor=AGENT,
                                   reason_code=reason, recipient=recipient, handover_id=handover_id)
@@ -260,7 +292,12 @@ def _apply_button(conn, mrn: str, button: str, target: dict | None, inbound_id: 
     """Deterministic: no AI call. A tap is a structured fact recorded by the system (REQ-01)."""
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s",
                         (target["card_id"],)).fetchone() if target and target["card_id"] else None
-    if button == "booked" and card and card["card_type"] == "visit" and card["state"] == "Due":
+    if button == "booked" and card and card["card_type"] == "test" and card["state"] == "Due" \
+            and policy.settings(conn).get("test_cycle"):
+        from . import test_cycle
+
+        outcome = test_cycle.tap_booked(conn, card, inbound_id, GATEWAY)  # Use Case 2T REQ-05: label only
+    elif button == "booked" and card and card["card_type"] == "visit" and card["state"] == "Due":
         states.transition_card(conn, card["card_id"], "Booked", "system", GATEWAY, source="patient_button")
         outcome = "card_booked"
         set_next_action(conn, mrn, f"{card['item_code']} booked by the patient; attendance comes from the appointment list")

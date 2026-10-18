@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from . import (agent, ai, audit, clock, consent, db, gateway, handover, help_tasks, importer, messaging, patients, plan,
                programme,
-               proposals, rules, seed, tasks, timeline, urgent_calls, views, worklist)
+               proposals, rules, seed, states, tasks, test_cycle, timeline, urgent_calls, views, worklist)
 from .auth import ANY_ROLE, CLINICAL, COORDINATOR, current_user, require_role
 from .errors import DomainError
 from . import policy
@@ -120,6 +120,7 @@ def advance_clock(body: AdvanceIn, user: dict = Depends(require_role(*COORDINATO
     def run(conn):
         today = clock.advance(conn, body.days, user["user_id"])
         urgent_calls.sweep(conn)
+        test_cycle.sweep(conn)
         return today
 
     return {"today": in_tx(run)}
@@ -144,6 +145,7 @@ def set_clock(body: SetDateIn, user: dict = Depends(require_role(*COORDINATOR)))
     def run(conn):
         clock.set_forward(conn, body.date, user["user_id"], body.time)
         moved = urgent_calls.sweep(conn)  # Use Case 2c: cover step-in and Overdue at the times of day
+        test_cycle.sweep(conn)  # Use Case 2T: report review to the doctor's cover after 1 working day
         now = clock.get_now(conn)
         return {"today": now.date(), "time": now.strftime("%H:%M"), "urgent": moved}
 
@@ -488,6 +490,146 @@ def task_result(task_id: int, body: ResultIn, user: dict = Depends(require_role(
     return in_tx(help_tasks.record_result, task_id, user["user_id"], result=body.result, note=body.note,
                  appointment_date=body.appointment_date, appointment_time=body.appointment_time,
                  reason_code=body.reason_code)
+
+
+# ---------------------------------------------------------------------------
+# Use Case 2T: the test cycle (appointment list rows, simulated lab, outside reports, the doctor's review)
+# ---------------------------------------------------------------------------
+class AppointmentRow(BaseModel):
+    mrn: str
+    test_code: str
+    date: str
+    time: str | None = None
+    attended: bool = False
+
+
+class AppointmentListIn(BaseModel):
+    rows: list[AppointmentRow]
+    file_name: str | None = None
+
+
+@app.post("/test-cycle/appointment-list")
+def test_appointment_list(body: AppointmentListIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(test_cycle.load_appointment_rows, user["user_id"], [r.model_dump() for r in body.rows], body.file_name)
+
+
+class LabReportIn(BaseModel):
+    mrn: str
+    test_code: str
+    report_mrn: str | None = None  # the MRN printed on the report (default: the patient's)
+    with_file: bool = True
+    report_ref: str | None = None
+
+
+@app.post("/simulated-lab/report", status_code=201)
+def simulated_lab_report(body: LabReportIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo control (SIMULATED): the hospital lab sends a synthetic report with an MRN and a test code."""
+    return in_tx(test_cycle.lab_report, mrn=body.mrn, test_code=body.test_code, report_mrn=body.report_mrn,
+                 with_file=body.with_file, report_ref=body.report_ref, pressed_by=user["user_id"])
+
+
+@app.post("/simulator/{mrn}/document", status_code=201)
+async def simulator_document(mrn: str, file: UploadFile | None = File(None), from_role: str = Form("patient"),
+                             event_id: str | None = Form(None), _user: dict = Depends(require_role(*COORDINATOR))):
+    """The patient sends a photo or PDF of an outside report. Without a file: the synthetic outside-lab PDF."""
+    data = await file.read() if file else None
+
+    def run(conn):
+        if data is None:
+            p = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
+            if p is None:
+                raise HTTPException(status_code=404, detail=f"Patient {mrn} not found")
+            card = conn.execute("SELECT name FROM order_card WHERE mrn = %s AND card_type = 'test' ORDER BY card_id "
+                                "LIMIT 1", (mrn,)).fetchone()
+            pdf = test_cycle.outside_report_pdf(p, clock.get_today(conn), card["name"] if card else "Blood test")
+            return gateway.receive_document(conn, mrn, data=pdf, mime="application/pdf",
+                                            file_name="outside-lab-report.pdf", from_role=from_role, event_id=event_id)
+        return gateway.receive_document(conn, mrn, data=data, mime=(file.content_type or "").split(";")[0],
+                                        file_name=file.filename or "document", from_role=from_role, event_id=event_id)
+
+    return in_tx(run)
+
+
+@app.get("/patients/{mrn}/reports")
+def patient_reports(mrn: str, _user: dict = Depends(require_role(*CLINICAL))):
+    return in_tx(test_cycle.reports_for, mrn)
+
+
+@app.get("/reports/{report_id}/file")
+def report_file(report_id: int, user: dict = Depends(require_role(*CLINICAL))):
+    """Open source file: audited with the reader's name and demo time (REQ-14)."""
+    f = in_tx(test_cycle.open_file, report_id, user)
+    return Response(content=f["data"], media_type=f["mime"],
+                    headers={"Content-Disposition": f'inline; filename="{f["file_name"]}"'})
+
+
+class VerifyIn(BaseModel):
+    matched: list[str] = []
+    card_id: int | None = None
+
+
+@app.post("/reports/{report_id}/verify")
+def verify_report(report_id: int, body: VerifyIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(test_cycle.verify_outside, report_id, user["user_id"], body.matched, body.card_id)
+
+
+class RejectReportIn(BaseModel):
+    reason: str | None = None
+
+
+@app.post("/reports/{report_id}/reject")
+def reject_report(report_id: int, body: RejectReportIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(test_cycle.reject_outside, report_id, user["user_id"], body.reason)
+
+
+@app.get("/doctor/reviews")
+def doctor_reviews(_user: dict = Depends(require_role(*CLINICAL))):
+    return in_tx(lambda conn: {"open": test_cycle.doctor_items(conn), "recent": test_cycle.recent_decisions(conn)})
+
+
+class ReviewDecisionIn(BaseModel):
+    decision: str | None = None  # continue | discussion; no default: the doctor must choose
+
+
+@app.post("/reviews/{review_id}/decision")
+def review_decision(review_id: int, body: ReviewDecisionIn, user: dict = Depends(require_role("oncologist"))):
+    return in_tx(test_cycle.decide, review_id, user, body.decision)
+
+
+class ReviewInstructionIn(BaseModel):
+    text: str | None = None
+    days: int | None = None
+
+
+@app.post("/reviews/{review_id}/instruction")
+def review_instruction(review_id: int, body: ReviewInstructionIn, user: dict = Depends(require_role("oncologist"))):
+    return in_tx(test_cycle.instruction, review_id, user, body.text, body.days)
+
+
+class TransitionIn(BaseModel):
+    to_state: str
+    source: str | None = None
+    appointment_date: str | None = None
+    file_ref: str | None = None
+    matched_identifiers: int | None = None
+
+
+@app.post("/cards/{card_id}/transition")
+def card_transition(card_id: int, body: TransitionIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo control for illegal-move checks (UC2T-T3): a refused move changes nothing and is audited."""
+    ctx = {k: v for k, v in body.model_dump().items() if k != "to_state" and v is not None}
+    try:
+        return in_tx(states.transition_card, card_id, body.to_state, "person", user["user_id"], **ctx)
+    except states.IllegalTransition as e:
+        def refused(conn):
+            row = conn.execute("SELECT mrn, state FROM order_card WHERE card_id = %s", (card_id,)).fetchone()
+            audit.append(conn, actor_type="person", actor_name=user["user_id"], action="transition_refused",
+                         entity_type="order_card", entity_id=str(card_id), mrn=row["mrn"] if row else None,
+                         outcome="refused", details={"from": row["state"] if row else None, "to": body.to_state,
+                                                     "reason": str(e), **{k: str(v) for k, v in ctx.items()}})
+
+        in_tx(refused)
+        raise
 
 
 # ---------------------------------------------------------------------------

@@ -17,13 +17,15 @@ AUTOMATED = ("agent", "system")
 ALWAYS_ALLOWED_AUTOMATED = ("handover_ack",)  # the fixed acknowledgement after a health mention or HELP
 # While a handover is open only these two pass, whoever sends (UC2a REQ-06): the acknowledgement and the
 # booking message for a doctor's instruction (a person decided that one). Everything else is refused.
-ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking")
+ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking",
+                           # Use Case 2T REQ-20: decided by the doctor's click on a report, so they pass too
+                           "report_continue_booked", "report_continue_due")
 # Use Case 2b: while a help-booking, can't-come or help-request task is open, routine reminders (and, later,
 # slot offers) to the patient are held for every sender (held_open_task). A setting, pending decision 10.
 HELP_TASK_TYPES = ("help_booking", "cant_come", "help_request")
 # Use Case 2c REQ-16: the urgent call-today task holds routine reminders too, until a person reaches the patient.
 HOLD_TASK_TYPES = HELP_TASK_TYPES + ("urgent_call",)
-ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder")
+ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder", "test_booking_reminder")
 
 
 def task_hold(conn, mrn: str) -> bool:
@@ -70,21 +72,23 @@ def guard(conn, patient: dict, template_id: str, recipient: str, actor_type: str
     return None, inputs
 
 
-def render(tmpl: dict, patient: dict, card: dict | None) -> str:
-    """Fill an approved template. Placeholders: {patient_name}, {first_name}, {item}, {due}, {due_date}."""
+def render(tmpl: dict, patient: dict, card: dict | None, extra: dict | None = None) -> str:
+    """Fill an approved template. Placeholders: {patient_name}, {first_name}, {item}, {item_name} (the card's
+    name, e.g. "Blood test (CBC)"), {due}, {due_date}, and any extra values (e.g. {next_visit_date})."""
     lang = tmpl["language"]
     item = ""
     if card:
         item = ITEM_LABELS.get(card["item_code"], {}).get(lang) or card["name"].lower()
     due = card["due_date"].strftime(tmpl.get("date_format") or "%d/%m/%Y") if card else ""
-    text = tmpl["text"].format(patient_name=patient["full_name"], first_name=patient["full_name"].split()[0],
-                               item=item, due=due, due_date=due)
+    text = tmpl["text"].format(**{"patient_name": patient["full_name"], "first_name": patient["full_name"].split()[0],
+                                  "item": item, "item_name": card["name"] if card else "", "due": due,
+                                  "due_date": due, **(extra or {})})
     return f"{text}\n\n{tmpl['closing']}" if tmpl.get("closing") else text
 
 
 def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: str, reason_code: str,
                  recipient: str = "patient", card_id: int | None = None, gap_id: int | None = None,
-                 handover_id: int | None = None, mode: str = "live") -> dict:
+                 handover_id: int | None = None, mode: str = "live", extra: dict | None = None) -> dict:
     """Send one approved template through the send-guard. The sender refuses a template that is not
     approved and effective for the patient's language (held_template_missing): no fallback language."""
     patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
@@ -103,9 +107,9 @@ def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: st
     if tmpl is None and not blocked:
         blocked = "held_template_missing"
     if tmpl is not None:
-        body = render(tmpl, patient, card)
+        body = render(tmpl, patient, card, extra)
         english = tmpl if lang == "English" else policy.template(conn, template_id, "English")
-        body_en = render(english, patient, card) if english else body
+        body_en = render(english, patient, card, extra) if english else body
         buttons = tmpl["buttons"]
     else:
         body = body_en = ""

@@ -36,6 +36,9 @@ def select_action(conn, gap: dict) -> dict:
     entry = pol["tasks"].get(task)
     mode = entry["mode"] if entry else "off"
     template_id = entry.get("template") if entry else None
+    test_cycle = policy.settings(conn).get("test_cycle")
+    if template_id and gap.get("card_type") == "test" and test_cycle and gap["rule"] == "G0":
+        template_id = test_cycle.get("reminder_template", template_id)  # Use Case 2T: the test reminder
     has_template = bool(template_id) and policy.template(conn, template_id, patient["preferred_language"]) is not None
     inputs = {"status": patient["status"], "agent_on": patient["agent_on"], "scopes": scopes,
               "handover_open": handover is not None, "policy_mode": mode, "rule": gap["rule"],
@@ -79,7 +82,8 @@ def _run(conn) -> list[dict]:
     results = []
     gaps = conn.execute(
         """
-        SELECT g.*, c.item_code, c.name AS card_name, c.state AS card_state FROM gap_event g JOIN order_card c USING (card_id)
+        SELECT g.*, c.item_code, c.name AS card_name, c.state AS card_state, c.card_type
+        FROM gap_event g JOIN order_card c USING (card_id)
         WHERE g.status IN ('open', 'blocked') ORDER BY g.gap_id FOR UPDATE OF g
         """
     ).fetchall()

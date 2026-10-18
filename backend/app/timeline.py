@@ -150,6 +150,44 @@ def build(conn, mrn: str) -> dict:
                 else "; no booking recorded"
             events.append(_ev(t["done_on"], f"Patient reached by {_who(t['done_by'])} at {hh(t['done_at_demo'])}: time to call "
                               f"{t['minutes_to_call']} minutes{booked}", "routine", "hosp", src, "Coordinator's call log"))
+    # Use Case 2T: the test cycle — reports (hospital or outside) and the doctor's review, never a result value.
+    for r in conn.execute("""SELECT r.*, c.name AS card_name FROM test_report r LEFT JOIN order_card c USING (card_id)
+                             WHERE r.mrn = %s ORDER BY r.report_id""", (mrn,)).fetchall():
+        what = r["card_name"] or r["test_code"] or "report"
+        src = f"Report #{r['report_id']}" + (f" ({r['file_name']})" if r["file_name"] else "")
+        if r["road"] == "hospital":
+            label = {"verified": f"Lab report for {what} linked and verified (MRN and test code match)",
+                     "mismatch": f"Lab report for {what} not linked: mismatch — coordinator to check",
+                     "exception": f"Lab report ({r['test_code']}) matched no test card — exceptions list"}[r["status"]]
+            events.append(_ev(r["received_at_demo"].date(), f"{label} · {hh(r['received_at_demo'])}", "routine",
+                              "hosp", src, "Hospital lab (simulated)"))
+        else:
+            events.append(_ev(r["received_at_demo"].date(), f"Outside report received ({r['file_name']}) — held "
+                              f"Unverified · {hh(r['received_at_demo'])}", "routine", "patient", src,
+                              r["channel"] or "Outside document"))
+            if r["status"] == "verified":
+                events.append(_ev(r["verified_at_demo"].date(), f"Outside report verified by {_who(r['verified_by'])} "
+                                  f"({', '.join(r['matched'] or [])} match) — {what}", "routine", "hosp", src,
+                                  "Coordinator verification"))
+            elif r["status"] == "rejected":
+                events.append(_ev(r["received_at_demo"].date(), f"Outside report rejected by {_who(r['rejected_by'])}: "
+                                  f"{r['reject_reason']}", "routine", "hosp", src, "Coordinator verification"))
+    for v in conn.execute("""SELECT v.*, c.name AS card_name FROM report_review v JOIN order_card c USING (card_id)
+                             WHERE v.mrn = %s ORDER BY v.review_id""", (mrn,)).fetchall():
+        src = f"Report review #{v['review_id']}"
+        events.append(_ev(v["created_at_demo"].date(), f"{v['card_name']}: report ready for review ({v['road']}) — "
+                          f"{v['moved_from'] or v['doctor']}", "routine", "carepilot", src, f"Report #{v['report_id']}"))
+        if v["opened_at_demo"]:
+            events.append(_ev(v["opened_at_demo"].date(), f"Source file opened by {_who(v['opened_by'])} at "
+                              f"{hh(v['opened_at_demo'])}", "routine", "hosp", src, "Doctor"))
+        if v["moved_at_demo"]:
+            events.append(_ev(v["moved_at_demo"].date(), f"Report review moved to {v['doctor']} (cover) after 1 working "
+                              "day", "routine", "carepilot", src, "Doctor's deadline"))
+        if v["decided_at_demo"]:
+            events.append(_ev(v["decided_at_demo"].date(), f"Doctor's decision on the {v['card_name']} report: "
+                              + ("Continue as planned" if v["decision"] == "continue" else "Needs discussion")
+                              + (f" — instruction: {v['instruction']}" if v["instruction"] else ""), "milestone", "hosp",
+                              src, f"Decided by {_who(v['decided_by'])}"))
     for pr in conn.execute("SELECT * FROM proposal WHERE mrn = %s ORDER BY proposal_id", (mrn,)).fetchall():
         events.append(_ev(pr["created_at_demo"].date(), f"Proposal drafted by AI: {pr['summary'] or 'no draft'} "
                           f"(intent {pr['intent'] or 'none'}) — {pr['status']}", "routine", "carepilot",

@@ -347,6 +347,7 @@ function Messages({ patient }) {
   const [settings, setSettings] = useState(null);
   const [clips, setClips] = useState([]);
   const [clip, setClip] = useState('');
+  const [doc, setDoc] = useState(null);
   const [lastEvent, setLastEvent] = useState(null);
   const [act, error] = useAct();
   useEffect(() => {
@@ -389,6 +390,17 @@ function Messages({ patient }) {
       load();
     }
   };
+  // Use Case 2T: a photo or PDF of an outside report; without a file, the synthetic outside-lab PDF.
+  const sendDoc = async (file) => {
+    const fd = new FormData();
+    if (file) fd.append('file', file, file.name);
+    fd.append('event_id', `wa-${Date.now()}`);
+    if (await act(() => upload(`simulator/${patient.mrn}/document`, fd),
+      (r) => `Report saved and held Unverified${r.identifiers && Object.keys(r.identifiers).length ? ' — identifiers read' : ' — the reader could not read it; check it by eye'}`, true)) {
+      setDoc(null);
+      load();
+    }
+  };
   const withButtons = thread.filter((m) => m.direction === 'out' && m.status === 'sent' && m.buttons?.length);
   const [target, setTarget] = useState(null);
   const lastSent = withButtons.find((m) => m.id === target)
@@ -412,6 +424,7 @@ function Messages({ patient }) {
               <div key={`${m.direction}-${m.id}`} className={`v31-b ${m.direction === 'out' ? 'hosp' : 'fam'}`}
                 style={m.status && m.status !== 'sent' ? { opacity: 0.6, borderStyle: 'dashed' } : undefined}>
                 {m.direction === 'in' && m.button && <span className="v31-en"><b>Tapped: {buttonLabel(m.button)}</b></span>}
+                {m.kind === 'document' && <span className="v31-en"><b>📎 Document sent</b> · held Unverified until a coordinator checks it</span>}
                 {m.kind === 'voice' && (
                   <>
                     <span className="v31-en"><b>🎙 Voice note ({m.clip_id || 'recorded'})</b></span>
@@ -501,6 +514,18 @@ function Messages({ patient }) {
                   </button>
                 </div>
                 <VoiceRecorder patient={patient} onSend={sendRecording} />
+              </>
+            )}
+            {settings?.test_cycle && (
+              <>
+                <label className="v3-field" htmlFor="msgD">Send a photo or PDF of a test report (outside lab)</label>
+                <input id="msgD" type="file" accept="image/*,application/pdf" className="v3-in"
+                  onChange={(e) => setDoc(e.target.files?.[0] || null)} />
+                <div className="btn-row">
+                  <button type="button" className="btn" disabled={!doc} onClick={() => sendDoc(doc)}>Send the file</button>
+                  <button type="button" className="btn primary" onClick={() => sendDoc(null)}>Send the synthetic outside-lab report (PDF)</button>
+                </div>
+                <div className="small-note">A file from the patient never moves a card: it is held Unverified until a coordinator verifies it on the Patient page.</div>
               </>
             )}
           </>

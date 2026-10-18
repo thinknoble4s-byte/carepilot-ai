@@ -18,6 +18,8 @@ PEOPLE_TASKS = {
     "contact_needed": "action", "booking_help": "action", "cannot_attend": "action",
     "confirm_test_booking": "action", "consent_scope_missing": "action",
     "help_booking": "action", "cant_come": "action", "help_request": "action",
+    # Use Case 2T: report mismatch, outside report to verify, report reviewed but no next visit card
+    "report_mismatch": "action", "outside_report": "action", "no_next_visit": "action",
 }
 HELP_TAGS = {"help_booking": "Help booking", "cant_come": "Can't come", "help_request": "Help request"}
 ESCALATED = {"patient_asked_help_booking": "Escalated: help booking", "patient_cannot_come": "Escalated: can't come",
