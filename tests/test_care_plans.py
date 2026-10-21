@@ -145,3 +145,33 @@ def test_booking_a_test_from_a_task_schedules_it(her2, client):
     with db.connect() as c:
         help_tasks._book_card(c, her2["US6"]["card_id"], date(2027, 2, 3), None, "u_priya")
     assert card(client, "US6")["state"] == "Scheduled"
+
+
+def test_booked_tap_on_a_test_then_record_booking_schedules_it(her2, client):
+    """Golden Path: Booked on a test reminder has no date -> a Confirm test booking task; its Record booking (date
+    and time) moves the test Due -> Scheduled."""
+    from app import db, gateway
+
+    with db.connect() as c:
+        gateway._apply_button(c, "SYN-0007", "booked", {"card_id": her2["MG3"]["card_id"]}, None)
+    assert card(client, "MG3")["state"] == "Due"
+    t = next(t for t in client.get("/patients/SYN-0007/tasks", headers=PRIYA).json()["tasks"]
+             if t["task_type"] == "confirm_test_booking")
+    assert t["help_task"] is True
+    r = client.post(f"/tasks/{t['task_id']}/result", headers=PRIYA,
+                    json={"result": "booked", "appointment_date": "2026-11-05", "appointment_time": "10:00"})
+    assert r.status_code == 200, r.text
+    c = card(client, "MG3")
+    assert (c["state"], c["appointment_date"], c["booking_source"]) == ("Scheduled", "2026-11-05", "coordinator")
+
+
+def test_lab_report_sent_again_after_a_mismatch_is_linked(her2, client):
+    """A report that arrived before the test was Completed (mismatch) can be sent again once it is."""
+    first = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "CBC"}).json()
+    assert first["status"] == "mismatch"
+    appointment(client, "CBC", "2026-11-02", attended=True)
+    again = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "CBC"}).json()
+    assert again["status"] == "verified" and not again.get("duplicate")
+    assert card(client, "BT3")["state"] == "Report received"
+    dup = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "CBC"}).json()
+    assert dup.get("duplicate") is True

@@ -13,11 +13,16 @@ from .agent import AGENT, set_next_action
 from .errors import Conflict, Invalid, NotFound
 
 SYSTEM = "CarePilot"
-TYPES = ("help_booking", "cant_come", "help_request")
-REASON = {"help_booking": "patient_asked_help_booking", "cant_come": "patient_cannot_come", "help_request": "help_keyword"}
-LABEL = {"help_booking": "Help booking", "cant_come": "Can't come", "help_request": "Help request"}
+# confirm_test_booking: the patient tapped Booked on a test reminder (no date): the coordinator records the
+# booking with its date, which schedules the test (Due -> Scheduled).
+TYPES = ("help_booking", "cant_come", "help_request", "confirm_test_booking")
+REASON = {"help_booking": "patient_asked_help_booking", "cant_come": "patient_cannot_come", "help_request": "help_keyword",
+          "confirm_test_booking": "patient_says_test_booked"}
+LABEL = {"help_booking": "Help booking", "cant_come": "Can't come", "help_request": "Help request",
+         "confirm_test_booking": "Confirm test booking"}
 RESULTS = {
     "help_booking": ("booked", "could_not_book", "not_reached"),
+    "confirm_test_booking": ("booked", "could_not_book", "not_reached"),
     "cant_come": ("rebooked", "reason_recorded", "not_reached"),
     "help_request": ("sorted", "needs_follow_up", "not_reached"),
 }
@@ -94,7 +99,8 @@ def _load(conn, task_id: int) -> dict:
     if t is None:
         raise NotFound(f"Task {task_id} not found")
     if t["task_type"] not in TYPES:
-        raise Invalid("Call attempts and results are recorded on help-booking, can't-come and help-request tasks")
+        raise Invalid("Call attempts and results are recorded on help-booking, can't-come, help-request and "
+                      "confirm-test-booking tasks")
     return t
 
 
@@ -186,7 +192,10 @@ def record_result(conn, task_id: int, user_id: str, *, result: str, note: str | 
                  entity_id=str(task_id), mrn=t["mrn"], outcome=result,
                  details={"task_type": t["task_type"], "closed_by": user_id, "result": result, "note": note,
                           "hold": "ended" if hold_was_on and not still_held else ("still on" if still_held else None)})
-    set_next_action(conn, t["mrn"], {"booked": "Visit booked by the coordinator", "rebooked": "Visit rebooked by the coordinator",
+    card_type = conn.execute("SELECT card_type FROM order_card WHERE card_id = %s",
+                             (t["card_id"],)).fetchone()["card_type"] if t["card_id"] else None
+    set_next_action(conn, t["mrn"], {"booked": "Test scheduled by the coordinator" if card_type == "test"
+                                     else "Visit booked by the coordinator", "rebooked": "Visit rebooked by the coordinator",
                                      "not_reached": "Not reached after call attempts; visit still due"}.get(
                                          result, "Routine follow-up"))
     return {**done, "attempts": attempts(conn, task_id)}

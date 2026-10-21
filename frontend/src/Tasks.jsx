@@ -14,6 +14,7 @@ const RESULT_LABEL = {
 };
 const RESULTS = {
   help_booking: ['booked', 'could_not_book', 'not_reached'],
+  confirm_test_booking: ['booked', 'could_not_book', 'not_reached'],
   cant_come: ['rebooked', 'reason_recorded', 'not_reached'],
   help_request: ['sorted', 'needs_follow_up', 'not_reached'],
 };

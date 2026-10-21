@@ -210,6 +210,11 @@ def lab_report(conn, *, mrn: str, test_code: str, report_mrn: str | None = None,
         raise Invalid("The lab report needs an MRN and a test code")
     ref = report_ref or f"LAB-{mrn}-{test_code}-{report_mrn}"
     seen = conn.execute("SELECT * FROM test_report WHERE report_ref = %s", (ref,)).fetchone()
+    if seen and seen["status"] != "verified":  # not linked before (mismatch / no card): the lab sends it again
+        linked = conn.execute("SELECT * FROM test_report WHERE report_ref LIKE %s AND status = 'verified' "
+                              "ORDER BY report_id LIMIT 1", (f"{ref}-R%",)).fetchone()
+        n = conn.execute("SELECT count(*) AS n FROM test_report WHERE report_ref LIKE %s", (f"{ref}%",)).fetchone()["n"]
+        seen, ref = linked, f"{ref}-R{n + 1}"
     if seen:  # REQ-09: the same report sent twice is attached once
         audit.append(conn, actor_type="system", actor_name=LAB, action="duplicate_suppressed", entity_type="test_report",
                      entity_id=str(seen["report_id"]), mrn=seen["mrn"], outcome="report_already_received",
