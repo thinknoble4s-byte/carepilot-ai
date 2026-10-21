@@ -1,0 +1,147 @@
+"""The three care plans (T1 hormone receptor positive, T2 hormone receptor negative, T3 HER2 positive), the two
+test roads and the doctor-only verified status. These run on the real demo data sets (no fixed copies)."""
+from datetime import date
+
+import pytest
+
+from conftest import ANAND, PRIYA, scalar
+
+pytestmark = pytest.mark.demo_template
+
+ANITA, SEKHAR = {"X-User": "u_anita"}, {"X-User": "u_sekhar"}
+
+PLAN_ITEMS = {
+    "BC-HRPOS-1": {3: ["BT", "MG", "DX"], 6: ["BT", "MG", "DX", "US"], 9: ["BT", "MG", "DX"],
+                   12: ["BT", "MG", "DX", "US", "PET"]},
+    "BC-HRNEG-1": {3: ["BT", "MG"], 6: ["BT", "MG", "US"], 9: ["BT", "MG"], 12: ["BT", "MG", "US", "PET"]},
+    "BC-HER2-1": {3: ["BT", "MG"], 6: ["BT", "MG", "EC", "US"], 9: ["BT", "MG"], 12: ["BT", "MG", "EC", "US", "PET"]},
+}
+
+
+def test_three_plans_tests_per_visit():
+    from app.reference import plan_templates
+
+    plans = plan_templates()
+    assert [t["template_id"] for t in plans] == list(PLAN_ITEMS)
+    assert [t["short_name"] for t in plans] == ["T1 — Hormone receptor positive", "T2 — Hormone receptor negative",
+                                                "T3 — HER2 positive"]
+    for t in plans:
+        for month, tests in PLAN_ITEMS[t["template_id"]].items():
+            items = [i for i in t["items"] if i["months"] == month]
+            assert [i["item_code"] for i in items] == [f"{k}{month}" for k in tests] + [f"V{month}"]
+            assert items[-1]["type"] == "visit" and items[-1]["days"] == 0
+            for i in items[:-1]:
+                assert (i["type"], i["days"]) == ("test", -7)
+                assert i["specimen"] is (i["item_code"].startswith("BT"))  # only the blood test is specimen-based
+
+
+def test_due_dates_from_treatment_end():
+    """Visits at 3, 6, 9 and 12 months; tests 7 days before; weekends move to Monday."""
+    from app.plan import generate_cards
+    from app.reference import plan_templates
+
+    cards = {c["item_code"]: c for c in generate_cards(plan_templates()[2], date(2026, 8, 16))}
+    assert {k: cards[k]["due_date"] for k in ("V3", "BT3", "MG3", "V6", "EC6", "V9", "V12", "PET12")} == {
+        "V3": "2026-11-16", "BT3": "2026-11-09", "MG3": "2026-11-09", "V6": "2027-02-16", "EC6": "2027-02-09",
+        "V9": "2027-05-17", "V12": "2027-08-16", "PET12": "2027-08-09"}
+    assert (cards["BT3"]["specimen"], cards["MG3"]["specimen"], cards["V3"]["specimen"]) == (True, False, None)
+    assert (cards["BT3"]["test_code"], cards["EC6"]["test_code"]) == ("CBC", "ECHO-2D")
+
+
+@pytest.mark.parametrize("scenario, owner", [("step_a", "Priya Nair"), ("uc1", "Anita"), ("uc2a", "Anita"),
+                                             ("uc2b", "Anita"), ("uc2c", "Anita"), ("uc2t", "Anita")])
+def test_every_data_set_offers_the_three_plans_and_seeds_none(monkeypatch, client, scenario, owner):
+    from conftest import DSN
+
+    if not DSN:
+        pytest.skip("TEST_DATABASE_URL not set")
+    monkeypatch.setenv("DATABASE_URL", DSN)
+    from app import db, seed
+
+    with db.connect() as c:
+        result = seed.reset(c, scenario=scenario)
+    assert (result["care_plans"], result["order_cards"]) == (0, 0)
+    who = PRIYA if scenario == "step_a" else ANITA
+    bodies = [t["body"] for t in client.get("/care-plan", headers=who).json()["plan_templates"]]
+    assert [b["template_id"] for b in bodies] == list(PLAN_ITEMS)
+    assert {b["departments"]["Oncology OPD"]["owner"] for b in bodies} == {owner}
+
+
+@pytest.fixture()
+def her2(seeded, client):
+    """Golden Path, SYN-0007 on T3 (HER2 positive): treatment ended Sun 9 Aug 2026, so the 3-month tests are due
+    Mon 2 Nov (today) and the visit Mon 9 Nov."""
+    r = client.post("/patients/SYN-0007/plan/confirm", headers=PRIYA, json={
+        "template_id": "BC-HER2-1", "therapy": "Surgery, chemotherapy and trastuzumab",
+        "treatment_end_date": "2026-08-09", "identifiers_checked": ["name", "mrn"]})
+    assert r.status_code == 201, r.text
+    return {c["item_code"]: c for c in r.json()["cards"]}
+
+
+def card(client, code):
+    return next(c for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json() if c["item_code"] == code)
+
+
+def appointment(client, code, day, attended=False):
+    r = client.post("/test-cycle/appointment-list", headers=PRIYA,
+                    json={"rows": [{"mrn": "SYN-0007", "test_code": code, "date": day, "attended": attended}]})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_plan_confirmed_with_17_cards(her2):
+    assert len(her2) == 17
+    assert (her2["V3"]["due_date"], her2["BT3"]["due_date"]) == ("2026-11-09", "2026-11-02")
+
+
+def test_specimen_test_due_scheduled_completed_report_received_verified_by_doctor(her2, client):
+    bt3 = her2["BT3"]["card_id"]
+    assert appointment(client, "CBC", "2026-11-04")["moved"] == [{"card_id": bt3, "mrn": "SYN-0007", "to": "Scheduled"}]
+    assert appointment(client, "CBC", "2026-11-04", attended=True)["moved"][0]["to"] == "Completed"
+    # The doctor cannot verify before the report; the coordinator never can.
+    assert client.post(f"/cards/{bt3}/verify", headers=ANAND).status_code == 409
+    r = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "CBC"})
+    assert r.status_code == 201, r.text
+    assert card(client, "BT3")["state"] == "Report received"  # linked and checked; not verified by the system
+    refused = client.post(f"/cards/{bt3}/transition", headers=PRIYA,
+                          json={"to_state": "Report verified", "matched_identifiers": 2})
+    assert refused.status_code == 409 and "Only the doctor" in refused.json()["detail"]
+    assert client.post(f"/cards/{bt3}/verify", headers=PRIYA).status_code == 403
+    assert [v["item_code"] for v in client.get("/doctor/verifications", headers=ANAND).json()] == ["BT3"]
+    r = client.post(f"/cards/{bt3}/verify", headers=ANAND)
+    assert r.status_code == 200, r.text
+    assert (r.json()["state"], r.json()["verified_by"]) == ("Report verified", "u_anand")
+    assert client.get("/doctor/verifications", headers=ANAND).json() == []
+    assert scalar("""SELECT details->>'role' FROM audit_ledger WHERE action = 'card_state_changed'
+                     AND details->>'to' = 'Report verified'""") == "oncologist"
+
+
+def test_non_specimen_test_due_scheduled_completed_verified_by_doctor(her2, client):
+    mg3 = her2["MG3"]["card_id"]
+    appointment(client, "MAMMO", "2026-11-03")
+    assert appointment(client, "MAMMO", "2026-11-03", attended=True)["moved"][0]["to"] == "Completed"
+    # Imaging has no lab report: Report received is never a step on this road.
+    r = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "MAMMO"})
+    assert r.status_code == 422 and "not specimen-based" in r.json()["detail"]
+    assert client.post(f"/cards/{mg3}/transition", headers=PRIYA,
+                       json={"to_state": "Verified"}).status_code == 409
+    assert [v["item_code"] for v in client.get("/doctor/verifications", headers=ANAND).json()] == ["MG3"]
+    r = client.post(f"/cards/{mg3}/verify", headers=ANAND)
+    assert r.status_code == 200, r.text
+    assert (r.json()["state"], r.json()["verified_by"]) == ("Verified", "u_anand")
+    assert client.post(f"/cards/{mg3}/verify", headers=ANAND).status_code == 409  # once
+
+
+def test_same_test_code_picks_the_earliest_open_card(her2, client):
+    """The blood test is in the plan four times (months 3, 6, 9, 12): rows go to the 3-month card first."""
+    appointment(client, "CBC", "2026-11-04")
+    assert (card(client, "BT3")["state"], card(client, "BT6")["state"]) == ("Scheduled", "Due")
+
+
+def test_booking_a_test_from_a_task_schedules_it(her2, client):
+    """Record booking on a test card: Due -> Scheduled with the date (no Ordered step)."""
+    from app import db, help_tasks
+
+    with db.connect() as c:
+        help_tasks._book_card(c, her2["US6"]["card_id"], date(2027, 2, 3), None, "u_priya")
+    assert card(client, "US6")["state"] == "Scheduled"

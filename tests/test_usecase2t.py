@@ -150,13 +150,8 @@ def test_t1_full_hospital_cycle(uc2t, client):
     rep = ok(lab(client, "TP001"), 201)
     assert rep["status"] == "verified"
     c = cbc(client, "TP001")
-    assert c["state"] == "Report verified" and c["report_road"] == "hospital" and c["report"]["file_name"]
-    with db() as conn:
-        moves = [(a["details"]["from"], a["details"]["to"]) for a in conn.execute(
-            "SELECT details FROM audit_ledger WHERE action = 'card_state_changed' AND entity_id = %s ORDER BY id",
-            (str(c["card_id"]),)).fetchall()]
-    assert moves == [("Due", "Scheduled"), ("Scheduled", "Completed"), ("Completed", "Report received"),
-                     ("Report received", "Report verified")]
+    # Linked and checked by MRN and test code: Report received. Only the doctor sets Report verified.
+    assert c["state"] == "Report received" and c["report_road"] == "hospital" and c["report"]["file_name"]
     item = review(client, "TP001")
     assert item["test_name"] == "Blood test (CBC)" and item["road"] == "hospital" and item["doctor"] == "Dr. Sekhar"
     assert not any(k in item for k in ("value", "result", "summary", "flag"))
@@ -170,6 +165,14 @@ def test_t1_full_hospital_cycle(uc2t, client):
     assert client.post(f"/reviews/{item['review_id']}/decision", headers=ANITA,
                        json={"decision": "continue"}).status_code == 403  # the coordinator has neither button
     ok(client.post(f"/reviews/{item['review_id']}/decision", headers=SEKHAR, json={"decision": "continue"}))
+    c = cbc(client, "TP001")
+    assert (c["state"], c["verified_by"]) == ("Report verified", "u_sekhar")  # the decision verifies the test
+    with db() as conn:
+        moves = [(a["details"]["from"], a["details"]["to"]) for a in conn.execute(
+            "SELECT details FROM audit_ledger WHERE action = 'card_state_changed' AND entity_id = %s ORDER BY id",
+            (str(c["card_id"]),)).fetchall()]
+    assert moves == [("Due", "Scheduled"), ("Scheduled", "Completed"), ("Completed", "Report received"),
+                     ("Report received", "Report verified")]
     msgs = [m for m in sent("TP001") if m["template_id"] == "report_continue_booked"]
     assert len(msgs) == 1
     assert "Dr. Sekhar has reviewed your Blood test (CBC) report. No change to your plan is needed. Please continue " \
@@ -200,12 +203,14 @@ def test_t2_outside_lab_road(uc2t, client):
     assert client.post(f"/reports/{rid}/verify", headers=ANITA, json={"matched": ["name"]}).status_code == 422
     ok(client.post(f"/reports/{rid}/verify", headers=ANITA, json={"matched": ["name", "age"]}))
     c = cbc(client, "TP004")
-    assert c["state"] == "Report verified" and c["report_road"] == "outside" and c["patient_says_booked"] is False
+    # Done outside: Due -> Completed -> Report received; the doctor verifies.
+    assert c["state"] == "Report received" and c["report_road"] == "outside" and c["patient_says_booked"] is False
     item = review(client, "TP004")
     assert item["road"] == "outside"
     assert scalar("SELECT count(*) FROM audit_ledger WHERE actor_type = 'ai_suggestion'") == 1
     set_clock(client, "2026-11-25", "09:00")
     ok(client.post(f"/reviews/{item['review_id']}/decision", headers=SEKHAR, json={"decision": "continue"}))
+    assert cbc(client, "TP004")["state"] == "Report verified"
     assert [m["template_id"] for m in sent("TP004")][-1] == "report_continue_due"
     assert "next visit, due by Mon 14 Dec" in sent("TP004")[-1]["body"]
 
@@ -312,7 +317,7 @@ def test_t6_report_cannot_be_linked(uc2t, client):
     again = ok(lab(client, "TP006"), 201)
     assert again["report_id"] == first["report_id"] and again["duplicate"] is True
     assert scalar("SELECT count(*) FROM test_report WHERE mrn = 'TP006' AND status = 'verified'") == 1
-    assert cbc(client, "TP006")["state"] == "Report verified"
+    assert cbc(client, "TP006")["state"] == "Report received"
 
 
 def test_t7_no_next_visit_card(uc2t, client):
@@ -380,12 +385,13 @@ def test_audit_thread_positive_case(uc2t, client):
             ("agent_decision", "agent"), ("message_sent", "agent"), ("reply_received", "system"),
             ("task_created", "system"), ("task_result_recorded", "person"), ("card_state_changed", "system"),
             ("test_appointment_list_loaded", "person"), ("card_state_changed", "system"),
-            ("lab_report_received", "system"), ("report_linked", "system"), ("card_state_changed", "system"),
-            ("review_item_created", "system"), ("report_file_opened", "person"),
+            ("lab_report_received", "system"), ("card_state_changed", "system"), ("report_linked", "system"),
+            ("review_item_created", "system"), ("report_file_opened", "person"), ("card_state_changed", "person"),
             ("report_review_decided", "person"), ("message_sent", "agent")]
     it = iter(got)
     missing = [w for w in want if w not in it]
     assert not missing, (missing, got)
     labels = [e["label"] for e in ok(client.get("/patients/TP001/timeline", headers=SEKHAR))["events"]]
-    assert any("Lab report for Blood test (CBC) linked and verified" in l for l in labels)
+    assert any("Lab report for Blood test (CBC) linked and checked" in l for l in labels)
+    assert any("Blood test (CBC): Report verified by Dr. Sekhar" in l for l in labels)
     assert any("Doctor's decision on the Blood test (CBC) report: Continue as planned" in l for l in labels)

@@ -24,8 +24,10 @@ def config() -> dict:
     return _json("config.json")
 
 
-def plan_template() -> dict:
-    return _json("care_plan_template.json")
+def plan_templates(departments: dict | None = None) -> list[dict]:
+    """The three care plans (T1 hormone receptor positive, T2 hormone receptor negative, T3 HER2 positive), the
+    only plan templates in every demo data set. A data set may name its own department owners and covers."""
+    return [{**t, "departments": departments or t["departments"]} for t in _json("care_plan_templates.json")]
 
 
 STEP_A_USERS: list[dict] = _json("users.json")
@@ -103,5 +105,19 @@ ITEM_LABELS = {
     "T1": {"English": "blood tests", "Hindi": "खून की जाँच", "Kannada": "ರಕ್ತ ಪರೀಕ್ಷೆ"},
     "T2": {"English": "mammogram", "Hindi": "मैमोग्राम", "Kannada": "ಮ್ಯಾಮೊಗ್ರಾಮ್"},
     "T3": {"English": "bone density scan (DEXA)", "Hindi": "हड्डियों की जाँच (DEXA)", "Kannada": "ಮೂಳೆ ಸಾಂದ್ರತೆ ಪರೀಕ್ಷೆ (DEXA)"},
+    # The three care plans: item codes are a kind plus the month (V3, BT3, MG6, PET12); looked up by the kind.
+    "V": {"English": "clinic review with your doctor", "Hindi": "डॉक्टर से क्लिनिक जाँच", "Kannada": "ವೈದ್ಯರ ತಪಾಸಣೆ"},
+    "BT": {"English": "blood test", "Hindi": "खून की जाँच", "Kannada": "ರಕ್ತ ಪರೀಕ್ಷೆ"},
+    "MG": {"English": "mammogram", "Hindi": "मैमोग्राम", "Kannada": "ಮ್ಯಾಮೊಗ್ರಾಮ್"},
+    "DX": {"English": "bone density scan (DEXA)", "Hindi": "हड्डियों की जाँच (DEXA)", "Kannada": "ಮೂಳೆ ಸಾಂದ್ರತೆ ಪರೀಕ್ಷೆ (DEXA)"},
+    "US": {"English": "ultrasound of the abdomen", "Hindi": "पेट का अल्ट्रासाउंड", "Kannada": "ಹೊಟ್ಟೆಯ ಅಲ್ಟ್ರಾಸೌಂಡ್"},
+    "EC": {"English": "2D echo scan of the heart", "Hindi": "दिल की 2D इको जाँच", "Kannada": "ಹೃದಯದ 2D ಎಕೋ ಪರೀಕ್ಷೆ"},
+    "PET": {"English": "PET-CT scan", "Hindi": "पीईटी-सीटी स्कैन", "Kannada": "ಪಿಇಟಿ-ಸಿಟಿ ಸ್ಕ್ಯಾನ್"},
 }
+
+
+def item_label(item_code: str, language: str) -> str | None:
+    """How a plan item is named to the patient: by its code, else by its kind (BT3 -> BT)."""
+    labels = ITEM_LABELS.get(item_code) or ITEM_LABELS.get(item_code.rstrip("0123456789")) or {}
+    return labels.get(language)
 USERS_BY_NAME = {u["name"]: u for u in USERS}

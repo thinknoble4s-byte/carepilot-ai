@@ -4,7 +4,9 @@ import { api, post } from './api.js';
 import { fmt, Scope, ScreenHead, useUI } from './ui.jsx';
 
 const TABS = [['plan', 'Plan'], ['rules', 'Gap rules & deadlines'], ['agent', 'Agent autonomy'], ['msgs', 'Messages'], ['scope', 'What CarePilot is']];
-const LIFE = { visit: 'Due → booked → attended', test: 'Due → ordered → scheduled → completed → report received → verified' };
+const LIFE = { visit: 'Due → booked → attended', specimen: 'Due → scheduled → completed → report received → report verified (doctor)',
+  imaging: 'Due → scheduled → completed → verified (doctor)' };
+const life = (i) => (i.type === 'visit' ? LIFE.visit : i.specimen === false ? LIFE.imaging : LIFE.specimen);
 const GAP_RULES = [
   ['G0', 'Not booked by T-7', 'A visit or test has no booking 7 days before its due date → booking reminder with reply buttons (Booked / Please help me book / I can\'t come) to patient and caregiver. Still not booked at T-3 → task for the coordinator, 2 working days.', true],
   ['G1', 'Missed plan item', 'An item that was never booked is not attended by its due date + 2 days → item overdue; approved reminder sent in the patient\'s language.', true],
@@ -28,10 +30,11 @@ export default function CarePlan() {
   const ui = useUI();
   const [cfg, setCfg] = useState(null);
   const [tab, setTab] = useState('plan');
+  const [pick, setPick] = useState(0);
   const load = useCallback(() => { api('care-plan').then(setCfg).catch(() => {}); }, []);
   useEffect(() => load(), [load]);
   if (!cfg) return <div className="card"><div className="empty">Loading…</div></div>;
-  const tmpl = cfg.plan_templates[0];
+  const tmpl = cfg.plan_templates[pick] || cfg.plan_templates[0];
   const t = tmpl?.body;
   const auto = cfg.autonomy_policy[0];
   const dl = cfg.deadline_policy[0]?.body;
@@ -53,10 +56,18 @@ export default function CarePlan() {
   if (tab === 'plan') {
     body = (
       <>
+        {cfg.plan_templates.length > 1 && (
+          <div className="seg" style={{ marginBottom: 10 }}>
+            {cfg.plan_templates.map((x, n) => (
+              <button key={x.name} type="button" className={n === pick ? 'on' : ''} onClick={() => setPick(n)}>{x.body.short_name || x.body.template_id}</button>
+            ))}
+          </div>
+        )}
         <div className="card">
           <div className="kv"><b>Template</b><div>{t.name} ({t.template_id} v{t.version})</div></div>
           <div className="kv"><b>Status</b><div><span className="tag unverified">{t.signed_off_by}</span> · effective {fmt(t.effective_from)}</div></div>
-          <div className="kv"><b>Scope</b><div>Breast cancer survivorship only in this version. Due dates move from a weekend to the next Monday.</div></div>
+          <div className="kv"><b>Scope</b><div>Breast cancer survivorship only in this version. The coordinator chooses the plan for each patient. Due dates move from a weekend to the next Monday.</div></div>
+          {t.note && <div className="kv"><b>Tests</b><div>{t.note}</div></div>}
         </div>
         <div className="card">
           <div className="card-title">Follow-up plan (from the end of active treatment)</div>
@@ -65,7 +76,7 @@ export default function CarePlan() {
             <tbody>{t.items.map((i) => (
               <tr key={i.item_code}><td>{i.item_code} — {i.name}</td><td>{when(i)}</td>
                 <td>{t.departments[i.department].owner}<div className="small-note">cover: {t.departments[i.department].cover} · {i.department}</div></td>
-                <td>{LIFE[i.type]}</td></tr>
+                <td>{life(i)}{i.type === 'test' && <div className="small-note">{i.specimen === false ? 'Non-specimen' : 'Specimen-based'}</div>}</td></tr>
             ))}</tbody>
           </table></div>
         </div>
@@ -158,6 +169,7 @@ export default function CarePlan() {
         <div className="card"><div className="card-title">Doctor only</div>
           <div className="v4-table" style={{ lineHeight: 1.8 }}>
             <div>Urgent or routine, for every concern</div><div>The instruction in the hospital record</div>
+            <div>Setting a test to verified (report verified, or verified for imaging)</div>
             <div>Signing off plan templates and message wording (clinical lead)</div>
           </div></div>
       </>

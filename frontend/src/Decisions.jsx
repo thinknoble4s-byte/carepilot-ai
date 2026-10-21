@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { InstructionForm, PatientWords } from './Modals.jsx';
-import { ReportReviews } from './TestCycle.jsx';
+import { ReportReviews, TestVerifications } from './TestCycle.jsx';
 import { Dl, fmt, ScreenHead, useUI } from './ui.jsx';
 
 export default function Decisions() {
@@ -83,6 +83,8 @@ export default function Decisions() {
           ))}
         </div>
       )}
+
+      <TestVerifications />
 
       <ReportReviews />
 

@@ -31,6 +31,20 @@
     }
   ],
   "coordinator": "Anita",
+  "plan_departments": {
+    "Oncology OPD": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "Laboratory": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "Radiology": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    }
+  },
   "patients": [
     {
       "mrn": "TP001",
@@ -45,19 +59,7 @@
         ],
         "recorded_on": "2026-10-28"
       },
-      "plan": {
-        "due_dates": {
-          "CBC": "2026-11-23",
-          "RV": "2026-12-14"
-        },
-        "booked_items": {
-          "RV": {
-            "source": "coordinator",
-            "appointment_date": "2026-12-14",
-            "appointment_time": "10:30"
-          }
-        }
-      },
+      "plan": null,
       "note": "Taps Please help me book; hospital lab; Review visit already Booked Mon 14 Dec 10:30 (positive case P)"
     },
     {
@@ -73,12 +75,7 @@
         ],
         "recorded_on": "2026-10-28"
       },
-      "plan": {
-        "due_dates": {
-          "CBC": "2026-11-23",
-          "RV": "2026-12-14"
-        }
-      },
+      "plan": null,
       "note": "Taps Booked; outside lab; sends a photo of the report (negative case N)"
     },
     {
@@ -94,12 +91,7 @@
         ],
         "recorded_on": "2026-10-28"
       },
-      "plan": {
-        "due_dates": {
-          "CBC": "2026-11-23",
-          "RV": "2026-12-14"
-        }
-      },
+      "plan": null,
       "note": "Taps Booked (no date); hospital lab (T4)"
     },
     {
@@ -115,12 +107,7 @@
         ],
         "recorded_on": "2026-10-28"
       },
-      "plan": {
-        "due_dates": {
-          "CBC": "2026-11-23",
-          "RV": "2026-12-14"
-        }
-      },
+      "plan": null,
       "note": "Hospital road; the lab sends a report with the wrong test code and one with the wrong MRN (T6)"
     },
     {
@@ -136,50 +123,10 @@
         ],
         "recorded_on": "2026-10-28"
       },
-      "plan": {
-        "template_id": "UC2T-TEST",
-        "due_dates": {
-          "CBC": "2026-11-23"
-        }
-      },
+      "plan": null,
       "note": "Same as TP001 but no next visit card (T7)"
     }
   ],
-  "plan_template": {
-    "template_id": "UC2T-PLAN",
-    "version": "1.0",
-    "name": "Use Case 2T plan: one blood test and a review visit (due dates entered at confirmation)",
-    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
-    "effective_from": "2026-10-14",
-    "due_date_entered": true,
-    "identifiers_required": false,
-    "therapy_required": false,
-    "departments": {
-      "Laboratory": {
-        "owner": "Anita",
-        "cover": "Ravi"
-      },
-      "Review clinic": {
-        "owner": "Anita",
-        "cover": "Ravi"
-      }
-    },
-    "items": [
-      {
-        "item_code": "CBC",
-        "type": "test",
-        "name": "Blood test (CBC)",
-        "department": "Laboratory",
-        "test_code": "CBC"
-      },
-      {
-        "item_code": "RV",
-        "type": "visit",
-        "name": "Review visit",
-        "department": "Review clinic"
-      }
-    ]
-  },
   "deadline_policy": {
     "version": "1.4",
     "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
@@ -450,36 +397,5 @@
       "doctor_days": 1,
       "note": "Decisions D2 and 4 of the sprint spec are open (section 16)."
     }
-  },
-  "more_plan_templates": [
-    {
-      "template_id": "UC2T-TEST",
-      "version": "1.0",
-      "name": "Use Case 2T plan: one blood test only (no next visit card)",
-      "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
-      "effective_from": "2026-10-14",
-      "due_date_entered": true,
-      "identifiers_required": false,
-      "therapy_required": false,
-      "departments": {
-        "Laboratory": {
-          "owner": "Anita",
-          "cover": "Ravi"
-        },
-        "Review clinic": {
-          "owner": "Anita",
-          "cover": "Ravi"
-        }
-      },
-      "items": [
-        {
-          "item_code": "CBC",
-          "type": "test",
-          "name": "Blood test (CBC)",
-          "department": "Laboratory",
-          "test_code": "CBC"
-        }
-      ]
-    }
-  ]
+  }
 }

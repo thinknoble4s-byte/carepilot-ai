@@ -582,6 +582,18 @@ def reject_report(report_id: int, body: RejectReportIn, user: dict = Depends(req
     return in_tx(test_cycle.reject_outside, report_id, user["user_id"], body.reason)
 
 
+@app.get("/doctor/verifications")
+def doctor_verifications(_user: dict = Depends(require_role(*CLINICAL))):
+    """Tests waiting for the doctor's Verify: a specimen-based test with its report, a non-specimen test completed."""
+    return in_tx(test_cycle.to_verify)
+
+
+@app.post("/cards/{card_id}/verify")
+def verify_card(card_id: int, user: dict = Depends(require_role("oncologist"))):
+    """Only the doctor sets a test to Report verified (specimen-based) or Verified (non-specimen)."""
+    return in_tx(test_cycle.doctor_verify, card_id, user)
+
+
 @app.get("/doctor/reviews")
 def doctor_reviews(_user: dict = Depends(require_role(*CLINICAL))):
     return in_tx(lambda conn: {"open": test_cycle.doctor_items(conn), "recent": test_cycle.recent_decisions(conn)})

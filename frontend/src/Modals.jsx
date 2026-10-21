@@ -516,7 +516,7 @@ function Messages({ patient }) {
                 <VoiceRecorder patient={patient} onSend={sendRecording} />
               </>
             )}
-            {settings?.test_cycle && (
+            {(
               <>
                 <label className="v3-field" htmlFor="msgD">Send a photo or PDF of a test report (outside lab)</label>
                 <input id="msgD" type="file" accept="image/*,application/pdf" className="v3-in"
@@ -525,7 +525,7 @@ function Messages({ patient }) {
                   <button type="button" className="btn" disabled={!doc} onClick={() => sendDoc(doc)}>Send the file</button>
                   <button type="button" className="btn primary" onClick={() => sendDoc(null)}>Send the synthetic outside-lab report (PDF)</button>
                 </div>
-                <div className="small-note">A file from the patient never moves a card: it is held Unverified until a coordinator verifies it on the Patient page.</div>
+                <div className="small-note">A file from the patient never moves a card: it is held Unverified until a coordinator checks it on the Patient page; the doctor then verifies the test.</div>
               </>
             )}
           </>

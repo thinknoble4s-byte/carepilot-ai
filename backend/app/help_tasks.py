@@ -195,30 +195,12 @@ def record_result(conn, task_id: int, user_id: str, *, result: str, note: str | 
 def _book_card(conn, card_id: int, day: date, at: time | None, user_id: str) -> None:
     """REQ-09/10/12: a visit card becomes Booked (confirmed by coordinator) with the appointment date; a
     patient-reported booking is upgraded; a coordinator booking is never overwritten by a patient tap.
-    A test card (Golden Path) becomes Scheduled with the appointment date."""
+    A test card has no "Booked" state: it becomes Scheduled with the appointment date (Due -> Scheduled)."""
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s FOR UPDATE", (card_id,)).fetchone()
-    if card["card_type"] == "test" and policy.settings(conn).get("test_cycle"):
+    if card["card_type"] == "test":
         from . import test_cycle
 
-        return test_cycle.schedule_by_coordinator(conn, card, day, at, user_id)  # Use Case 2T: Due -> Scheduled
-    if card["card_type"] == "test":
-        # A test has no "Booked" state: a booking with a date is Ordered -> Scheduled (Golden Path test cards).
-        if card["state"] == "Due":
-            states.transition_card(conn, card_id, "Ordered", "system", SYSTEM, source="coordinator", recorded_by=user_id)
-            card = {**card, "state": "Ordered"}
-        if card["state"] == "Ordered":
-            states.transition_card(conn, card_id, "Scheduled", "system", SYSTEM, source="coordinator",
-                                   appointment_date=day.isoformat(), recorded_by=user_id)
-        elif card["state"] == "Scheduled":
-            conn.execute("UPDATE order_card SET appointment_date = %s WHERE card_id = %s", (day, card_id))
-            audit.append(conn, actor_type="system", actor_name=SYSTEM, action="card_booking_confirmed",
-                         entity_type="order_card", entity_id=str(card_id), mrn=card["mrn"],
-                         details={"appointment_date": day.isoformat(), "recorded_by": user_id})
-        else:
-            raise Conflict(f"The test is already {card['state']}")
-        conn.execute("UPDATE order_card SET booking_source = 'coordinator', appointment_time = %s WHERE card_id = %s",
-                     (at, card_id))
-        return
+        return test_cycle.schedule_by_coordinator(conn, card, day, at, user_id)
     if card["state"] == "Due":
         states.transition_card(conn, card_id, "Booked", "system", SYSTEM, source="coordinator",
                                appointment_date=day.isoformat(), recorded_by=user_id)

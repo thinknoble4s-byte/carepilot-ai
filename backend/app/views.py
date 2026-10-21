@@ -89,7 +89,8 @@ def patient_cards(conn, mrn: str) -> list[dict]:
         """
         SELECT c.card_id, c.item_code, c.card_type, c.name, c.department, c.due_date, c.state, c.appointment_date,
                c.appointment_time, c.booking_source, c.owner_name, c.cover_name, c.origin, c.care_plan_id,
-               c.test_code, c.patient_says_booked, c.completed_on, c.report_road,
+               c.test_code, c.patient_says_booked, c.completed_on, c.report_road, c.specimen, c.verified_by,
+               c.verified_at_demo,
                (SELECT row_to_json(r) FROM (SELECT report_id, file_name, received_at_demo, status FROM test_report
                   WHERE card_id = c.card_id AND status = 'verified' ORDER BY report_id DESC LIMIT 1) r) AS report,
                g.rule AS gap_rule, g.status AS gap_status, g.blocked_reason AS gap_reason, g.detected_on AS gap_detected_on,

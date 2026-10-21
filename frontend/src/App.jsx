@@ -78,43 +78,45 @@ function readUser() {
 function ResetChoice({ onReset }) {
   return (
     <div className="grid-2">
+      <div className="card-flat" style={{ gridColumn: '1 / -1' }}>
+        <div className="small-note" style={{ lineHeight: 1.7 }}><b>No plan is seeded in any data set.</b> On each Patient page the
+          coordinator chooses one of the three care plans: <b>T1</b> hormone receptor positive, <b>T2</b> hormone receptor negative or
+          <b> T3</b> HER2 positive, with the treatment end date. Visits fall at months 3, 6, 9 and 12, and each visit's tests are due
+          7 days before it. The blood test goes Due → Scheduled → Completed → Report received → Report verified; imaging goes
+          Due → Scheduled → Completed → Verified; only the doctor sets the verified status.</div>
+      </div>
       <div className="card-flat">
         <div className="card-title">Use Case 1 data (default)</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>TP001–TP003 at Sanjeevini Clinic; Anita (owner) and Ravi (cover); one
-          "Review visit" with the due date entered. G0 only, plan visit cards only, one message to the patient, replies saved
-          without action, no tasks.</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>TP001–TP003 at Sanjeevini Clinic; Anita (owner) and Ravi (cover).
+          G0 only, plan visit cards only, one message to the patient, replies saved without action, no tasks.</div>
         <div className="btn-row"><button type="button" className="btn primary" onClick={() => onReset('uc1')}>Reset to Use Case 1</button></div>
       </div>
       <div className="card-flat">
         <div className="card-title">After Use Case 1 (Use Case 2a)</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001) and Kavita (TP004), English, "Review visit" due 16 Nov;
-          the reminder already went out at 07:30 on Mon 9 Nov and the clock is at 10:15. Replies on: taps update cards, voice notes
-          and text go through the AI health flag (Sarvam). Send block, hold while a proposal waits, tasks for people.</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001) and Kavita (TP004), English; clock Mon 9 Nov 10:15.
+          Replies on: taps update cards, voice notes and text go through the AI health flag (Sarvam). Send block, hold while a
+          proposal waits, tasks for people.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2a')}>Reset to after Use Case 1</button></div>
       </div>
       <div className="card-flat">
         <div className="card-title">Use Case 2b — button replies and HELP</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>After Use Case 1: Meena (TP001), Kavita (TP004), Lakshmi (TP005), Farida
-          (TP006) and Rekha (TP007), reminder sent at 07:30 on Mon 9 Nov, clock 10:15. "Please help me book", "I can't come" and
-          a typed HELP each create a task for Anita (cover Ravi) with no AI and nothing sent to the patient; routine reminders
-          are held while the task is open.</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001), Kavita (TP004), Lakshmi (TP005), Farida (TP006) and
+          Rekha (TP007); clock Mon 9 Nov 10:15. "Please help me book", "I can't come" and a typed HELP each create a task for
+          Anita (cover Ravi) with no AI and nothing sent to the patient; routine reminders are held while the task is open.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2b')}>Reset to Use Case 2b</button></div>
       </div>
       <div className="card-flat">
         <div className="card-title">Use Case 2c — urgent: call the patient today</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>After Use Case 2a step 6: Meena (TP001), Kavita (TP004), Lakshmi
-          (TP005), Rekha (TP007) and Farida (TP006) each sent voice note HI-01 (arm pain); the agent stopped and Anita sent the
-          handover to Dr. Sekhar. Clock Tue 10 Nov 09:30. Urgent creates a call-today task for Anita by 16:00, then Ravi by 18:00,
-          then Overdue; set the demo time to see the cover step in.</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001), Kavita (TP004), Lakshmi (TP005), Rekha (TP007) and
+          Farida (TP006); clock Tue 10 Nov 09:30. When the doctor picks Urgent on a handover, a call-today task goes to Anita by
+          16:00, then Ravi by 18:00, then Overdue.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2c')}>Reset to Use Case 2c</button></div>
       </div>
       <div className="card-flat">
         <div className="card-title">Use Case 2T — test cycle</div>
         <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001), Kavita (TP004), Lakshmi (TP005), Farida (TP006) and
-          Rekha (TP007): "Blood test (CBC)" due Mon 23 Nov (Rekha has no review visit; Meena's is booked for Mon 14 Dec 10:30).
-          Clock D0, Mon 2 Nov. Set the date to 16 Nov and run the 07:00 check and 07:30 reminders, then follow the test to the
-          doctor's "Report ready for review" using the SIMULATED appointment list and lab on the Patient page, or the
-          outside-lab file in the simulator.</div>
+          Rekha (TP007); clock D0, Mon 2 Nov. Test reminders, the SIMULATED appointment list and lab on the Patient page, the
+          outside-lab file in the simulator, and the doctor's "Report ready for review" (the decision verifies the test).</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2t')}>Reset to Use Case 2T</button></div>
       </div>
       <div className="card-flat">

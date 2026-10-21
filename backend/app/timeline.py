@@ -156,7 +156,8 @@ def build(conn, mrn: str) -> dict:
         what = r["card_name"] or r["test_code"] or "report"
         src = f"Report #{r['report_id']}" + (f" ({r['file_name']})" if r["file_name"] else "")
         if r["road"] == "hospital":
-            label = {"verified": f"Lab report for {what} linked and verified (MRN and test code match)",
+            label = {"verified": f"Lab report for {what} linked and checked (MRN and test code match) — "
+                                 "report received",
                      "mismatch": f"Lab report for {what} not linked: mismatch — coordinator to check",
                      "exception": f"Lab report ({r['test_code']}) matched no test card — exceptions list"}[r["status"]]
             events.append(_ev(r["received_at_demo"].date(), f"{label} · {hh(r['received_at_demo'])}", "routine",
@@ -166,12 +167,18 @@ def build(conn, mrn: str) -> dict:
                               f"Unverified · {hh(r['received_at_demo'])}", "routine", "patient", src,
                               r["channel"] or "Outside document"))
             if r["status"] == "verified":
-                events.append(_ev(r["verified_at_demo"].date(), f"Outside report verified by {_who(r['verified_by'])} "
+                events.append(_ev(r["verified_at_demo"].date(), f"Outside report checked by {_who(r['verified_by'])} "
                                   f"({', '.join(r['matched'] or [])} match) — {what}", "routine", "hosp", src,
                                   "Coordinator verification"))
             elif r["status"] == "rejected":
                 events.append(_ev(r["received_at_demo"].date(), f"Outside report rejected by {_who(r['rejected_by'])}: "
                                   f"{r['reject_reason']}", "routine", "hosp", src, "Coordinator verification"))
+    # The three care plans: only the doctor sets a test to Report verified / Verified.
+    for c in conn.execute("""SELECT name, state, verified_by, verified_at_demo, card_id FROM order_card
+                             WHERE mrn = %s AND verified_at_demo IS NOT NULL ORDER BY verified_at_demo""",
+                          (mrn,)).fetchall():
+        events.append(_ev(c["verified_at_demo"].date(), f"{c['name']}: {c['state']} by {_who(c['verified_by'])} at "
+                          f"{hh(c['verified_at_demo'])}", "routine", "hosp", f"Order card #{c['card_id']}", "Doctor"))
     for v in conn.execute("""SELECT v.*, c.name AS card_name FROM report_review v JOIN order_card c USING (card_id)
                              WHERE v.mrn = %s ORDER BY v.review_id""", (mrn,)).fetchall():
         src = f"Report review #{v['review_id']}"

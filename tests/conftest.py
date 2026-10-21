@@ -18,14 +18,19 @@ DSN = os.environ.get("TEST_DATABASE_URL")
 # Tests never call the real Sarvam API: a deterministic fake stands in (see app/ai.py).
 os.environ["AI_PROVIDER"] = "fake"
 
-# The Golden Path care plan template is demo content that people edit (backend/app/seed_data/
-# care_plan_template.json). Engine tests use a fixed copy of the v1.0 schedule (6/12 months, the Step A
-# answer key) so editing the demo template does not break them. Tests marked `demo_template` use the real file.
-FIXED_TEMPLATE = Path(__file__).resolve().parent / "fixtures" / "care_plan_template_v1_0.json"
+# The demo data sets seed no plan and offer the three care plans (backend/app/seed_data/care_plan_templates.json),
+# which people edit. Engine tests use fixed copies so editing the demo plans does not break them: the Golden Path
+# v1.0 schedule (6/12 months, the Step A answer key) with the plan inputs of tests/fixtures/plan_inputs.csv, and
+# each use case's documented plan with the plans its start state was scripted from (tests/fixtures/
+# usecase_plans.json). Tests marked `demo_template` use the real data sets.
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+FIXED_TEMPLATE = FIXTURES / "care_plan_template_v1_0.json"
+USECASE_PLANS = FIXTURES / "usecase_plans.json"
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "demo_template: use the editable demo care plan template, not the fixed copy")
+    config.addinivalue_line("markers", "demo_template: use the real demo data sets (the three care plans, no seeded "
+                                       "plans), not the fixed copies")
 
 
 @pytest.fixture(autouse=True)
@@ -37,8 +42,21 @@ def fixed_plan_template(request, monkeypatch):
     from app import reference, seed
 
     template = json.loads(FIXED_TEMPLATE.read_text(encoding="utf-8"))
-    monkeypatch.setattr(reference, "plan_template", lambda: template)
-    monkeypatch.setattr(seed, "plan_template", lambda: template)
+    monkeypatch.setattr(reference, "plan_templates", lambda departments=None: [template])
+    monkeypatch.setattr(seed, "plan_templates", lambda departments=None: [template])
+    fixed = json.loads(USECASE_PLANS.read_text(encoding="utf-8"))
+    for name, plans in fixed.items():
+        real = getattr(reference, name)
+
+        def with_plans(real=real, plans=plans):
+            uc = json.loads(json.dumps(real()))
+            uc.update({k: v for k, v in plans.items() if k != "plans"})
+            for pt in uc["patients"]:
+                pt["plan"] = plans["plans"][pt["mrn"]]
+            return uc
+
+        monkeypatch.setattr(reference, name, with_plans)
+        monkeypatch.setattr(seed, name, with_plans)
 
 
 def users_header(user_id: str) -> dict:
@@ -149,9 +167,8 @@ def scalar(sql: str, *params):
 
 
 def plan_inputs() -> dict[str, dict]:
-    from app.reference import read_seed
-
-    return {r["mrn"]: r for r in csv.DictReader(io.StringIO(read_seed("plan_inputs.csv")))}
+    """Golden Path plan inputs for the fixed v1.0 template (Step A answer key)."""
+    return {r["mrn"]: r for r in csv.DictReader(io.StringIO((FIXTURES / "plan_inputs.csv").read_text(encoding="utf-8")))}
 
 
 def plan_body(mrn: str, **overrides) -> dict:

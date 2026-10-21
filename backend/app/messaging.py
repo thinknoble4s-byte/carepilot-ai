@@ -11,7 +11,7 @@ from psycopg.types.json import Jsonb
 
 from . import audit, clock, policy
 from .errors import Conflict, NotFound
-from .reference import ITEM_LABELS
+from .reference import item_label
 
 AUTOMATED = ("agent", "system")
 ALWAYS_ALLOWED_AUTOMATED = ("handover_ack",)  # the fixed acknowledgement after a health mention or HELP
@@ -78,7 +78,7 @@ def render(tmpl: dict, patient: dict, card: dict | None, extra: dict | None = No
     lang = tmpl["language"]
     item = ""
     if card:
-        item = ITEM_LABELS.get(card["item_code"], {}).get(lang) or card["name"].lower()
+        item = item_label(card["item_code"], lang) or card["name"].lower()
     due = card["due_date"].strftime(tmpl.get("date_format") or "%d/%m/%Y") if card else ""
     text = tmpl["text"].format(**{"patient_name": patient["full_name"], "first_name": patient["full_name"].split()[0],
                                   "item": item, "item_name": card["name"] if card else "", "due": due,

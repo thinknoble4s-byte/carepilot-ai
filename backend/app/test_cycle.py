@@ -4,14 +4,16 @@ Plain rules except one AI step (the identifier read on an outside report). CareP
 result: it stores the file, checks who it belongs to and shows it to the doctor, who decides.
 
 Hospital road: appointment list row -> Scheduled / Completed; the simulated lab sends a report with an MRN and a
-test code -> linked (Report received) and checked by two identifiers (Report verified) in the same run, or a
-"Report mismatch" task, or an exception when no card matches.
+test code -> linked and checked by two identifiers (Report received), or a "Report mismatch" task, or an exception
+when no card matches. Only the doctor then sets Report verified (or Verified for a non-specimen test, which has no
+lab report).
 Outside road: a photo or PDF from the patient is held Unverified; identifiers are read (never results); a
 coordinator verifies (two matching identifiers) or rejects with a reason.
-A verified report becomes "Report ready for review" for the doctor: Continue as planned (one approved message
-naming the next visit) or Needs discussion (instruction -> Doctor-requested visit card + booking message).
-After 1 working day without a decision the item moves to the doctor's cover. Active in data sets whose settings
-carry "test_cycle" (Use Case 2T)."""
+In data sets whose settings carry "test_cycle" (Use Case 2T) a checked report also becomes "Report ready for
+review" for the doctor: Continue as planned (one approved message naming the next visit) or Needs discussion
+(instruction -> Doctor-requested visit card + booking message); the decision verifies the card. After 1 working day
+without a decision the item moves to the doctor's cover. The appointment list rows, the simulated lab, outside
+reports and the doctor's Verify work in every data set."""
 import re
 from datetime import date, datetime, time
 
@@ -79,9 +81,13 @@ def _store(conn, data: bytes, mime: str) -> int:
                         (mime, data)).fetchone()["audio_id"]
 
 
-def _card(conn, mrn: str, test_code: str) -> dict | None:
-    return conn.execute("SELECT * FROM order_card WHERE mrn = %s AND card_type = 'test' AND test_code = %s "
-                        "ORDER BY card_id DESC LIMIT 1", (mrn, test_code)).fetchone()
+def _card(conn, mrn: str, test_code: str, prefer: tuple = ("Due", "Scheduled")) -> dict | None:
+    """The patient's card for a test code. A plan can hold the same test several times (a blood test at months 3,
+    6, 9 and 12): the earliest card in a preferred state wins, then the earliest one not yet verified."""
+    return conn.execute(
+        """SELECT * FROM order_card WHERE mrn = %s AND card_type = 'test' AND test_code = %s
+           ORDER BY state = ANY(%s) DESC, state IN ('Report verified', 'Verified'), due_date, card_id LIMIT 1""",
+        (mrn, test_code, list(prefer))).fetchone()
 
 
 def _batch(conn, source_type: str, user_id: str, file_name: str, rows: int) -> int:
@@ -171,7 +177,8 @@ def load_appointment_rows(conn, user_id: str, rows: list[dict], file_name: str |
                                    attended_on=day.isoformat(), walk_in=card["state"] == "Due", batch_id=batch)
             conn.execute("UPDATE order_card SET completed_on = %s WHERE card_id = %s", (day, card["card_id"]))
             moved.append({"card_id": card["card_id"], "mrn": card["mrn"], "to": "Completed"})
-            set_next_action(conn, card["mrn"], f"{card['name']} done on {day:%d %b}; waiting for the lab report")
+            set_next_action(conn, card["mrn"], f"{card['name']} done on {day:%d %b}; " + (
+                "waiting for the lab report" if card["specimen"] is not False else "waiting for the doctor to verify"))
         elif not attended and day >= today and card["state"] == "Due":
             states.transition_card(conn, card["card_id"], "Scheduled", "system", SYSTEM, source="appointment_list",
                                    appointment_date=day.isoformat(), batch_id=batch)
@@ -192,8 +199,9 @@ def load_appointment_rows(conn, user_id: str, rows: list[dict], file_name: str |
 def lab_report(conn, *, mrn: str, test_code: str, report_mrn: str | None = None, with_file: bool = True,
                report_ref: str | None = None, pressed_by: str | None = None) -> dict:
     """The simulated lab sends a report for a patient (MRN) and a test code, with a file. Linked and checked in the
-    same run: card Completed + report MRN and test code match -> Report received -> Report verified, and the
-    doctor's review item. Otherwise the card does not move: a Report mismatch task, or an exception (no card)."""
+    same run: card Completed + report MRN and test code match -> Report received (the doctor verifies it), and in
+    Use Case 2T the doctor's review item. Otherwise the card does not move: a Report mismatch task, or an exception
+    (no card). A non-specimen test (imaging) has no lab report."""
     if not with_file:
         raise Invalid("No file, no move: the lab report has no file attached")
     mrn, test_code = (mrn or "").strip(), (test_code or "").strip()
@@ -209,7 +217,10 @@ def lab_report(conn, *, mrn: str, test_code: str, report_mrn: str | None = None,
         return {**seen, "duplicate": True}
     patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
     now, today = clock.get_now(conn), clock.get_today(conn)
-    card = _card(conn, mrn, test_code) if patient else None
+    card = _card(conn, mrn, test_code, ("Completed",)) if patient else None
+    if card is not None and card["specimen"] is False:
+        raise Invalid(f"{card['name']} is not specimen-based: there is no lab report; the doctor verifies it once "
+                      "it is Completed")
     if card is None:  # no card for this MRN and test code: the exceptions list, nothing attached
         batch = _batch(conn, "lab_reports", pressed_by, ref, 1)  # demo control: recorded under who pressed it
         _exception(conn, batch, "lab_reports", 2, f"{mrn},{test_code},{report_mrn}", "report_no_matching_card")
@@ -256,10 +267,8 @@ def lab_report(conn, *, mrn: str, test_code: str, report_mrn: str | None = None,
     audit.append(conn, actor_type="system", actor_name=SYSTEM, action="report_linked", entity_type="test_report",
                  entity_id=str(report["report_id"]), mrn=mrn, reason_code="report_linked",
                  details={"card_id": card["card_id"], "file": file_name})
-    states.transition_card(conn, card["card_id"], "Report verified", "system", SYSTEM, matched_identifiers=2,
-                           identifiers="mrn, test_code", ai_used=False)
     conn.execute("UPDATE order_card SET report_road = 'hospital' WHERE card_id = %s", (card["card_id"],))
-    _create_review(conn, card, report, "hospital")
+    _report_ready(conn, card, report, "hospital")
     return report
 
 
@@ -323,8 +332,8 @@ def receive_outside(conn, mrn: str, *, data: bytes, mime: str, file_name: str, c
                  details={"identifiers": ids, "error": failed or None, "result_values_read": False})
     # Rules propose the patient (sender's phone and MRN) and the open test card; mismatches are facts.
     card = conn.execute(
-        """SELECT * FROM order_card WHERE mrn = %s AND card_type = 'test' AND state IN ('Due', 'Scheduled')
-           ORDER BY due_date LIMIT 1""", (mrn,)).fetchone()
+        """SELECT * FROM order_card WHERE mrn = %s AND card_type = 'test' AND state IN ('Due', 'Scheduled', 'Completed')
+           ORDER BY state = 'Completed' DESC, due_date LIMIT 1""", (mrn,)).fetchone()
     conn.execute("UPDATE test_report SET proposed_card_id = %s WHERE report_id = %s",
                  (card["card_id"] if card else None, report["report_id"]))
     facts = facts_for(patient, ids)
@@ -362,9 +371,9 @@ def _load_report(conn, report_id: int) -> dict:
 
 
 def verify_outside(conn, report_id: int, user_id: str, matched: list[str] | None, card_id: int | None = None) -> dict:
-    """REQ-13: a person verifies: a file attached and at least two matching identifiers. The card moves to Report
-    received and Report verified in the same save (both audited) and shows "Outside report (verified by
-    coordinator)". Then the doctor's review item."""
+    """REQ-13: a person checks the document: a file attached and at least two matching identifiers. The test was
+    done outside, so the card moves to Completed and, for a specimen-based test, Report received (each audited) and
+    shows "Outside report (checked by coordinator)". The verified status stays with the doctor."""
     r = _load_report(conn, report_id)
     if r["road"] != "outside" or r["status"] != "unverified":
         raise Conflict(f"Report {report_id} is not an unverified outside report ({r['status']})")
@@ -377,23 +386,26 @@ def verify_outside(conn, report_id: int, user_id: str, matched: list[str] | None
                         (card_id or r["proposed_card_id"], r["mrn"])).fetchone()
     if card is None:
         raise Invalid("Choose the patient's open test card this report answers")
-    if card["state"] not in ("Due", "Scheduled"):
+    if card["state"] not in ("Due", "Scheduled", "Completed"):
         raise Conflict(f"The test card is already {card['state']}")
     now = clock.get_now(conn)
     audit.append(conn, actor_type="person", actor_name=user_id, action="outside_report_verified", entity_type="test_report",
                  entity_id=str(report_id), mrn=r["mrn"], reason_code="outside_report_verified",
                  details={"matched": ticked, "card_id": card["card_id"], "file": r["file_name"]})
-    states.transition_card(conn, card["card_id"], "Report received", "person", user_id, source="outside_report_verified",
-                           file_ref=r["file_name"], report_id=report_id)
-    states.transition_card(conn, card["card_id"], "Report verified", "person", user_id, matched_identifiers=len(ticked),
-                           identifiers=", ".join(ticked))
+    if card["state"] != "Completed":
+        states.transition_card(conn, card["card_id"], "Completed", "person", user_id, source="outside_report_verified",
+                               report_id=report_id)
+        conn.execute("UPDATE order_card SET completed_on = %s WHERE card_id = %s", (now.date(), card["card_id"]))
+    if card["specimen"] is not False:
+        states.transition_card(conn, card["card_id"], "Report received", "person", user_id,
+                               source="outside_report_verified", file_ref=r["file_name"], report_id=report_id)
     conn.execute("UPDATE order_card SET report_road = 'outside', patient_says_booked = false WHERE card_id = %s",
                  (card["card_id"],))
     r = conn.execute("""UPDATE test_report SET status = 'verified', card_id = %s, matched = %s, verified_by = %s,
                         verified_at_demo = %s WHERE report_id = %s RETURNING *""",
                      (card["card_id"], ticked, user_id, now, report_id)).fetchone()
     _close_tasks(conn, report_id, user_id, "Verified")
-    _create_review(conn, card, r, "outside")
+    _report_ready(conn, card, r, "outside")
     return r
 
 
@@ -441,6 +453,14 @@ def open_file(conn, report_id: int, user: dict) -> dict:
 # ---------------------------------------------------------------------------------------------------------------
 # The doctor's review (REQ-14 to REQ-18)
 # ---------------------------------------------------------------------------------------------------------------
+def _report_ready(conn, card: dict, report: dict, road: str) -> None:
+    """A checked report: in Use Case 2T the doctor's review item; elsewhere the card waits for the doctor's Verify."""
+    if config(conn):
+        _create_review(conn, card, report, road)
+    else:
+        set_next_action(conn, card["mrn"], f"{card['name']}: report received; waiting for the doctor to verify")
+
+
 def _create_review(conn, card: dict, report: dict, road: str) -> dict | None:
     rules, now = policy.deadlines(conn), clock.get_now(conn)
     doctor = USERS_BY_ID[rules["default_doctor"]]["name"]
@@ -481,6 +501,8 @@ def decide(conn, review_id: int, user: dict, decision: str | None) -> dict:
         raise Invalid("Choose Continue as planned or Needs discussion")
     now = clock.get_now(conn)
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s", (rv["card_id"],)).fetchone()
+    if card["state"] in ("Report received", "Completed"):  # the doctor's decision verifies the test
+        card = doctor_verify(conn, card["card_id"], user, via="report_review")
     rv = conn.execute(
         """UPDATE report_review SET decision = %s, decided_by = %s, decided_at_demo = %s, status = %s
            WHERE review_id = %s RETURNING *""",
@@ -555,6 +577,42 @@ def sweep(conn) -> list[dict]:
                               "closed": False, "message_to_patient": None})
         out.append({"review_id": rv["review_id"], "to": cover})
     return out
+
+
+def doctor_verify(conn, card_id: int, user: dict, via: str = "verify_button") -> dict:
+    """Only the doctor sets the verified status. Specimen-based: Report received -> Report verified, with the two
+    identifiers already checked on the report. Non-specimen: Completed -> Verified."""
+    card = conn.execute("SELECT * FROM order_card WHERE card_id = %s FOR UPDATE", (card_id,)).fetchone()
+    if card is None or card["card_type"] != "test":
+        raise NotFound(f"Test card {card_id} not found")
+    if user["role"] != "oncologist":
+        raise Invalid("Only the doctor sets a test to verified")
+    if card["state"] == "Report received":
+        rep = conn.execute("""SELECT * FROM test_report WHERE card_id = %s AND status = 'verified'
+                              ORDER BY report_id DESC LIMIT 1""", (card_id,)).fetchone()
+        matched = 0 if rep is None else 2 if rep["road"] == "hospital" else len(rep["matched"] or [])
+        states.transition_card(conn, card_id, "Report verified", "person", user["user_id"], role=user["role"],
+                               matched_identifiers=matched, report_id=rep["report_id"] if rep else None, via=via)
+    elif card["state"] == "Completed" and card["specimen"] is False:
+        states.transition_card(conn, card_id, "Verified", "person", user["user_id"], role=user["role"], via=via)
+    else:
+        raise Conflict(f"{card['name']} is {card['state']}: nothing to verify yet" + (
+            " (a specimen-based test needs its report first)" if card["state"] == "Completed" else ""))
+    set_next_action(conn, card["mrn"], f"{card['name']} verified by {user['name']}")
+    return conn.execute("SELECT * FROM order_card WHERE card_id = %s", (card_id,)).fetchone()
+
+
+def to_verify(conn) -> list[dict]:
+    """The doctor's list: specimen-based tests with a report received, and non-specimen tests completed."""
+    return conn.execute(
+        """SELECT c.card_id, c.mrn, p.full_name, c.item_code, c.name, c.state, c.specimen, c.completed_on,
+                  c.report_road, c.due_date,
+                  (SELECT row_to_json(r) FROM (SELECT report_id, file_name, received_at_demo, road FROM test_report
+                     WHERE card_id = c.card_id AND status = 'verified' ORDER BY report_id DESC LIMIT 1) r) AS report
+           FROM order_card c JOIN patient p USING (mrn)
+           WHERE c.card_type = 'test' AND (c.state = 'Report received'
+                                           OR (c.state = 'Completed' AND c.specimen IS FALSE))
+           ORDER BY c.due_date, c.card_id""").fetchall()
 
 
 def doctor_items(conn) -> list[dict]:

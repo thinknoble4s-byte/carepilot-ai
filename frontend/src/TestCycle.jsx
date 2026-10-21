@@ -1,6 +1,7 @@
-// Use Case 2T — the test cycle. Patient page: test reports (hospital and outside), the coordinator's Verify / Reject
-// panel for an outside report, and the SIMULATED demo controls (appointment-list row, hospital lab report).
-// Needs my decision: "Report ready for review" with Continue as planned / Needs discussion.
+// The test cycle (every data set). Patient page: test reports (hospital and outside), the coordinator's check /
+// reject panel for an outside report, and the SIMULATED demo controls (appointment-list row, hospital lab report).
+// Needs my decision: "Tests to verify" (the doctor alone sets Report verified / Verified) and, in Use Case 2T,
+// "Report ready for review" with Continue as planned / Needs discussion.
 // CarePilot never shows a result value, summary, normal/abnormal mark or score: only the source file.
 import React, { useEffect, useState } from 'react';
 import { api, blobUrl, post } from './api.js';
@@ -8,7 +9,7 @@ import { Dl, fmt, Pill, useUI } from './ui.jsx';
 
 const at = (ts) => (ts ? `${fmt(String(ts).slice(0, 10))} ${String(ts).slice(11, 16)}` : '');
 const STATUS = {
-  verified: ['Verified', 'good'], mismatch: ['Mismatch — not linked', 'bad'], exception: ['No matching card', 'bad'],
+  verified: ['Checked (2 identifiers)', 'good'], mismatch: ['Mismatch — not linked', 'bad'], exception: ['No matching card', 'bad'],
   unverified: ['Unverified', 'warn'], rejected: ['Rejected', 'gray'],
 };
 
@@ -32,7 +33,7 @@ export function ReportsSection({ mrn }) {
   return (
     <div className="card">
       <div className="card-title">Test reports</div>
-      <div className="card-desc">Hospital reports are linked by MRN and test code and checked by plain rules. A photo or PDF from the patient is held Unverified until a coordinator checks two identifiers. CarePilot never reads a result: the doctor opens the source file.</div>
+      <div className="card-desc">Hospital reports are linked by MRN and test code and checked by plain rules. A photo or PDF from the patient is held Unverified until a coordinator checks two identifiers. CarePilot never reads a result: the doctor opens the source file and alone sets the test to verified.</div>
       {data.reports.length === 0 && <div className="small-note">No reports yet.</div>}
       {data.reports.map((r) => {
         const [label, tone] = STATUS[r.status] || [r.status, 'gray'];
@@ -47,7 +48,7 @@ export function ReportsSection({ mrn }) {
             {r.status === 'mismatch' && r.mismatch && (
               <div className="d">Report vs card — MRN: <b>{r.mismatch.mrn[0]}</b> vs <b>{r.mismatch.mrn[1]}</b> · test code: <b>{r.mismatch.test_code[0]}</b> vs <b>{r.mismatch.test_code[1]}</b> · card {r.mismatch.card_state}. The card did not move; see the Report mismatch task.</div>
             )}
-            {r.status === 'verified' && r.road === 'outside' && <div className="d">Outside report (verified by coordinator) — {ui.name(r.verified_by)}, {at(r.verified_at_demo)}; matching: {(r.matched || []).join(', ')}</div>}
+            {r.status === 'verified' && r.road === 'outside' && <div className="d">Outside report (checked by coordinator) — {ui.name(r.verified_by)}, {at(r.verified_at_demo)}; matching: {(r.matched || []).join(', ')}</div>}
             {r.status === 'rejected' && <div className="d">Rejected by {ui.name(r.rejected_by)}: {r.reject_reason}. The file is kept; the card did not move.</div>}
             {r.has_file && (r.status === 'verified' || coordinator) && (
               <div className="btn-row"><button type="button" className="btn sm" onClick={() => openReportFile(ui, r.report_id)}>Open source file</button></div>
@@ -98,12 +99,12 @@ function VerifyPanel({ r, data }) {
       <label className="v3-field" htmlFor={`vc${r.report_id}`}>Test card this report answers</label>
       <select id={`vc${r.report_id}`} className="v3-in" value={cardId} onChange={(e) => setCardId(Number(e.target.value) || '')}>
         <option value="">Choose…</option>
-        {data.open_tests.filter((c) => ['Due', 'Scheduled'].includes(c.state)).map((c) => <option key={c.card_id} value={c.card_id}>{c.name} ({c.state})</option>)}
+        {data.open_tests.filter((c) => ['Due', 'Scheduled', 'Completed'].includes(c.state)).map((c) => <option key={c.card_id} value={c.card_id}>{c.name} ({c.state})</option>)}
       </select>
       <div className="btn-row">
         <button type="button" className="btn primary" disabled={matched.length < 2 || !cardId}
           title={matched.length < 2 ? 'Needs two matching identifiers' : ''}
-          onClick={() => act(() => post(`reports/${r.report_id}/verify`, { matched, card_id: cardId }), 'Verified — the doctor has a report to review')}>Verify</button>
+          onClick={() => act(() => post(`reports/${r.report_id}/verify`, { matched, card_id: cardId }), 'Checked — the test now waits for the doctor to verify it')}>Verify</button>
       </div>
       <label className="v3-field" htmlFor={`vr${r.report_id}`}>Or reject — reason (required)</label>
       <input id={`vr${r.report_id}`} className="v3-in" value={reason} onChange={(e) => setReason(e.target.value)}
@@ -119,7 +120,8 @@ function VerifyPanel({ r, data }) {
 
 function DemoControls({ mrn, tests }) {
   const ui = useUI();
-  const first = tests[0];
+  const first = tests.find((c) => !['Report verified', 'Verified'].includes(c.state)) || tests[0];
+  const codes = [...new Set(tests.map((c) => c.test_code).filter(Boolean))];
   const [code, setCode] = useState(first?.test_code || '');
   const [day, setDay] = useState(ui.today ? String(ui.today).slice(0, 10) : '');
   const [time, setTime] = useState('08:00');
@@ -141,7 +143,8 @@ function DemoControls({ mrn, tests }) {
         <div>
           <div className="card-title" style={{ marginTop: 8 }}>Appointment list row</div>
           <label className="v3-field" htmlFor="alC">Test code</label>
-          <input id="alC" className="v3-in" value={code} onChange={(e) => setCode(e.target.value)} />
+          <input id="alC" className="v3-in" list="tcCodes" value={code} onChange={(e) => setCode(e.target.value)} />
+          <datalist id="tcCodes">{codes.map((c) => <option key={c} value={c} />)}</datalist>
           <label className="v3-field" htmlFor="alD">Date</label>
           <input id="alD" type="date" className="v3-in" value={day} onChange={(e) => setDay(e.target.value)} />
           <label className="v3-field" htmlFor="alT">Time</label>
@@ -160,7 +163,8 @@ function DemoControls({ mrn, tests }) {
           <label className="v3-field" htmlFor="lbM">MRN on the report</label>
           <input id="lbM" className="v3-in" value={labMrn} onChange={(e) => setLabMrn(e.target.value)} />
           <label className="v3-field" htmlFor="lbC">Test code on the report</label>
-          <input id="lbC" className="v3-in" value={labCode} onChange={(e) => setLabCode(e.target.value)} />
+          <input id="lbC" className="v3-in" list="tcCodes" value={labCode} onChange={(e) => setLabCode(e.target.value)} />
+          <div className="small-note">Specimen-based tests only (blood test, CBC): imaging has no lab report.</div>
           <label className="v4-check" style={{ marginTop: 8 }}>
             <input type="checkbox" checked={withFile} onChange={(e) => setWithFile(e.target.checked)} /> Attach the report file
           </label>
@@ -168,7 +172,7 @@ function DemoControls({ mrn, tests }) {
             <button type="button" className="btn" disabled={!labCode}
               onClick={() => act(() => post('simulated-lab/report', { mrn, test_code: labCode, report_mrn: labMrn || mrn, with_file: withFile }),
                 (r) => (r.duplicate ? 'Same report sent again — attached once, nothing new'
-                  : { verified: 'Report linked and verified — ready for the doctor', mismatch: 'Report mismatch — the card did not move; task for the owner', exception: 'No matching test card — sent to the exceptions list' }[r.status] || 'Report received'))}>Send report</button>
+                  : { verified: 'Report received and checked — waiting for the doctor to verify', mismatch: 'Report mismatch — the card did not move; task for the owner', exception: 'No matching test card — sent to the exceptions list' }[r.status] || 'Report received'))}>Send report</button>
           </div>
         </div>
       </div>
@@ -177,7 +181,45 @@ function DemoControls({ mrn, tests }) {
   );
 }
 
-// Needs my decision: reports ready for review.
+// Needs my decision: tests waiting for the doctor's verification (every data set).
+export function TestVerifications() {
+  const ui = useUI();
+  const [items, setItems] = useState([]);
+  const load = () => api('doctor/verifications').then(setItems).catch(() => {});
+  useEffect(() => { load(); }, []);
+  const verify = async (c) => {
+    try {
+      const r = await post(`cards/${c.card_id}/verify`);
+      ui.toast(`${c.full_name}: ${c.name} — ${r.state}`);
+      ui.refresh();
+    } catch (e) {
+      ui.toast(e.message);
+    }
+  };
+  if (!items.length) return null;
+  return (
+    <div className="card">
+      <div className="card-title">Tests to verify ({items.length})</div>
+      <div className="card-desc">Only the doctor sets the verified status. A specimen-based test (blood test) is verified once its report is received; a non-specimen test (imaging) once it is completed.</div>
+      {items.map((c) => (
+        <div key={c.card_id} className="v4-item soon">
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div className="t"><a role="button" tabIndex={0} onClick={() => ui.nav('plan', c.mrn)}>{c.full_name}</a> · {c.mrn} · {c.item_code} — {c.name}</div>
+            <Pill tone="warn">{c.state}{c.specimen === false ? ' (non-specimen)' : ''}</Pill>
+          </div>
+          <div className="d">{c.report ? `Report ${c.report.file_name} · ${c.report.road === 'outside' ? 'outside lab (checked by coordinator)' : 'hospital lab'} · received ${at(c.report.received_at_demo)}`
+            : `Completed ${fmt(c.completed_on)}`}</div>
+          <div className="btn-row">
+            {c.report && <button type="button" className="btn sm" onClick={() => openReportFile(ui, c.report.report_id)}>Open source file</button>}
+            {ui.role === 'oncologist' && <button type="button" className="btn sm primary" onClick={() => verify(c)}>{c.report ? 'Verify the report' : 'Verify'}</button>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Needs my decision: reports ready for review (Use Case 2T).
 export function ReportReviews() {
   const ui = useUI();
   const [data, setData] = useState({ open: [], recent: [] });

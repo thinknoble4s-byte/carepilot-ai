@@ -7,15 +7,18 @@ import { TasksSection } from './Tasks.jsx';
 import { openReportFile, ReportsSection } from './TestCycle.jsx';
 import { buttonLabel, Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, useUI } from './ui.jsx';
 
-const LIFE = { visit: ['Due', 'Booked', 'Attended'], test: ['Due', 'Ordered', 'Scheduled', 'Completed', 'Report received', 'Report verified'] };
+// Test cards: specimen-based (blood test) or not (imaging); the verified status is the doctor's.
+const LIFE = { visit: ['Due', 'Booked', 'Attended'], test: ['Due', 'Scheduled', 'Completed', 'Report received', 'Report verified'],
+  imaging: ['Due', 'Scheduled', 'Completed', 'Verified'] };
+const DONE = ['Attended', 'Report verified', 'Verified'];
+const canVerify = (c) => c.card_type === 'test' && (c.state === 'Report received' || (c.state === 'Completed' && c.specimen === false));
 const SCOPES = [['whatsapp_patient', 'WhatsApp to patient'], ['whatsapp_caregiver', 'WhatsApp to caregiver'],
   ['automated_messaging', 'Automated messaging'], ['outside_records', 'Outside records'], ['external_care', 'External care']];
 const CALL_OUTCOME = { noans: 'No answer', book: 'Will come', concern: 'Reported a concern', away: 'Away', ok: 'All well', wrong: 'Wrong number' };
 const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
-function Stepper({ card, testMode }) {
-  // Use Case 2T: Ordered is skipped in this sprint (Due -> Scheduled).
-  const steps = LIFE[card.card_type].filter((s) => !(testMode && s === 'Ordered' && card.state !== 'Ordered'));
+function Stepper({ card }) {
+  const steps = LIFE[card.card_type === 'test' && card.specimen === false ? 'imaging' : card.card_type];
   const at = steps.indexOf(card.state);
   return (
     <div className="v5-steps">
@@ -29,21 +32,24 @@ function Stepper({ card, testMode }) {
   );
 }
 
-function OrderCard({ card, today, task, testMode }) {
+function OrderCard({ card, today, task }) {
   const ui = useUI();
   const d = Math.round((new Date(`${today}T00:00:00`) - new Date(`${card.due_date}T00:00:00`)) / 864e5);
-  const done = card.state === 'Attended' || card.state === 'Report verified';
+  const done = DONE.includes(card.state);
   const instruction = card.item_code.startsWith('X');
+  const test = card.card_type === 'test';
   let state;
-  // Use Case 2T labels: a tap has no date; who scheduled it; an outside report verified by a coordinator.
-  if (testMode && card.card_type === 'test' && card.state === 'Report verified') {
-    state = <Pill tone="good">{card.report_road === 'outside' ? 'Outside report (verified by coordinator)' : 'Report verified'}</Pill>;
-  } else if (testMode && card.card_type === 'test' && card.state === 'Scheduled') {
+  // Test labels: a tap has no date; who scheduled it; what the test waits for; who verified it (the doctor).
+  if (test && (card.state === 'Report verified' || card.state === 'Verified')) {
+    state = <Pill tone="good">{card.state} by {ui.name(card.verified_by)}{card.report_road === 'outside' ? ' · outside report (checked by coordinator)' : ''}</Pill>;
+  } else if (test && card.state === 'Scheduled') {
     state = <Pill tone="good">Scheduled ({card.booking_source === 'appointment_list' ? 'appointment list' : 'confirmed by coordinator'}){card.appointment_date ? ` ${fmt(card.appointment_date)}` : ''}{card.appointment_time ? ` ${String(card.appointment_time).slice(0, 5)}` : ''}</Pill>;
-  } else if (testMode && card.card_type === 'test' && card.state === 'Due' && card.patient_says_booked) {
+  } else if (test && card.state === 'Due' && card.patient_says_booked) {
     state = <Pill tone="warn">Patient says booked (no date)</Pill>;
-  } else if (testMode && card.card_type === 'test' && card.state === 'Completed') {
-    state = <Pill tone="good">Completed {fmt(card.completed_on)} — waiting for the report</Pill>;
+  } else if (test && card.state === 'Completed') {
+    state = <Pill tone="good">Completed {fmt(card.completed_on)} — {card.specimen === false ? "waiting for the doctor's verification" : 'waiting for the report'}</Pill>;
+  } else if (test && card.state === 'Report received') {
+    state = <Pill tone="warn">Report received — waiting for the doctor's verification</Pill>;
   } else if (done) state = <Pill tone="good">Complete</Pill>;
   else if (card.state !== 'Due') {
     // Use Case 2b REQ-12: who booked it — the patient's tap or the coordinator, with the appointment date.
@@ -58,20 +64,34 @@ function OrderCard({ card, today, task, testMode }) {
   return (
     <div className={`v4-item ${over ? 'over' : instruction ? 'req' : 'soon'}`}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <div className="t">{card.item_code} — {card.name}</div>{state}
+        <div className="t">{card.item_code} — {card.name}{test && <span className="small-note"> · {card.specimen === false ? 'non-specimen' : 'specimen-based'}</span>}</div>{state}
       </div>
       <div className="d">Owner: <b>{card.owner_name}</b> · cover: {card.cover_name} · {card.department}</div>
       <div className="d">Origin: {instruction ? "Doctor's instruction (hospital record)" : `Plan item (plan #${card.care_plan_id}, item ${card.item_code})`}
         {card.booking_source ? ` · booked via ${card.booking_source.replaceAll('_', ' ')}` : ''}</div>
       {card.gap_status && <div className="d">Reminder gap: <GapState status={card.gap_status} reason={card.gap_reason} rule={card.gap_rule} /></div>}
-      <Stepper card={card} testMode={testMode} />
+      <Stepper card={card} />
       {card.report && (
         <div className="d">Report: {card.report.file_name} · received {fmt(String(card.report.received_at_demo).slice(0, 10))} {String(card.report.received_at_demo).slice(11, 16)}
           {' '}<button type="button" className="btn sm" onClick={() => openReportFile(ui, card.report.report_id)}>Open source file</button></div>
       )}
       {task && <div className="d"><Dl due={task.due_date} label={`Booking by ${task.assigned_name}`} today={today} /></div>}
+      {ui.role === 'oncologist' && canVerify(card) && (
+        <div className="btn-row"><button type="button" className="btn sm primary" onClick={() => verifyTest(ui, card)}>
+          {card.state === 'Report received' ? 'Verify the report' : 'Verify'} (doctor)</button></div>
+      )}
     </div>
   );
+}
+
+export async function verifyTest(ui, card) {
+  try {
+    const r = await post(`cards/${card.card_id}/verify`);
+    ui.toast(`${card.name}: ${r.state}`);
+    ui.refresh();
+  } catch (e) {
+    ui.toast(e.message);
+  }
 }
 
 function ConcernCard({ h, tasks, today, role, patient }) {
@@ -143,12 +163,11 @@ function PlanForm({ mrn }) {
   const [error, setError] = useState('');
   useEffect(() => {
     api('care-plan').then((c) => {
-      const list = c.plan_templates.map((t) => t.body);
-      setTemplates(list);
-      if (list.length) setTid(list[0].template_id);
+      setTemplates(c.plan_templates.map((t) => t.body));
     }).catch(() => {});
   }, []);
   const t = templates.find((x) => x.template_id === tid);
+  const months = t && !t.due_date_entered ? [...new Set(t.items.map((i) => i.months))] : [];
   const submit = async () => {
     try {
       await post(`patients/${mrn}/plan/confirm`, t?.due_date_entered
@@ -160,16 +179,29 @@ function PlanForm({ mrn }) {
       setError(e.message);
     }
   };
-  if (!t) return null;
+  if (!templates.length) return null;
   return (
     <div className="card">
-      <div className="card-title">Care plan — confirm the follow-up plan</div>
-      <div className="card-desc">No order cards exist until the plan is confirmed. Confirming records your name, the date and time, and the template version.</div>
-      <label className="v3-field" htmlFor="pfX">Care plan template</label>
-      <select id="pfX" className="v3-in" value={tid} onChange={(e) => setTid(e.target.value)}>
-        {templates.map((x) => <option key={x.template_id} value={x.template_id}>{x.name} ({x.template_id} v{x.version})</option>)}
+      <div className="card-title">Care plan — choose and confirm the follow-up plan</div>
+      <div className="card-desc">No order cards exist until the plan is confirmed. Choose the plan for this patient; confirming records your name, the date and time, and the template version.</div>
+      <label className="v3-field" htmlFor="pfX">Care plan</label>
+      <select id="pfX" className="v3-in" value={tid} onChange={(e) => { setTid(e.target.value); setError(''); }}>
+        <option value="">Choose a plan…</option>
+        {templates.map((x) => <option key={x.template_id} value={x.template_id}>{x.short_name || x.name} ({x.template_id} v{x.version})</option>)}
       </select>
-      {t.due_date_entered ? (
+      {t && months.length > 0 && (
+        <table className="v4-table" style={{ marginTop: 8 }}>
+          <thead><tr><th>Visit</th><th>Tests (due 7 days before the visit)</th></tr></thead>
+          <tbody>{months.map((m) => {
+            const items = t.items.filter((i) => i.months === m);
+            return (
+              <tr key={m}><td>{items.find((i) => i.type === 'visit')?.name}</td>
+                <td>{items.filter((i) => i.type === 'test').map((i) => `${i.name.replace(/ \(.*\)$/, '')}${i.specimen ? ' (specimen)' : ''}`).join(', ')}</td></tr>
+            );
+          })}</tbody>
+        </table>
+      )}
+      {!t ? null : t.due_date_entered ? (
         t.items.map((i) => (
           <div key={i.item_code}>
             <label className="v3-field" htmlFor={`due-${i.item_code}`}>{i.name} — due date</label>
@@ -186,7 +218,7 @@ function PlanForm({ mrn }) {
             <input id="pfE" type="date" className="v3-in" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
         </div>
       )}
-      {t.identifiers_required !== false && (
+      {t && t.identifiers_required !== false && (
         <>
           <label className="v3-field">Identifiers I checked against the patient record (two needed)</label>
           <div className="btn-row" style={{ marginTop: 0 }}>
@@ -196,7 +228,7 @@ function PlanForm({ mrn }) {
           </div>
         </>
       )}
-      <div className="btn-row"><button type="button" className="btn primary" onClick={submit}>Confirm plan</button></div>
+      <div className="btn-row"><button type="button" className="btn primary" disabled={!t} onClick={submit}>Confirm plan</button></div>
       {error && <div className="error">{error}</div>}
     </div>
   );
@@ -266,7 +298,7 @@ export default function PatientPage({ mrn }) {
   const plan = p.plan;
   const month = plan ? Math.max(0, Math.round((new Date(today) - new Date(plan.treatment_end_date)) / 864e5 / 30.4)) : null;
   const horizon = new Date(`${today}T00:00:00`); horizon.setDate(horizon.getDate() + 30);
-  const open = cards.filter((c) => (!['Attended', 'Report verified'].includes(c.state) || (p.test_mode && c.card_type === 'test'))
+  const open = cards.filter((c) => (!DONE.includes(c.state) || c.card_type === 'test')
     && (new Date(`${c.due_date}T00:00:00`) <= horizon || c.item_code.startsWith('X')));
   const act = async (fn, msg) => {
     try { await fn(); ui.toast(msg); ui.refresh(); } catch (e) { ui.toast(e.message); }
@@ -370,14 +402,14 @@ export default function PatientPage({ mrn }) {
         <div className="card-title">Order cards — open follow-up items</div>
         <div className="card-desc">Overdue, due in the next 30 days, booked, or from a doctor's instruction. Each card runs from due to verified evidence.</div>
         {open.length ? open.map((c) => (
-          <OrderCard key={c.card_id} card={c} today={today} testMode={p.test_mode}
+          <OrderCard key={c.card_id} card={c} today={today}
             task={p.open_tasks.find((t) => t.task_type === 'booking_from_instruction' && c.item_code.startsWith('X'))} />
         )) : <div className="small-note">{plan ? 'Nothing open in the next 30 days.' : 'No order cards until the plan is confirmed.'}</div>}
       </div>
 
       <TasksSection mrn={mrn} />
 
-      {p.test_mode && <ReportsSection mrn={mrn} />}
+      {cards.some((c) => c.card_type === 'test') && <ReportsSection mrn={mrn} />}
 
       <div className="card">
         <div className="card-title">Messages and contact attempts</div>
@@ -407,13 +439,13 @@ export default function PatientPage({ mrn }) {
       {cards.length > 0 && (
         <details className="card">
           <summary className="card-title" style={{ cursor: 'pointer', margin: 0 }}>Full plan vs actual ({cards.length} items)</summary>
-          <div className="card-desc" style={{ marginTop: 8 }}>Breast cancer survivorship follow-up (BC-SURV-1, mock), confirmed by {ui.name(plan?.confirmed_by)}.</div>
+          <div className="card-desc" style={{ marginTop: 8 }}>Care plan {plan?.template_id} v{plan?.template_version} (mock), confirmed by {ui.name(plan?.confirmed_by)}.</div>
           <div className="v4-scroll">
             <table className="v4-table">
               <thead><tr><th>Item</th><th>Due</th><th>Status</th><th>Owner</th></tr></thead>
               <tbody>{cards.map((c) => (
                 <tr key={c.card_id}><td>{c.item_code} — {c.name}</td><td>{fmt(c.due_date)}</td>
-                  <td><span className={`tag ${c.state === 'Due' ? '' : 'hosp'}`}>{c.state}</span></td><td>{c.owner_name}</td></tr>
+                  <td><span className={`tag ${c.state === 'Due' ? '' : 'hosp'}`}>{c.state}</span>{c.verified_by ? <span className="small-note"> by {ui.name(c.verified_by)}</span> : null}</td><td>{c.owner_name}</td></tr>
               ))}</tbody>
             </table>
           </div>

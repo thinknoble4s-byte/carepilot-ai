@@ -11,7 +11,7 @@ from . import policy, worklist
 
 def care_plan(conn) -> dict:
     rows = conn.execute(
-        "SELECT kind, name, version, body, signed_off_by, signed_off_at FROM config_versions WHERE status = 'active'"
+        "SELECT kind, name, version, body, signed_off_by, signed_off_at FROM config_versions WHERE status = 'active' ORDER BY id"
     ).fetchall()
     by_kind = {}
     for r in rows:

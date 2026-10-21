@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 from . import audit, clock, consent, importer, plan, states
 from .errors import Invalid
 from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy, message_templates,
-                        plan_template, read_seed, step_a_settings, uc1, uc2a, uc2b, uc2c, uc2t)
+                        plan_templates, read_seed, step_a_settings, uc1, uc2a, uc2b, uc2c, uc2t)
 
 SEED_USER = "u_priya"
 
@@ -40,11 +40,15 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     """Rebuild a seed state inside the caller's transaction; returns counts and fingerprint.
 
     uc1     Use Case 1 (default): TP001-TP003, Anita and Ravi, Sanjeevini Clinic, the narrow switches.
-    uc2a    Use Case 2a "after Use Case 1": TP001 and TP004, reminders sent 9 Nov 07:30, clock 10:15, replies on.
-    uc2b    Use Case 2b "after Use Case 1": TP001, TP004-TP007, same start; taps and HELP become tasks.
-    uc2c    Use Case 2c "after Use Case 2a, step 6": TP001, TP004-TP007, each handover with the doctor; Tue 10 Nov 09:30.
-    uc2t    Use Case 2T test cycle: TP001, TP004-TP007, Blood test (CBC) due 23 Nov and a Review visit; D0 Mon 2 Nov.
+    uc2a    Use Case 2a: TP001 and TP004, clock Mon 9 Nov 10:15, replies on.
+    uc2b    Use Case 2b: TP001, TP004-TP007, same start; taps and HELP become tasks.
+    uc2c    Use Case 2c: TP001, TP004-TP007, Urgent - call the patient today; clock Tue 10 Nov 09:30.
+    uc2t    Use Case 2T test cycle: TP001, TP004-TP007; D0 Mon 2 Nov.
     step_a  Step A / Golden Path: 25 patients from the register, Priya and Meera, everything switched on.
+
+    Every data set offers the same three care plans (T1 hormone receptor positive, T2 hormone receptor negative,
+    T3 HER2 positive) and seeds no plan: the coordinator chooses one for each patient. A scenario file may still
+    carry plans (the tests' fixed copies); then the scripted start state is rebuilt from them.
     """
     if scenario not in SCENARIOS:
         raise Invalid(f"Unknown demo data set {scenario!r}; choose one of: {', '.join(SCENARIOS)}")
@@ -97,10 +101,9 @@ def _seed_step_a(conn) -> None:
     # Set-up (not audited): users, demo clock, signed-off config.
     _users(conn, STEP_A_USERS)
     clock.set_today(conn, DEMO_START_DATE)
-    template = plan_template()
     _config(conn, (
         ("rule_thresholds", "default", RULE_THRESHOLDS, "Synthetic seed (pending clinical sign-off)"),
-        ("plan_template", template["template_id"], template, template["signed_off_by"]),
+        *(("plan_template", t["template_id"], t, t["signed_off_by"]) for t in plan_templates()),
         ("autonomy_policy", "default", autonomy_policy(), autonomy_policy()["signed_off_by"]),
         ("deadline_policy", "default", deadline_policy(), deadline_policy()["signed_off_by"]),
         ("scenario_settings", "default", {**step_a_settings(), "scenario": "step_a"}, "Demo data set: Step A"),
@@ -119,8 +122,8 @@ def _seed_step_a(conn) -> None:
 
 
 def _seed_after_uc1(conn, uc: dict) -> None:
-    """Use Case 2a / 2b "after Use Case 1": plans confirmed on D0, the T-7 reminder already sent at 07:30 on
-    Mon 9 Nov, demo clock at 10:15 when the patients reply."""
+    """Use Case 2a / 2b "after Use Case 1": demo clock Mon 9 Nov 10:15. With seeded plans (the tests' copies)
+    the T-7 reminder has already gone at 07:30."""
     from datetime import date, time
 
     from . import agent, rules
@@ -144,6 +147,10 @@ def _seed_uc2c(conn, uc: dict) -> None:
 
     _seed_after_uc1(conn, uc)
     hs = uc["handover_seed"]
+    if not any(pt["plan"] for pt in uc["patients"]):  # no plans seeded: nothing was sent, so no replies yet
+        clock.set_today(conn, date.fromisoformat(hs["start_date"]))
+        clock.set_time(conn, time.fromisoformat(hs["start_time"]))
+        return
     coordinator = USERS_BY_ID[next(u["user_id"] for u in uc["users"] if u["name"] == uc["coordinator"])]
     clock.set_time(conn, time.fromisoformat(hs["reply_time"]))
     for pt in uc["patients"]:
@@ -165,8 +172,8 @@ def _seed_uc1(conn, uc: dict | None = None) -> None:
     coordinator = next(u["user_id"] for u in uc["users"] if u["name"] == uc["coordinator"])
     _users(conn, uc["users"])
     clock.set_today(conn, DEMO_START_DATE)
-    template = uc["plan_template"]
-    templates = {t["template_id"]: t for t in [template, *uc.get("more_plan_templates", [])]}
+    seeded = [t for t in [uc.get("plan_template"), *uc.get("more_plan_templates", [])] if t]
+    templates = {t["template_id"]: t for t in seeded or plan_templates(uc.get("plan_departments"))}
     _config(conn, (
         ("rule_thresholds", "default", RULE_THRESHOLDS, "Synthetic seed (pending clinical sign-off)"),
         *(("plan_template", t["template_id"], t, t["signed_off_by"]) for t in templates.values()),
@@ -202,7 +209,7 @@ def _seed_uc1(conn, uc: dict | None = None) -> None:
     for pt in uc["patients"]:
         if not pt["plan"]:
             continue
-        result = plan.confirm_plan(conn, coordinator, pt["mrn"], pt["plan"].get("template_id", template["template_id"]),
+        result = plan.confirm_plan(conn, coordinator, pt["mrn"], pt["plan"].get("template_id", seeded[0]["template_id"]),
                                    due_dates=pt["plan"]["due_dates"])
         if booked := pt["plan"].get("booked"):
             for card in result["cards"]:

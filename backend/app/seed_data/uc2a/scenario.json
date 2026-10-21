@@ -28,6 +28,20 @@
     }
   ],
   "coordinator": "Anita",
+  "plan_departments": {
+    "Oncology OPD": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "Laboratory": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "Radiology": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    }
+  },
   "patients": [
     {
       "mrn": "TP001",
@@ -42,11 +56,7 @@
         ],
         "recorded_on": "2026-10-28"
       },
-      "plan": {
-        "due_dates": {
-          "RV": "2026-11-16"
-        }
-      },
+      "plan": null,
       "note": "Positive case (clip HI-01)"
     },
     {
@@ -62,38 +72,10 @@
         ],
         "recorded_on": "2026-10-28"
       },
-      "plan": {
-        "due_dates": {
-          "RV": "2026-11-16"
-        }
-      },
+      "plan": null,
       "note": "Negative case (clip HI-02); same setup as TP001"
     }
   ],
-  "plan_template": {
-    "template_id": "UC1-REVIEW",
-    "version": "1.0",
-    "name": "Use Case 1 review plan (one visit; due date entered at confirmation)",
-    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
-    "effective_from": "2026-10-14",
-    "due_date_entered": true,
-    "identifiers_required": false,
-    "therapy_required": false,
-    "items": [
-      {
-        "item_code": "RV",
-        "type": "visit",
-        "name": "Review visit",
-        "department": "Review clinic"
-      }
-    ],
-    "departments": {
-      "Review clinic": {
-        "owner": "Anita",
-        "cover": "Ravi"
-      }
-    }
-  },
   "deadline_policy": {
     "version": "1.0",
     "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
