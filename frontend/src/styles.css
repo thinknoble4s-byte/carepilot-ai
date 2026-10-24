@@ -73,3 +73,73 @@ blockquote { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--line
 .demo-date-set input { padding: 3px 8px; font-size: 12.5px; }
 .demo-date-set button, .demo-bar .scope-btn { white-space: nowrap; }
 .v31-kn { white-space: pre-line; }
+
+/* Simulated WhatsApp chat (Messages modal): WhatsApp-like colours and bubbles, own palette, no branding. */
+.wa-phone { --wa-head: #075e54; --wa-wall: #ece5dd; --wa-out: #dcf8c6; --wa-in: #ffffff; --wa-ink: #111b21;
+  --wa-meta: #667781; --wa-teal: #00a884; --wa-blue: #53bdeb;
+  width: 100%; max-width: 360px; margin: 0 auto; border-radius: 34px; padding: 10px; background: #1f2c34;
+  box-shadow: 0 8px 28px rgba(0,0,0,.28); font-family: 'Segoe UI', Helvetica, Arial, var(--sans); }
+.wa-status { display: flex; justify-content: space-between; padding: 2px 16px 6px; color: #e9edef; font-size: 11px; font-weight: 600; }
+.wa-head { display: flex; align-items: center; gap: 8px; background: var(--wa-head); color: #fff; padding: 9px 10px;
+  border-radius: 24px 24px 0 0; }
+.wa-back { font-size: 17px; opacity: .9; }
+.wa-avatar { width: 34px; height: 34px; border-radius: 50%; background: #dfe5e7; color: var(--wa-head); font-weight: 700;
+  font-size: 13px; display: flex; align-items: center; justify-content: center; flex: none; }
+.wa-title { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
+.wa-title b { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-title span { font-size: 11px; color: rgba(255,255,255,.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-icons { letter-spacing: 9px; font-size: 15px; opacity: .9; white-space: nowrap; }
+.wa-chat { background-color: var(--wa-wall); min-height: 380px; max-height: 60vh; overflow-y: auto; padding: 10px 8px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  background-image: radial-gradient(rgba(0,0,0,.045) 1.2px, transparent 1.3px), radial-gradient(rgba(0,0,0,.03) 1px, transparent 1.1px);
+  background-size: 22px 22px, 34px 34px; background-position: 0 0, 11px 17px; }
+.wa-notice { align-self: center; max-width: 92%; background: #ffeecd; color: #54656f; font-size: 11.5px; line-height: 1.45;
+  text-align: center; border-radius: 8px; padding: 6px 10px; margin: 2px 0 8px; box-shadow: 0 1px .5px rgba(0,0,0,.13); }
+.wa-pill { align-self: center; background: #e1f2fb; color: #54656f; font-size: 11.5px; border-radius: 8px; padding: 4px 10px;
+  margin: 8px 0 4px; box-shadow: 0 1px .5px rgba(0,0,0,.13); text-align: center; max-width: 92%; }
+.wa-pill.wa-call { background: #fff; }
+.wa-row { display: flex; flex-direction: column; max-width: 84%; margin-top: 2px; }
+.wa-row.in { align-self: flex-start; }
+.wa-row.me { align-self: flex-end; }
+.wa-b { position: relative; padding: 6px 8px 5px 9px; border-radius: 8px; font-size: 14px; line-height: 1.42; color: var(--wa-ink);
+  box-shadow: 0 1px .5px rgba(11,20,26,.13); word-wrap: break-word; }
+.wa-b.clinic { background: var(--wa-in); border-top-left-radius: 0; }
+.wa-b.patient { background: var(--wa-out); border-top-right-radius: 0; }
+.wa-b.clinic::before, .wa-b.patient::before { content: ''; position: absolute; top: 0; width: 0; height: 0; border-style: solid; }
+.wa-b.clinic::before { left: -7px; border-width: 0 8px 9px 0; border-color: transparent var(--wa-in) transparent transparent; }
+.wa-b.patient::before { right: -7px; border-width: 0 0 9px 8px; border-color: transparent transparent transparent var(--wa-out); }
+.wa-b.has-taps { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.wa-b.failed { opacity: .7; }
+.wa-failed { color: #d92d20; font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+.wa-from { color: #1fa855; font-size: 12.5px; font-weight: 600; margin-bottom: 1px; }
+.wa-text { white-space: pre-line; }
+.wa-note { font-size: 11.5px; font-style: italic; color: var(--wa-meta); border-top: 1px solid rgba(0,0,0,.08); margin-top: 5px; padding-top: 4px; }
+.wa-meta { float: right; font-size: 11px; color: var(--wa-meta); margin: 6px 0 -3px 12px; white-space: nowrap; }
+.wa-ticks { margin-left: 3px; letter-spacing: -3px; color: var(--wa-meta); font-weight: 700; }
+.wa-ticks.read { color: var(--wa-blue); }
+.wa-taps { display: flex; flex-direction: column; background: var(--wa-in); border-radius: 0 0 8px 8px;
+  box-shadow: 0 1px .5px rgba(11,20,26,.13); }
+.wa-tap { display: block; width: 100%; border: 0; border-top: 1px solid #e9edef; background: transparent; color: var(--wa-teal);
+  font: 500 14px/1.2 'Segoe UI', Helvetica, Arial, var(--sans); text-align: center; padding: 9px 8px; }
+button.wa-tap { cursor: pointer; }
+button.wa-tap:hover { background: #f5f6f6; }
+.wa-tap.tapped { color: var(--wa-meta); background: #f0f2f5; }
+.wa-taps.failed .wa-tap { color: var(--wa-meta); }
+.wa-voice { display: flex; gap: 8px; align-items: center; min-width: 230px; }
+.wa-mic-av { width: 38px; height: 38px; border-radius: 50%; background: #dfe5e7; display: flex; align-items: center; justify-content: center; flex: none; }
+.wa-voice-main { flex: 1; min-width: 0; }
+.wa-voice-main audio { width: 100%; height: 30px; }
+.wa-wave { display: flex; align-items: center; gap: 2px; height: 20px; margin-bottom: 2px; }
+.wa-wave i { display: block; width: 3px; border-radius: 2px; background: #8696a0; }
+.wa-doc { display: flex; gap: 9px; align-items: center; background: rgba(0,0,0,.05); border-radius: 6px; padding: 8px; margin-bottom: 2px; }
+.wa-doc-ic { background: #e5483b; color: #fff; font-size: 10px; font-weight: 700; border-radius: 4px; padding: 7px 5px; flex: none; }
+.wa-doc div { display: flex; flex-direction: column; min-width: 0; }
+.wa-doc b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-doc span { font-size: 11px; color: var(--wa-meta); }
+.wa-input { display: flex; align-items: center; gap: 8px; background: #f0f2f5; padding: 7px 8px; border-radius: 0 0 24px 24px;
+  color: #54656f; font-size: 18px; cursor: not-allowed; }
+.wa-box { flex: 1; background: #fff; border-radius: 20px; padding: 7px 12px; font-size: 13.5px; color: #8696a0; }
+.wa-send { width: 38px; height: 38px; border-radius: 50%; background: var(--wa-teal); color: #fff; display: flex;
+  align-items: center; justify-content: center; font-size: 16px; flex: none; }
+@media (max-width: 480px) { .wa-phone { border-radius: 0; padding: 0; } .wa-status { display: none; }
+  .wa-head { border-radius: 0; } .wa-input { border-radius: 0; } .wa-row { max-width: 92%; } }

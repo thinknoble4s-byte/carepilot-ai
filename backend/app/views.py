@@ -139,7 +139,10 @@ def messages(conn, mrn: str) -> list[dict]:
         raise NotFound(f"Patient {mrn} not found")
     return conn.execute(
         """
-        SELECT 'out' AS direction, message_id AS id, created_at, created_on AS day, NULL::time AS at, recipient AS party,
+        SELECT 'out' AS direction, message_id AS id, created_at, created_on AS day,
+               (SELECT a.demo_time::time FROM audit_ledger a WHERE a.entity_type = 'outbox_message'
+                  AND a.entity_id = message_id::text AND a.demo_time IS NOT NULL ORDER BY a.id LIMIT 1) AS at,
+               recipient AS party,
                body, body_en, buttons, status, blocked_reason, template_id, actor, NULL::text AS button,
                NULL::text AS handling, language, NULL::text AS kind, NULL::text AS transcript, NULL::text AS translation,
                NULL::text AS ai_flag, NULL::boolean AS ai_failed, NULL::bigint AS audio_id, NULL::text AS clip_id,

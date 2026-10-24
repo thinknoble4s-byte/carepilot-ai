@@ -208,10 +208,11 @@ export default function App() {
     refresh,
     nav,
     today,
+    now,
     role,
     user,
     name: (id) => users.find((u) => u.id === id)?.person || id,
-  }), [toast, refresh, nav, today, role, user, users]);
+  }), [toast, refresh, nav, today, now, role, user, users]);
 
   useEffect(() => {
     api('users').then(setUsers).catch(() => {});

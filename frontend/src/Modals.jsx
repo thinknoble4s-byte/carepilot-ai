@@ -339,6 +339,106 @@ export function openMessages(ui, patient) {
     <Messages patient={patient} />, true);
 }
 
+// The simulated WhatsApp chat (look and feel only: colours, bubbles, ticks, quick replies). Not the real app —
+// no WhatsApp branding; replies come from the demo controls (or a tap on a quick-reply button).
+const WA_REASON = { no_whatsapp_consent: 'no WhatsApp consent', no_automated_messaging_consent: 'no automated-messaging consent' };
+const waDay = (d) => new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const waTime = (m) => (m.at ? String(m.at).slice(0, 5) : '');
+const initials = (name) => (name || 'H').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+
+function WaWave() {
+  return (
+    <span className="wa-wave" aria-hidden="true">
+      {[6, 12, 9, 16, 7, 13, 18, 10, 6, 14, 9, 17, 8, 12, 6, 15, 10, 7, 13, 9].map((h, i) => <i key={i} style={{ height: h }} />)}
+    </span>
+  );
+}
+
+export function WaPhone({ thread, patient, settings, english, coordinator, onTap, now }) {
+  const clinic = settings?.clinic_name || 'Hospital A';
+  const replied = (m) => thread.some((x) => x.direction === 'in' && x.reply_to === m.id);
+  const chat = useRef(null);
+  useEffect(() => { if (chat.current) chat.current.scrollTop = chat.current.scrollHeight; }, [thread.length]);
+  let lastDay = null;
+  return (
+    <div className="wa-phone">
+      <div className="wa-status"><span>{now ? String(now).slice(0, 5) : '09:00'}</span><span aria-hidden="true">▂▄▆ ᯤ ▮</span></div>
+      <div className="wa-head">
+        <span className="wa-back" aria-hidden="true">←</span>
+        <span className="wa-avatar" aria-hidden="true">{initials(clinic)}</span>
+        <div className="wa-title"><b>{clinic}</b><span>Business account · to {patient.full_name} · simulated</span></div>
+        <span className="wa-icons" aria-hidden="true">▭ ✆ ⋮</span>
+      </div>
+      <div className="wa-chat" ref={chat}>
+        <div className="wa-notice">🔒 Messages from the clinic use approved templates. Simulated chat — not delivered to a real phone.</div>
+        {thread.length === 0 && <div className="wa-pill">No messages yet</div>}
+        {thread.map((m) => {
+          const day = String(m.day).slice(0, 10);
+          const sep = day !== lastDay ? <div className="wa-pill">{waDay(day)}</div> : null;
+          lastDay = day;
+          const key = `${m.direction}-${m.id}`;
+          if (m.direction === 'call') {
+            return (
+              <React.Fragment key={key}>{sep}
+                <div className="wa-pill wa-call">📞 Call with {m.party} by {m.actor}: {m.status}{m.body ? ` — ${m.body}` : ''}</div>
+              </React.Fragment>
+            );
+          }
+          const out = m.direction === 'out';
+          const failed = out && m.status && m.status !== 'sent';
+          const taps = out && m.buttons?.length > 0;
+          return (
+            <React.Fragment key={key}>{sep}
+              <div className={`wa-row ${out ? 'in' : 'me'}`}>
+                <div className={`wa-b ${out ? 'clinic' : 'patient'}${failed ? ' failed' : ''}${taps ? ' has-taps' : ''}`}>
+                  {!out && m.party !== 'patient' && <div className="wa-from">{m.party.charAt(0).toUpperCase() + m.party.slice(1)}</div>}
+                  {out && m.party !== 'patient' && <div className="wa-from">To the {m.party}</div>}
+                  {failed && <div className="wa-failed">⊘ Not delivered: {m.status === 'blocked' ? (WA_REASON[m.blocked_reason] || (m.blocked_reason || 'blocked').replaceAll('_', ' ')) : m.status.replaceAll('_', ' ')}</div>}
+                  {m.direction === 'in' && m.button && <div className="wa-text">{buttonLabel(m.button)}</div>}
+                  {m.kind === 'voice' && (
+                    <div className="wa-voice">
+                      <span className="wa-mic-av" aria-hidden="true">🎙</span>
+                      <div className="wa-voice-main"><WaWave /><VoiceClip inboundId={m.id} /></div>
+                    </div>
+                  )}
+                  {m.kind === 'document' && (
+                    <div className="wa-doc"><span className="wa-doc-ic" aria-hidden="true">PDF</span>
+                      <div><b>{m.body || 'document'}</b><span>Held Unverified until a coordinator checks it</span></div></div>
+                  )}
+                  {m.body && m.kind !== 'document' && <div className="wa-text v31-kn">{m.body}</div>}
+                  {m.kind === 'voice' && m.transcript && <div className="wa-note">Transcript: {m.transcript}</div>}
+                  {english && m.translation && m.translation !== m.body && m.translation !== m.transcript && <div className="wa-note">AI translation: {m.translation}</div>}
+                  {english && out && m.body_en && m.body_en !== m.body && <div className="wa-note">English: {m.body_en}</div>}
+                  {m.direction === 'in' && m.ai_flag && (
+                    <div className="wa-note">{m.ai_flag === 'yes' ? `CarePilot: health mention flagged${m.ai_failed ? ' (AI failed — safe path)' : ''} → handed to a person` : 'CarePilot: no health mention → proposal for the coordinator'}</div>
+                  )}
+                  <span className="wa-meta">{waTime(m)}{out && !failed && <span className={`wa-ticks${replied(m) ? ' read' : ''}`} aria-label={replied(m) ? 'Read' : 'Delivered'}>✓✓</span>}</span>
+                </div>
+                {taps && (
+                  <div className={`wa-taps${failed ? ' failed' : ''}`}>
+                    {m.buttons.map((b) => {
+                      const tapped = thread.some((x) => x.direction === 'in' && x.reply_to === m.id && x.button === b.id);
+                      return coordinator && !failed ? (
+                        <button key={b.id} type="button" className={`wa-tap${tapped ? ' tapped' : ''}`} aria-pressed={tapped}
+                          title={`Demo: the patient taps "${b.label_en}"`} onClick={() => onTap(m, b)}>
+                          {tapped ? '✓ ' : '↩ '}{b.label}</button>
+                      ) : <span key={b.id} className={`wa-tap${tapped ? ' tapped' : ''}`}>{tapped ? '✓ ' : '↩ '}{b.label}</span>;
+                    })}
+                  </div>
+                )}
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+      <div className="wa-input" title="Use the demo controls to reply as the patient">
+        <span aria-hidden="true">☺</span><div className="wa-box">Message</div><span aria-hidden="true">📎</span>
+        <span className="wa-send" aria-hidden="true">🎙</span>
+      </div>
+    </div>
+  );
+}
+
 function Messages({ patient }) {
   const ui = useUI();
   const [thread, setThread] = useState([]);
@@ -416,48 +516,8 @@ function Messages({ patient }) {
             <button type="button" className={english ? 'on' : ''} onClick={() => setEnglish(true)}>+ English</button>
           </div>
         </div>
-        <div className="v31-phone">
-          <div className="v31-ph-head"><b>{settings?.clinic_name || 'Hospital A'}</b><span>WhatsApp · to {patient.full_name} · simulated</span></div>
-          <div className="v31-chat">
-            {thread.length === 0 && <div className="v31-empty">No messages yet. Messages go out only from approved templates.</div>}
-            {thread.map((m) => (
-              <div key={`${m.direction}-${m.id}`} className={`v31-b ${m.direction === 'out' ? 'hosp' : 'fam'}`}
-                style={m.status && m.status !== 'sent' ? { opacity: 0.6, borderStyle: 'dashed' } : undefined}>
-                {m.direction === 'in' && m.button && <span className="v31-en"><b>Tapped: {buttonLabel(m.button)}</b></span>}
-                {m.kind === 'document' && <span className="v31-en"><b>📎 Document sent</b> · held Unverified until a coordinator checks it</span>}
-                {m.kind === 'voice' && (
-                  <>
-                    <span className="v31-en"><b>🎙 Voice note ({m.clip_id || 'recorded'})</b></span>
-                    <VoiceClip inboundId={m.id} />
-                    {m.transcript && <span className="v31-kn">{m.transcript}</span>}
-                    {english && m.translation && <span className="v31-en">AI translation: {m.translation}</span>}
-                  </>
-                )}
-                {m.direction === 'in' && m.kind === 'text' && english && m.translation && m.translation !== m.body
-                  && <span className="v31-en">AI translation: {m.translation}</span>}
-                {m.direction === 'in' && m.ai_flag && (
-                  <span className="v31-en">{m.ai_flag === 'yes' ? `Health mention flagged${m.ai_failed ? ' (AI failed — safe path)' : ''} → handed to a person` : 'No health mention → proposal for the coordinator'}</span>
-                )}
-                {m.body && <span className="v31-kn">{m.body}</span>}
-                {english && m.body_en && m.body_en !== m.body && <span className="v31-en">{m.body_en}</span>}
-                {m.direction === 'out' && m.buttons?.length > 0 && (
-                  <div className="rbtns">{m.buttons.map((b) => (coordinator && m.status === 'sent'
-                    ? <button key={b.id} type="button" className="rbtn" title={`Demo: the patient taps "${b.label_en}"`}
-                      aria-pressed={thread.some((x) => x.direction === 'in' && x.reply_to === m.id && x.button === b.id)}
-                      style={{ cursor: 'pointer', font: 'inherit',
-                        ...(thread.some((x) => x.direction === 'in' && x.reply_to === m.id && x.button === b.id)
-                          ? { background: 'var(--brand)', color: '#fff' } : {}) }}
-                      onClick={() => reply({ button: b.id, in_reply_to: m.id })}>{b.label}</button>
-                    : <span key={b.id} className="rbtn">{b.label}</span>))}</div>
-                )}
-                <span className="v31-t">
-                  {fmt(m.day)}{m.at ? ` ${String(m.at).slice(0, 5)}` : ''} · {m.direction === 'out' ? `to ${m.party}` : `from ${m.party}`}
-                  {m.status && m.status !== 'sent' ? ` · ${m.status.replaceAll('_', ' ')}${m.blocked_reason ? `: ${m.blocked_reason}` : ''}` : ''}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <WaPhone thread={thread} patient={patient} settings={settings} english={english} coordinator={coordinator}
+          now={ui.now} onTap={(m, b) => reply({ button: b.id, in_reply_to: m.id })} />
         {thread.some((m) => m.language && m.language !== 'English') && (
           <div className="small-note" style={{ marginTop: 8 }}>Kannada and Hindi wording are drafts — to be checked by a native speaker.</div>
         )}
