@@ -13,7 +13,7 @@ def _who(user_id) -> str:
     return USERS_BY_ID.get(user_id, {}).get("name", user_id)
 
 
-_ROUTED = {"auto_matched": "sent to the doctor as auto-matched, with a copy for the coordinator",
+_ROUTED = {"auto_matched": "name, MRN and test match: verified by the system and sent to the doctor",
            "wrong_report": "patient asked for the right report", "verify": "coordinator to verify"}
 _ANSWER = {"done_outside": "Done at an outside lab", "done_hospital": "Done at the hospital", "not_done": "Not done yet"}
 
@@ -187,6 +187,9 @@ def build(conn, mrn: str) -> dict:
                 events.append(_ev(r["confirmed_at_demo"].date(), f"Auto-matched outside report confirmed by "
                                   f"{_who(r['confirmed_by'])} — {what} Report verified", "routine", "hosp", src,
                                   "Coordinator's copy"))
+            elif r["status"] == "verified" and not r["verified_by"]:
+                events.append(_ev(r["verified_at_demo"].date(), "Outside report verified by the system (name, MRN and "
+                                  f"test match) — {what}", "routine", "carepilot", src, "Outside report check"))
             elif r["status"] == "verified":
                 events.append(_ev(r["verified_at_demo"].date(), f"Outside report verified by {_who(r['verified_by'])} "
                                   f"({', '.join(r['matched'] or [])} match) — {what}", "routine", "hosp", src,

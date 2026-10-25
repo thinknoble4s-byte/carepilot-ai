@@ -170,7 +170,8 @@ def test_t1_full_hospital_cycle(uc2t, client):
     assert scalar("SELECT count(*) FROM gap_event WHERE rule = 'G0'") == 8
     m = sent("TP001", "test_booking_reminder")
     assert len(m) == 1 and "not yet booked your Blood test (CBC), advised by Dr. Sekhar, due on 23-Nov" in m[0]["body"]
-    assert [b["id"] for b in m[0]["buttons"]] == ["booked", "help_book", "cant_come"]
+    assert [b["id"] for b in m[0]["buttons"]] == ["booked", "help_book", "cant_come", "done_outside"]
+    assert m[0]["buttons"][0]["label"] == "Blood test booked (I have already booked)"
     assert scalar("SELECT reason_code FROM audit_ledger WHERE action = 'agent_decision' AND mrn = 'TP001'") == "gap_actionable"
     set_clock(client, "2026-11-16", "10:15")
     tap(client, "TP001", "help_book")
@@ -256,49 +257,59 @@ def test_t2_outside_lab_road(uc2t, client):
     assert cbc(client, "TP004")["label"] == "Patient says done at outside lab (report awaited)"
     assert [m["template_id"] for m in sent("TP004")[before:]] == ["report_upload_request"]  # and nothing else
     assert "Tap the attach (paper-clip) icon" in sent("TP004")[-1]["body"]
-    assert cbc(client, "TP004")["state"] == "Booked"
+    c = cbc(client, "TP004")
+    assert (c["state"], c["report_road"]) == ("Completed", "outside")  # owner's decision: the tap completes it
     set_clock(client, "2026-11-24", "10:00")
     before = len(sent("TP004"))
     r = document(client, "TP004")
-    assert r["identifiers"]["name"] == "Kavita" and r["identifiers"]["age"] == "54"
-    assert not set(r["identifiers"]) - {"name", "age", "sex", "lab_id", "facility", "report_date", "document_type"}
+    assert (r["identifiers"]["name"], r["identifiers"]["mrn"], r["identifiers"]["age"]) == ("Kavita", "TP004", "54")
+    assert not set(r["identifiers"]) - {"name", "mrn", "age", "sex", "lab_id", "facility", "report_date",
+                                        "document_type"}
     assert r["score"] == 97 and all(r["hard_checks"].values()) and r["routing_applied"] == "auto_matched"
     assert scalar("SELECT timer_from FROM report_check WHERE mrn = 'TP004'") is None  # the timer stopped
-    # One save: Report received with the auto-matched label, the doctor's item, Anita's copy; no Verify task.
+    # One save: name, MRN and test match -> Report received -> Report verified by the system, the doctor's item;
+    # no person confirms it, no copy and no Verify task.
     c = cbc(client, "TP004")
-    assert (c["state"], c["report_road"]) == ("Report received", "outside")
-    assert c["label"] == "Outside report (auto-matched 97, not yet confirmed by a person)"
+    assert (c["state"], c["report_road"]) == ("Report verified", "outside")
+    assert c["label"] == "Outside report (checked by AI: name, MRN and test match, score 97)"
     item = review(client, "TP004")
-    assert item["road"] == "outside" and item["checked"] == "auto-matched 97, not yet confirmed by a person"
-    assert item["unverified_label"] == "Unverified outside report: auto-matched 97"
-    assert "name: match" in item["match_facts"] and item["report_date"] == "2026-11-24"
+    assert item["road"] == "outside" and item["checked"] == "by the system (AI read: name, MRN and test match, score 97)"
+    assert item["unverified_label"] is None
+    assert {"name: match", "MRN: match"} <= set(item["match_facts"]) and item["report_date"] == "2026-11-24"
     assert item["days_since_due"] == 1
-    k = copy(client, "TP004")
-    assert k["owner_name"] == "Anita" and k["status"] == "open" and "due_date" not in k
-    assert task(client, "TP004", "outside_report") is None
+    assert copy(client, "TP004") is None and task(client, "TP004", "outside_report") is None
     assert len(sent("TP004")) == before  # the patient receives no message
     assert scalar("SELECT count(*) FROM audit_ledger WHERE actor_type = 'ai_suggestion'") == 1  # the only AI entry
-    # Optional Confirm: Report verified; the doctor's item then shows who confirmed it.
-    set_clock(client, "2026-11-24", "14:00")
-    ok(client.post(f"/copies/{k['copy_id']}/confirm", headers=ANITA))
-    c = cbc(client, "TP004")
-    assert (c["state"], c["label"]) == ("Report verified", "Outside report (verified by coordinator)")
-    assert review(client, "TP004")["checked"].startswith("auto-matched 97, confirmed by Anita")
     set_clock(client, "2026-11-25", "09:00")
     ok(client.post(f"/reviews/{item['review_id']}/decision", headers=SEKHAR, json={"decision": "continue"}))
     assert sent("TP004")[-1]["template_id"] == "report_continue_due"
     assert "next visit, due by Mon 14 Dec" in sent("TP004")[-1]["body"]
 
 
-def test_t2_doctor_decides_without_confirm(uc2t, client):
-    outside_road(client)
-    item = review(client, "TP004")
-    f = client.get(f"/reports/{item['report_id']}/file", headers=SEKHAR)
-    assert f.status_code == 200  # an auto-matched report reaches the doctor
-    set_clock(client, "2026-11-25", "09:00")
-    ok(client.post(f"/reviews/{item['review_id']}/decision", headers=SEKHAR, json={"decision": "continue"}))
-    assert cbc(client, "TP004")["state"] == "Report received"  # nobody confirmed: it stays Report received
-    assert len(sent("TP004", "report_continue_due")) == 1
+def test_t2_reminder_done_outside_button(uc2t, client):
+    """The test reminder's fourth button: Done at an outside lab moves the card to Completed and asks for the file;
+    the upload timer runs (one nudge, then a call task) as after the report check."""
+    to_reminder(client)
+    set_clock(client, "2026-11-16", "10:15")
+    tap(client, "TP008", "done_outside")
+    c = cbc(client, "TP008")
+    assert (c["state"], c["label"]) == ("Completed", "Patient says done at outside lab (report awaited)")
+    assert sent("TP008")[-1]["template_id"] == "report_upload_request"
+    assert scalar("SELECT count(*) FROM gap_event WHERE mrn = 'TP008' AND status <> 'resolved'") == 0
+    morning(client, "2026-11-18")
+    assert len(sent("TP008", "report_upload_nudge")) == 1
+    morning(client, "2026-11-20")
+    assert task(client, "TP008", "call_about_test") is not None
+    to_check(client)
+    assert sent("TP008", "test_report_check") == []  # Completed: no report check
+
+
+def test_t2_report_without_mrn_goes_to_the_coordinator(uc2t, client):
+    set_clock(client, "2026-11-24", "10:00")
+    r = document(client, "TP004", "no_mrn")
+    assert r["hard_checks"]["G8"] is False and r["routing_applied"] == "verify"
+    assert "MRN: not on the report" in task(client, "TP004", "outside_report")["reason"]
+    assert cbc(client, "TP004")["state"] == "Due" and review(client, "TP004") is None
 
 
 def test_t2_reject_keeps_card_and_file(uc2t, client):
@@ -579,7 +590,7 @@ def test_t12_wrong_or_unclear_report(uc2t, client):
     assert "may not be the report of your Blood test (CBC)" in msgs[0]["body"]
     assert not re.search(r"\b(ct|scan|radiology|chest)\b", msgs[0]["body"], re.I)  # never what the file seems to be
     assert scalar("SELECT reason_code FROM outbox_message WHERE template_id = 'report_wrong_report'") == "wrong_report_asked"
-    assert cbc(client, "TP009")["state"] == "Due" and review(client, "TP009") is None
+    assert cbc(client, "TP009")["state"] == "Completed" and review(client, "TP009") is None
     assert copy(client, "TP009", "wrong_report")["owner_name"] == "Anita"
     assert scalar("SELECT timer_from FROM report_check WHERE mrn = 'TP009'") is not None  # the timer restarted
     # A second wrong or unclear file: a "Call about test" task, no second message.
@@ -592,7 +603,7 @@ def test_t12_wrong_or_unclear_report(uc2t, client):
     set_clock(client, "2026-11-24", "12:00")
     before = len(sent("TP009"))
     r3 = document(client, "TP009", "other_name")
-    assert r3["routing_applied"] == "verify" and r3["hard_checks"]["G3"] is False
+    assert r3["routing_applied"] == "verify" and r3["hard_checks"]["G3"] is False and r3["hard_checks"]["G8"] is False
     assert len(sent("TP009")) == before
     t = task(client, "TP009", "outside_report")
     assert "name: no match" in t["reason"]
@@ -639,41 +650,6 @@ def test_t13_duplicate_file_of_another_patient(uc2t, client):
     r = ok(client.post("/simulator/TP001/document", headers=ANITA,
                        files={"file": ("report.pdf", data, "application/pdf")}), 201)
     assert r["hard_checks"]["G6"] is False and r["routing_applied"] == "verify"
-
-
-def test_t13_flag_as_wrong(uc2t, client):
-    outside_road(client)
-    k = copy(client, "TP004")
-    assert client.post(f"/copies/{k['copy_id']}/flag", headers=ANITA, json={"reason": ""}).status_code == 422
-    before = len(sent("TP004"))
-    ok(client.post(f"/copies/{k['copy_id']}/flag", headers=ANITA, json={"reason": "A relative's report"}))
-    c = cbc(client, "TP004")
-    assert (c["state"], c["label"]) == ("Booked", "Patient says booked (no date)")  # back to its earlier state
-    rep = report(k["report_id"])
-    assert rep["status"] == "flagged" and rep["blob_id"] is not None
-    items = ok(client.get("/doctor/reviews", headers=SEKHAR))["open"]
-    item = next(i for i in items if i["mrn"] == "TP004")
-    assert item["status"] == "withdrawn" and item["withdrawn_reason"] == "withdrawn: flagged by coordinator"
-    assert client.post(f"/reviews/{item['review_id']}/decision", headers=SEKHAR,
-                       json={"decision": "continue"}).status_code == 409
-    assert task(client, "TP004", "call_patient_resend") is not None
-    assert len(sent("TP004")) == before
-
-
-def test_t13_flag_after_the_decision(uc2t, client):
-    outside_road(client)
-    item = review(client, "TP004")
-    set_clock(client, "2026-11-25", "09:00")
-    ok(client.post(f"/reviews/{item['review_id']}/decision", headers=SEKHAR, json={"decision": "continue"}))
-    before = len(sent("TP004"))
-    k = copy(client, "TP004")
-    ok(client.post(f"/copies/{k['copy_id']}/flag", headers=ANITA, json={"reason": "Another person, same name"}))
-    notice = next(i for i in ok(client.get("/doctor/reviews", headers=SEKHAR))["open"] if i["mrn"] == "TP004")
-    assert notice["flagged_after_decision"] is True and notice["withdrawn_reason"] == "Report flagged after your decision"
-    assert "Report flagged after your decision" in task(client, "TP004", "call_patient_resend")["reason"]
-    assert len(sent("TP004")) == before  # nothing to the patient automatically
-    ok(client.post(f"/reviews/{item['review_id']}/noted", headers=SEKHAR))
-    assert all(i["mrn"] != "TP004" for i in ok(client.get("/doctor/reviews", headers=SEKHAR))["open"])
 
 
 def test_t14_shadow_mode_and_the_threshold(uc2t, client):
@@ -726,17 +702,15 @@ def test_audit_thread_positive_case(uc2t, client):
 
 def test_audit_thread_negative_case(uc2t, client):
     outside_road(client)
-    k = copy(client, "TP004")
-    ok(client.post(f"/copies/{k['copy_id']}/confirm", headers=ANITA))
     with db() as c:
         got = [(a["action"], a["actor_type"]) for a in c.execute(
             "SELECT action, actor_type FROM audit_ledger WHERE mrn = 'TP004' ORDER BY id").fetchall()]
     want = [("reply_received", "system"), ("card_state_changed", "system"), ("report_check_raised", "system"),
             ("agent_decision", "agent"), ("message_sent", "agent"), ("reply_received", "system"),
-            ("message_sent", "agent"), ("outside_report_received", "system"), ("identifiers_read", "ai_suggestion"),
-            ("report_scored", "system"), ("card_state_changed", "system"), ("outside_report_auto_matched", "system"),
-            ("coordinator_copy_created", "system"), ("review_item_created", "system"),
-            ("card_state_changed", "person"), ("auto_matched_report_confirmed", "person")]
+            ("card_state_changed", "system"), ("message_sent", "agent"), ("outside_report_received", "system"),
+            ("identifiers_read", "ai_suggestion"), ("report_scored", "system"), ("card_state_changed", "system"),
+            ("card_state_changed", "system"), ("outside_report_auto_matched", "system"),
+            ("review_item_created", "system")]
     it = iter(got)
     missing = [w for w in want if w not in it]
     assert not missing, (missing, got)
@@ -744,4 +718,4 @@ def test_audit_thread_negative_case(uc2t, client):
     labels = [e["label"] for e in ok(client.get("/patients/TP004/timeline", headers=SEKHAR))["events"]]
     assert any("Report check sent" in l for l in labels) and any("Patient tapped: Done at an outside lab" in l for l in labels)
     assert any("Outside report scored 97 by plain rules; all hard checks pass" in l for l in labels)
-    assert any("Auto-matched outside report confirmed by Anita" in l for l in labels)
+    assert not [a for a in got if a[0] in ("coordinator_copy_created", "auto_matched_report_confirmed")]

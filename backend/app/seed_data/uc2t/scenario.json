@@ -268,8 +268,8 @@
       "buttons": [
         {
           "id": "booked",
-          "label": "Booked (I have already booked)",
-          "label_en": "Booked (I have already booked)"
+          "label": "{what} booked (I have already booked)",
+          "label_en": "{what} booked (I have already booked)"
         },
         {
           "id": "help_book",
@@ -320,8 +320,8 @@
       "buttons": [
         {
           "id": "booked",
-          "label": "Booked (I have already booked)",
-          "label_en": "Booked (I have already booked)"
+          "label": "{what} booked (I have already booked)",
+          "label_en": "{what} booked (I have already booked)"
         },
         {
           "id": "help_book",
@@ -348,8 +348,8 @@
       "buttons": [
         {
           "id": "booked",
-          "label": "बुक हो गया",
-          "label_en": "Booked (I have already booked)"
+          "label": "{what} बुक हो गया",
+          "label_en": "{what} booked (I have already booked)"
         },
         {
           "id": "help_book",
@@ -376,8 +376,8 @@
       "buttons": [
         {
           "id": "booked",
-          "label": "Booked (I have already booked)",
-          "label_en": "Booked (I have already booked)"
+          "label": "{what} booked (I have already booked)",
+          "label_en": "{what} booked (I have already booked)"
         },
         {
           "id": "help_book",
@@ -388,6 +388,12 @@
           "id": "cant_come",
           "label": "I can't come",
           "label_en": "I can't come"
+        },
+        {
+          "id": "done_outside",
+          "only": "test",
+          "label": "Done at an outside lab",
+          "label_en": "Done at an outside lab"
         }
       ]
     },

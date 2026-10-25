@@ -11,9 +11,11 @@ code -> linked (Report received) and checked by two identifiers (Report verified
 mismatch" task, or an exception when no card matches.
 Report check (Use Case 2T): once the test date has passed with no report, the hospital data is looked at first;
 if nothing is there the agent asks the patient (Done at an outside lab / Done at the hospital / Not done yet).
-Outside road: a photo or PDF is held Unverified; identifiers are read (never results); seven hard checks and a
-rule score out of 100. All checks pass and 95 or more (Live mode): straight to the doctor as "auto-matched", card
-Report received (never verified on its own), with a copy for the coordinator (Confirm / Flag as wrong). The wrong
+Outside road (owner's decision of 25 Oct 2026, replacing REQ-25 and REQ-27 there): "Done at an outside lab" -- on
+the report check or as the fourth button of a test reminder -- moves a lab test Booked (or Due) -> Completed and
+sends the upload request. A photo or PDF is held Unverified; identifiers are read (never results); eight hard checks
+and a rule score out of 100. Name, MRN and test match, every check passes and the score is 95 or more (Live mode):
+Report received -> Report verified by the system, with no person confirming it, then the doctor's item. The wrong
 kind of report or an unreadable file: the "possible wrong report" message. Anything else: the coordinator verifies
 (two matching identifiers) or rejects. In Shadow mode every outside report waits for the coordinator.
 In data sets whose settings carry "test_cycle" (Use Case 2T) a report that reaches the doctor becomes "Report
@@ -35,14 +37,17 @@ SYSTEM = "CarePilot"
 LAB = "Simulated lab (hospital)"
 VISION = "Identifier reader (simulated Sarvam Vision)"
 CHECKER = "CarePilot report check"
-IDENTIFIERS = ("name", "age", "sex", "lab_id", "facility", "report_date", "document_type")
+IDENTIFIERS = ("name", "mrn", "age", "sex", "lab_id", "facility", "report_date", "document_type")
 CHECKABLE = ("name", "age", "sex", "mrn", "phone", "lab_id")  # what a coordinator can tick as matching
 LABELS = {"name": "Name", "age": "Age", "sex": "Sex", "lab_id": "Lab ID", "facility": "Facility",
           "report_date": "Report date", "document_type": "Document type", "mrn": "MRN", "phone": "Phone"}
 HARD_CHECKS = {"G1": "Report type: a laboratory report of the same kind as the test",
-               "G2": "Test name matches the prescribed test", "G3": "Patient's name matches (age or sex agrees)",
-               "G4": "Report date: not in the future, not long before the card", "G5": "Legible: all fields read",
-               "G6": "Not a duplicate of another patient's file", "G7": "Known sender (patient or listed caregiver)"}
+               "G2": "Test name matches the prescribed test",
+               "G3": "Patient's name matches (age and sex, if on the report, do not disagree)",
+               "G4": "Report date: not in the future, not long before the card",
+               "G5": "Clear: name, report date and document type all read",
+               "G6": "Not a duplicate of another patient's file", "G7": "Known sender (patient or listed caregiver)",
+               "G8": "MRN on the report matches the patient's MRN"}
 OPEN_TEST = ("Due", "Booked")
 CHECK_BUTTONS = ("done_outside", "done_hospital", "not_done")
 CHECK_LABEL = {"done_outside": "Patient says done at outside lab (report awaited)",
@@ -50,11 +55,13 @@ CHECK_LABEL = {"done_outside": "Patient says done at outside lab (report awaited
 BOOKED_BY_PATIENT = "Patient says booked (no date)"
 BOOKED_BY_COORDINATOR = "Booked (confirmed by coordinator)"
 VERIFIED_BY_COORDINATOR = "Outside report (verified by coordinator)"
+DONE_OUTSIDE = "Patient says done at outside lab (report awaited)"
 
 # REQ-12 / REQ-29: the rule score and its threshold are a setting held by the clinical lead (proposed values).
 DEFAULT_ROUTING = {
     "version": "1.0", "threshold": 95, "mode": "shadow", "clinical_lead": "u_sekhar",
-    "weights": {"name": 30, "test_name": 25, "document_type": 15, "age_sex": 15, "report_date": 10, "sender": 5},
+    "weights": {"name": 30, "mrn": 0, "test_name": 25, "document_type": 15, "age_sex": 15, "report_date": 10,
+                "sender": 5},
     "report_date_days_before_card": 14, "group_minutes": 10,
     "synonyms": {"CBC": ["blood test", "complete blood count", "full blood count", "cbc", "haemogram", "hemogram"]},
 }
@@ -117,8 +124,9 @@ VARIANTS = {
     "other_name": "Report in another person's name",
     "unreadable": "Photo too unclear to read",
     "future_date": "Report dated in the future",
+    "no_mrn": "Report without the hospital MRN",
 }
-OTHER_PERSON = "Pushpa Rao"
+OTHER_PERSON, OTHER_MRN = "Pushpa Rao", "HOSP-77812"
 
 
 def outside_report_pdf(patient: dict, day: date, test_name: str, variant: str = "clear") -> bytes:
@@ -128,8 +136,9 @@ def outside_report_pdf(patient: dict, day: date, test_name: str, variant: str = 
     kind = "Radiology report - CT scan of the chest" if variant == "ct_scan" else f"Laboratory report - {test_name}"
     when = day + timedelta(days=5) if variant == "future_date" else day
     quality = {"blurred": "slightly blurred", "unreadable": "unreadable"}.get(variant, "clear")
+    mrn = [] if variant == "no_mrn" else [f"MRN: {OTHER_MRN if variant == 'other_name' else patient['mrn']}"]
     return _pdf(["SUNRISE DIAGNOSTICS (synthetic outside lab) - DEMO DOCUMENT",
-                 f"Name: {name}", f"Age: {patient.get('age') or 54}", f"Sex: {patient.get('sex') or 'F'}",
+                 f"Name: {name}", *mrn, f"Age: {patient.get('age') or 54}", f"Sex: {patient.get('sex') or 'F'}",
                  "Lab ID: SD-2026-48213", "Facility: Sunrise Diagnostics, Jayanagar (synthetic)",
                  f"Report date: {when.isoformat()}", f"Document type: {kind}", f"Scan quality: {quality}", "",
                  "Findings: synthetic values only" if variant == "ct_scan" else
@@ -395,7 +404,7 @@ def _validate_identifiers(out: dict) -> dict:
     return {k: (str(v).strip() if v is not None else None) for k, v in out.items()}
 
 
-CLEAR = {"name": 0.97, "age": 0.95, "sex": 0.95, "lab_id": 0.96, "facility": 0.95, "report_date": 0.97,
+CLEAR = {"name": 0.97, "mrn": 0.96, "age": 0.95, "sex": 0.95, "lab_id": 0.96, "facility": 0.95, "report_date": 0.97,
          "document_type": 0.97}
 
 
@@ -407,7 +416,7 @@ def read_identifiers(data: bytes, mime: str) -> tuple[dict, dict]:
     text = data.decode("latin-1", errors="ignore")
     if "(Scan quality: unreadable)" in text:
         raise ValueError("too unclear to read")
-    keys = {"Name": "name", "Age": "age", "Sex": "sex", "Lab ID": "lab_id", "Facility": "facility",
+    keys = {"Name": "name", "MRN": "mrn", "Age": "age", "Sex": "sex", "Lab ID": "lab_id", "Facility": "facility",
             "Report date": "report_date", "Document type": "document_type"}
     out = {}
     for label, key in keys.items():
@@ -485,12 +494,13 @@ def score_report(ids: dict, conf: dict, patient: dict, card: dict, *, sender_kno
         rdate = None
     earliest = card_created - timedelta(days=int(rules["report_date_days_before_card"]))
     date_ok = rdate is not None and earliest <= rdate <= today
-    legible = all(ids.get(k) for k in ("name", "age", "sex", "report_date", "document_type"))
-    checks = {"G1": is_lab, "G2": test_ok,
-              "G3": name_deg >= 0.9 and (age is True or sex is True) and age is not False and sex is not False,
-              "G4": date_ok, "G5": legible, "G6": not duplicate_elsewhere, "G7": sender_known}
+    mrn_read = re.sub(r"\s", "", ids.get("mrn") or "").casefold()
+    mrn_ok = bool(mrn_read) and mrn_read == patient["mrn"].casefold()
+    legible = all(ids.get(k) for k in ("name", "report_date", "document_type"))
+    checks = {"G1": is_lab, "G2": test_ok, "G3": name_deg >= 0.9 and age is not False and sex is not False,
+              "G4": date_ok, "G5": legible, "G6": not duplicate_elsewhere, "G7": sender_known, "G8": mrn_ok}
     c = lambda k: float(conf.get(k) or 0)
-    parts = {"name": w["name"] * name_deg * c("name"),
+    parts = {"name": w["name"] * name_deg * c("name"), "mrn": w.get("mrn", 0) * mrn_ok * c("mrn"),
              "test_name": w["test_name"] * test_ok * c("document_type"),
              "document_type": w["document_type"] * is_lab * c("document_type"),
              "age_sex": w["age_sex"] * ((age is True) * c("age") + (sex is True) * c("sex")) / 2,
@@ -503,6 +513,7 @@ def score_report(ids: dict, conf: dict, patient: dict, card: dict, *, sender_kno
         "test name: " + ("not read" if not doc else yes(test_ok, "match", "no match")),
         "name: " + ("not read" if not ids.get("name") else "match" if name_deg >= 0.9 else
                     "partly read" if name_deg > 0 else "no match"),
+        "MRN: " + ("not on the report" if not mrn_read else yes(mrn_ok, "match", "no match")),
         "age: " + {True: "match", False: "no match", None: "not compared"}[age],
         "sex: " + {True: "match", False: "no match", None: "not compared"}[sex],
         "report date: " + ("not read" if rdate is None else f"{rdate:%d %b %Y}, " + (
@@ -517,8 +528,8 @@ def score_report(ids: dict, conf: dict, patient: dict, card: dict, *, sender_kno
 
 def route(checks: dict, score: int, threshold: int) -> str:
     """REQ-12: an unknown sender always goes to a person (she is not messaged); the wrong kind of report or an
-    unreadable file goes back to the patient; all checks and the threshold go to the doctor; anything else to the
-    coordinator."""
+    unreadable file goes back to the patient; all checks (name, MRN and test match) and the threshold: verified by the
+    system and on to the doctor; anything else to the coordinator."""
     if not checks["G7"]:
         return "verify"
     if not (checks["G1"] and checks["G2"] and checks["G5"]):
@@ -681,23 +692,27 @@ def _verify_task(conn, patient: dict, card: dict | None, report: dict, note: str
 
 
 def _auto_match(conn, card: dict, report: dict) -> None:
-    """REQ-27, one save: file attached, card Report received (never verified) with the auto-matched label, the
-    doctor's review item and the coordinator's copy. The patient is told nothing."""
-    label = f"Outside report (auto-matched {report['score']}, not yet confirmed by a person)"
+    """One save (owner's decision of 25 Oct, replacing REQ-27's coordinator copy): the file passed every check --
+    name, MRN and test match, clear, score at or above the threshold -- so the card moves Report received -> Report
+    verified by the system, and the doctor gets the review item. No person confirms it; the patient is told nothing."""
+    label = f"Outside report (checked by AI: name, MRN and test match, score {report['score']})"
     states.transition_card(conn, card["card_id"], "Report received", "system", SYSTEM,
                            source="outside_report_auto_matched", file_ref=report["file_name"],
                            report_id=report["report_id"], score=report["score"])
+    states.transition_card(conn, card["card_id"], "Report verified", "system", SYSTEM,
+                           matched_identifiers=3, identifiers=["name", "mrn", "test"], report_id=report["report_id"],
+                           verified_by="system (outside report check)")
     conn.execute("UPDATE order_card SET report_road = 'outside', label = %s, patient_says_booked = false "
                  "WHERE card_id = %s", (label, card["card_id"]))
-    report = conn.execute("UPDATE test_report SET status = 'auto_matched', card_id = %s, prior_state = %s "
-                          "WHERE report_id = %s RETURNING *",
-                          (card["card_id"], card["state"], report["report_id"])).fetchone()
+    report = conn.execute("UPDATE test_report SET status = 'verified', card_id = %s, prior_state = %s, "
+                          "matched = %s, verified_at_demo = %s WHERE report_id = %s RETURNING *",
+                          (card["card_id"], card["state"], ["name", "mrn", "test"], clock.get_now(conn),
+                           report["report_id"])).fetchone()
     audit.append(conn, actor_type="system", actor_name=SYSTEM, action="outside_report_auto_matched",
                  entity_type="test_report", entity_id=str(report["report_id"]), mrn=card["mrn"],
                  reason_code="outside_report_auto_matched",
                  details={"score": report["score"], "card_id": card["card_id"], "label": label,
-                          "message_to_patient": None, "verified": False})
-    _copy(conn, card, report, "auto_matched")
+                          "message_to_patient": None, "verified": True, "matched": ["name", "mrn", "test"]})
     _stop_checks(conn, card["card_id"], "outside_report_auto_matched", report["report_id"])
     _report_ready(conn, card, report, "outside")
 
@@ -1030,7 +1045,8 @@ def report_check_job(conn) -> dict:
         return {}
     t, today, out = timings(conn), clock.get_today(conn), {"raised": 0, "skipped": 0, "tasks": 0, "nudges_due": 0}
     for ch in conn.execute("""SELECT k.* FROM report_check k JOIN order_card c USING (card_id)
-                              WHERE k.status IN ('open', 'blocked', 'sent') AND c.state NOT IN ('Due', 'Booked')""").fetchall():
+                              WHERE k.status IN ('open', 'blocked', 'sent') AND c.state NOT IN ('Due', 'Booked')
+                                AND NOT (k.answer = 'done_outside' AND c.state = 'Completed')""").fetchall():
         _close_check(conn, ch, "card_moved_on")
     cards = conn.execute(
         """SELECT c.* FROM order_card c JOIN patient p USING (mrn)
@@ -1113,6 +1129,52 @@ def report_check_send(conn) -> list[dict]:
     return out
 
 
+def _complete_outside(conn, card: dict, inbound_id: int | None, actor: str) -> bool:
+    """The patient says she did the lab test at an outside lab: Due or Booked -> Completed (source patient_outside).
+    Imaging stays where it is (it has no lab report to send)."""
+    if card["state"] not in OPEN_TEST or card["specimen"] is False:
+        return False
+    states.transition_card(conn, card["card_id"], "Completed", "system", actor, source="patient_outside",
+                           inbound_id=inbound_id)
+    conn.execute("UPDATE order_card SET completed_on = %s, report_road = 'outside', label = %s WHERE card_id = %s",
+                 (clock.get_today(conn), DONE_OUTSIDE, card["card_id"]))
+    conn.execute("UPDATE gap_event SET status = 'resolved', outcome = 'patient_done_outside' "
+                 "WHERE card_id = %s AND status <> 'resolved'", (card["card_id"],))
+    return True
+
+
+def _request_upload(conn, card: dict) -> None:
+    messaging.send_message(conn, mrn=card["mrn"], template_id="report_upload_request", actor_type="agent",
+                           actor=AGENT, reason_code="upload_requested", card_id=card["card_id"])
+    set_next_action(conn, card["mrn"], f"{card['name']}: waiting for the outside report (photo or PDF)")
+
+
+def tap_done_outside(conn, card: dict, inbound_id: int, actor: str) -> str:
+    """"Done at an outside lab" on a test reminder (the fourth button): as the report-check answer -- the card moves
+    to Completed, the upload request goes at once, and the upload timer (one nudge, then a call task) starts."""
+    if card["card_type"] != "test" or card["specimen"] is False or card["state"] not in OPEN_TEST:
+        return "already_progressed" if card["card_type"] == "test" else "not_a_test"
+    open_check = conn.execute("SELECT * FROM report_check WHERE card_id = %s AND status = 'sent' AND answer IS NULL "
+                              "ORDER BY check_id DESC LIMIT 1 FOR UPDATE", (card["card_id"],)).fetchone()
+    if open_check:
+        return answer_check(conn, open_check, "done_outside", inbound_id, actor)
+    today = clock.get_today(conn)
+    round_ = conn.execute("SELECT coalesce(max(round), 0) + 1 AS r FROM report_check WHERE card_id = %s AND "
+                          "due_date = %s", (card["card_id"], card["due_date"])).fetchone()["r"]
+    ch = conn.execute(
+        """INSERT INTO report_check (card_id, mrn, due_date, round, raised_on, status, sent_on, answer, answered_on,
+                                     answer_inbound_id, timer_from)
+           VALUES (%s, %s, %s, %s, %s, 'sent', %s, 'done_outside', %s, %s, %s) RETURNING *""",
+        (card["card_id"], card["mrn"], card["due_date"], round_, today, today, today, inbound_id, today)).fetchone()
+    _complete_outside(conn, card, inbound_id, actor)
+    audit.append(conn, actor_type="system", actor_name=actor, action="card_label_set", entity_type="order_card",
+                 entity_id=str(card["card_id"]), mrn=card["mrn"], reason_code="reminder_done_outside",
+                 details={"label": DONE_OUTSIDE, "state": "Completed", "inbound_id": inbound_id,
+                          "check_id": ch["check_id"], "card_moved": True})
+    _request_upload(conn, card)
+    return "test_done_outside"
+
+
 def check_for_message(conn, message_id: int | None) -> dict | None:
     if not message_id:
         return None
@@ -1120,8 +1182,8 @@ def check_for_message(conn, message_id: int | None) -> dict | None:
 
 
 def answer_check(conn, check: dict, button: str, inbound_id: int, actor: str) -> str:
-    """REQ-25: the three buttons. Saved and audited, no AI; the card's state never changes from a tap. Only Done at
-    an outside lab gets a reply: the upload request (how to attach the file in the chat)."""
+    """REQ-25: the three buttons. Saved and audited, no AI. Done at an outside lab moves a lab test to Completed
+    (owner's decision of 25 Oct) and gets a reply: the upload request (how to attach the file in the chat)."""
     if check["answer"] is not None or check["status"] != "sent":
         audit.append(conn, actor_type="system", actor_name=actor, action="duplicate_suppressed",
                      entity_type="report_check", entity_id=str(check["check_id"]), mrn=check["mrn"],
@@ -1133,15 +1195,14 @@ def answer_check(conn, check: dict, button: str, inbound_id: int, actor: str) ->
     conn.execute("UPDATE report_check SET answer = %s, answered_on = %s, answer_inbound_id = %s WHERE check_id = %s",
                  (button, today, inbound_id, check["check_id"]))
     _label(conn, card["card_id"], label)
+    moved = button == "done_outside" and _complete_outside(conn, card, inbound_id, actor)
     audit.append(conn, actor_type="system", actor_name=actor, action="card_label_set", entity_type="order_card",
                  entity_id=str(card["card_id"]), mrn=card["mrn"], reason_code=f"report_check_{button}",
-                 details={"label": label, "state": card["state"], "inbound_id": inbound_id,
-                          "check_id": check["check_id"], "card_moved": False})
+                 details={"label": label, "state": "Completed" if moved else card["state"], "inbound_id": inbound_id,
+                          "check_id": check["check_id"], "card_moved": moved})
     if button == "done_outside":
         conn.execute("UPDATE report_check SET timer_from = %s WHERE check_id = %s", (today, check["check_id"]))
-        messaging.send_message(conn, mrn=card["mrn"], template_id="report_upload_request", actor_type="agent",
-                               actor=AGENT, reason_code="upload_requested", card_id=card["card_id"])
-        set_next_action(conn, card["mrn"], f"{card['name']}: waiting for the outside report (photo or PDF)")
+        _request_upload(conn, card)
     elif button == "done_hospital":
         if card["state"] != "Completed" or not card["report_road"]:
             _call_task(conn, card, "patient says the test was done at the hospital: check the hospital record",
@@ -1328,7 +1389,7 @@ def doctor_items(conn) -> list[dict]:
         """SELECT v.*, p.full_name, p.preferred_language, c.name AS test_name, c.test_code, c.due_date, c.state AS card_state,
                   r.received_at_demo, r.file_name, r.verified_by, r.verified_at_demo, r.status AS report_status,
                   r.score, r.match_facts, r.report_date, r.patient_note, r.note_translation, r.confirmed_by,
-                  r.confirmed_at_demo, r.flag_reason,
+                  r.confirmed_at_demo, r.flag_reason, r.routing_applied,
                   (SELECT t.result_code FROM coordinator_task t WHERE t.mrn = v.mrn AND t.task_type = 'cant_come'
                      AND t.result_code IS NOT NULL ORDER BY t.task_id DESC LIMIT 1) AS delay_reason
            FROM report_review v JOIN patient p USING (mrn) JOIN order_card c ON c.card_id = v.card_id
@@ -1340,6 +1401,8 @@ def doctor_items(conn) -> list[dict]:
     for v in rows:
         if v["road"] == "hospital":
             checked = "by the system (MRN and test code match)"
+        elif v["report_status"] == "verified" and v["routing_applied"] == "auto_matched":
+            checked = f"by the system (AI read: name, MRN and test match, score {v['score']})"
         elif v["report_status"] == "auto_matched" or (v["report_status"] == "flagged" and not v["verified_by"]):
             checked = f"auto-matched {v['score']}, not yet confirmed by a person"
         elif v["confirmed_by"]:

@@ -5,6 +5,7 @@ in the outbox with the reason, so a blocked attempt is as visible as a sent one.
 
 Delivery is simulated: a 'sent' message appears in the WhatsApp simulator.
 """
+import re
 from datetime import date
 
 from psycopg.types.json import Jsonb
@@ -89,6 +90,31 @@ def render(tmpl: dict, patient: dict, card: dict | None, extra: dict | None = No
     return f"{text}\n\n{tmpl['closing']}" if tmpl.get("closing") else text
 
 
+APPOINTMENT = {"English": "Appointment", "Hindi": "अपॉइंटमेंट", "Kannada": "ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್"}
+
+
+def what_booked(card: dict | None, lang: str) -> str:
+    """What a "Booked" button names: "Appointment" for a visit, the test for a test ("Blood test booked")."""
+    if card is None or card["card_type"] == "visit":
+        return APPOINTMENT.get(lang, APPOINTMENT["English"])
+    label = item_label(card["item_code"], lang) or re.sub(r"\s*\(.*\)", "", card["name"])
+    return label[:1].upper() + label[1:]
+
+
+def render_buttons(conn, tmpl: dict, card: dict | None) -> list[dict]:
+    """The template's buttons for this card: {what} names what is booked; a button marked "only": "test" (Done at
+    an outside lab) shows only on a test card, and only where the test cycle is on."""
+    lang, test_cycle = tmpl["language"], policy.settings(conn).get("test_cycle")
+    out = []
+    for b in tmpl["buttons"]:
+        if b.get("only") == "test" and not (card and card["card_type"] == "test" and card["specimen"] is not False
+                                            and test_cycle):
+            continue
+        out.append({"id": b["id"], "label": b["label"].replace("{what}", what_booked(card, lang)),
+                    "label_en": b["label_en"].replace("{what}", what_booked(card, "English"))})
+    return out
+
+
 def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: str, reason_code: str,
                  recipient: str = "patient", card_id: int | None = None, gap_id: int | None = None,
                  handover_id: int | None = None, mode: str = "live", extra: dict | None = None) -> dict:
@@ -113,7 +139,7 @@ def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: st
         body = render(tmpl, patient, card, extra)
         english = tmpl if lang == "English" else policy.template(conn, template_id, "English")
         body_en = render(english, patient, card, extra) if english else body
-        buttons = tmpl["buttons"]
+        buttons = render_buttons(conn, tmpl, card)
     else:
         body = body_en = ""
         buttons = []

@@ -494,7 +494,7 @@ function Messages({ patient }) {
     }
   };
   // Use Case 2T: a photo or PDF of an outside report; without a file, a synthetic outside-lab PDF (variant).
-  const ROUTED = { auto_matched: 'sent to the doctor as auto-matched (copy for the coordinator)', wrong_report: 'the patient is asked for the right report', verify: 'coordinator to verify' };
+  const ROUTED = { auto_matched: 'name, MRN and test match: Report verified by the system, sent to the doctor', wrong_report: 'the patient is asked for the right report', verify: 'coordinator to verify' };
   const sendDoc = async (file) => {
     const fd = new FormData();
     if (file) fd.append('file', file, file.name);
@@ -515,6 +515,10 @@ function Messages({ patient }) {
   const lastSent = withButtons.find((m) => m.id === target)
     || [...withButtons].reverse().find((m) => m.party === 'patient') || withButtons[withButtons.length - 1];
   const coordinator = ui.role === 'coordinator';
+  // Waiting for an outside report: the last message to the patient asked for it and no file has come since.
+  const askAt = thread.map((m) => m.direction === 'out' && m.status === 'sent'
+    && ['report_upload_request', 'report_upload_nudge', 'report_wrong_report'].includes(m.template_id)).lastIndexOf(true);
+  const awaiting = askAt >= 0 && !thread.slice(askAt + 1).some((m) => m.direction === 'in' && m.kind === 'document');
   return (
     <div className="grid-2">
       <div>
@@ -534,10 +538,32 @@ function Messages({ patient }) {
       <div>
         {coordinator ? (
           <>
+            <div className={awaiting ? 'card-flat' : ''} style={awaiting ? { borderLeft: '4px solid var(--amber, #d97706)', marginBottom: 14 } : { marginBottom: 14 }}>
+              <div className="card-title">Upload the test report (test done at an outside lab)</div>
+              {awaiting && <div className="small-note"><b>Waiting for the report:</b> the patient said the test was done at an outside lab and was asked to send it here.</div>}
+              <label className="v3-field" htmlFor="msgD">A photo or PDF of the report</label>
+              <input id="msgD" type="file" accept="image/*,application/pdf" className="v3-in"
+                onChange={(e) => setDoc(e.target.files?.[0] || null)} />
+              <label className="v3-field" htmlFor="msgDV">Or a synthetic outside-lab report (PDF)</label>
+              <select id="msgDV" className="v3-in" value={variant} onChange={(e) => setVariant(e.target.value)}>
+                {[['clear', 'Clear photo of the right report'], ['blurred', 'Slightly blurred (name only partly read)'], ['ct_scan', 'CT scan report instead of the blood test'],
+                  ['other_name', "Report in another person's name"], ['no_mrn', 'Report without the hospital MRN'], ['unreadable', 'Too unclear to read'], ['future_date', 'Dated in the future']]
+                  .map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+              <label className="v3-field" htmlFor="msgDP">Sent from another number (optional; an unknown number never passes)</label>
+              <input id="msgDP" className="v3-in" value={fromPhone} onChange={(e) => setFromPhone(e.target.value)} placeholder="+919999999999" />
+              <label className="v3-field" htmlFor="msgDN">Note sent with the file (optional; goes through the health check)</label>
+              <input id="msgDN" className="v3-in" value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="e.g. Done at Sunrise lab, it was cheaper" />
+              <div className="btn-row">
+                <button type="button" className="btn" disabled={!doc} onClick={() => sendDoc(doc)}>Send the file</button>
+                <button type="button" className="btn primary" onClick={() => sendDoc(null)}>Send the synthetic report</button>
+              </div>
+              <div className="small-note">The patient attaches the file in the chat. The AI reads only who and what the report is about (never a result); plain rules then check it. If the name, the MRN and the test all match, the report is clear and the score is 95 or more, the test moves Completed → Report received → Report verified with no person confirming it, and the doctor sees it. Otherwise a coordinator verifies it; the wrong kind of report or an unreadable file brings the "possible wrong report" message.</div>
+            </div>
             <div className="card-title">Demo: reply as the patient</div>
             <div className="small-note">
               {actOnReplies
-                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI: Booked moves the card; Please help me book and I can\'t come create a task for a person. Typing just HELP (or मदद / ಸಹಾಯ) asks for a person too. Other text and voice notes go to the AI (Sarvam) for one yes/no question: does it mention health? Yes, or any doubt or AI failure, hands it to a person; no makes a proposal for you to approve.'
+                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI: Booked moves the card; Please help me book and I can\'t come create a task for a person; Done at an outside lab (a lab test) moves it to Completed and asks for the report. Typing just HELP (or मदद / ಸಹಾಯ) asks for a person too. Other text and voice notes go to the AI (Sarvam) for one yes/no question: does it mention health? Yes, or any doubt or AI failure, hands it to a person; no makes a proposal for you to approve.'
                 : 'Use Case 1: a reply (button, text or HELP) is saved in the message history and CarePilot takes no action. Reply handling arrives with Use Case 2.'}
             </div>
             {lastSent && (
@@ -583,28 +609,6 @@ function Messages({ patient }) {
                   </button>
                 </div>
                 <VoiceRecorder patient={patient} onSend={sendRecording} />
-              </>
-            )}
-            {(
-              <>
-                <label className="v3-field" htmlFor="msgD">Send a photo or PDF of a test report (outside lab)</label>
-                <input id="msgD" type="file" accept="image/*,application/pdf" className="v3-in"
-                  onChange={(e) => setDoc(e.target.files?.[0] || null)} />
-                <label className="v3-field" htmlFor="msgDV">Or a synthetic outside-lab report (PDF)</label>
-                <select id="msgDV" className="v3-in" value={variant} onChange={(e) => setVariant(e.target.value)}>
-                  {[['clear', 'Clear photo of the right report'], ['blurred', 'Slightly blurred (name only partly read)'], ['ct_scan', 'CT scan report instead of the blood test'],
-                    ['other_name', "Report in another person's name"], ['unreadable', 'Too unclear to read'], ['future_date', 'Dated in the future']]
-                    .map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </select>
-                <label className="v3-field" htmlFor="msgDP">Sent from another number (optional; an unknown number never passes)</label>
-                <input id="msgDP" className="v3-in" value={fromPhone} onChange={(e) => setFromPhone(e.target.value)} placeholder="+919999999999" />
-                <label className="v3-field" htmlFor="msgDN">Note sent with the file (optional; goes through the health check)</label>
-                <input id="msgDN" className="v3-in" value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="e.g. Done at Sunrise lab, it was cheaper" />
-                <div className="btn-row">
-                  <button type="button" className="btn" disabled={!doc} onClick={() => sendDoc(doc)}>Send the file</button>
-                  <button type="button" className="btn primary" onClick={() => sendDoc(null)}>Send the synthetic report</button>
-                </div>
-                <div className="small-note">WhatsApp has no upload button: the patient attaches the file in the chat. It is held Unverified and scored by plain rules (seven hard checks, a score out of 100): 95 or more with every check passed goes to the doctor as auto-matched, below that a coordinator verifies it, the wrong kind of report or an unreadable file brings the "possible wrong report" message.</div>
               </>
             )}
           </>

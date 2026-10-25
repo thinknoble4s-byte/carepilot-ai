@@ -307,11 +307,16 @@ def _apply_button(conn, mrn: str, button: str, target: dict | None, inbound_id: 
     """Deterministic: no AI call. A tap is a structured fact recorded by the system (REQ-01)."""
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s",
                         (target["card_id"],)).fetchone() if target and target["card_id"] else None
-    if button in ("done_outside", "done_hospital", "not_done"):  # Use Case 2T REQ-25: the report check
+    if button in ("done_outside", "done_hospital", "not_done"):  # Use Case 2T REQ-25: the report check (and reminder)
         from . import test_cycle
 
         check = test_cycle.check_for_message(conn, target["message_id"] if target else None)
-        outcome = test_cycle.answer_check(conn, check, button, inbound_id, GATEWAY) if check else "no_report_check"
+        if check:
+            outcome = test_cycle.answer_check(conn, check, button, inbound_id, GATEWAY)
+        elif button == "done_outside" and card and policy.settings(conn).get("test_cycle"):
+            outcome = test_cycle.tap_done_outside(conn, card, inbound_id, GATEWAY)  # the test reminder's 4th button
+        else:
+            outcome = "no_report_check"
     elif button == "booked" and card and card["card_type"] == "test" and card["state"] == "Due" \
             and policy.settings(conn).get("test_cycle"):
         from . import test_cycle

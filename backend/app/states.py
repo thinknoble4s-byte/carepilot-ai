@@ -8,11 +8,11 @@ VISIT_FLOW = {"Due": {"Booked"}, "Booked": {"Attended"}, "Attended": set()}
 # Test cards follow one of two roads, set by the plan item (order_card.specimen) — Use Case 2T v1.4:
 #   specimen-based (blood test):  Due -> Booked -> Completed -> Report received -> Report verified
 #   non-specimen (imaging, echo): Due -> Booked -> Completed -> Verified (the doctor)
-# Booked needs a source (the patient's tap, a person, or the appointment list) but not a date. Completed comes only
-# from the appointment list (Due -> Completed is a walk-in). An outside document that is auto-matched or verified by
-# a coordinator moves Due or Booked -> Report received (nobody told CarePilot the test was done). Report verified
-# needs two matching identifiers: the system for a hospital report, a coordinator for an outside one. A coordinator's
-# "Flag as wrong" returns an auto-matched card to its earlier state.
+# Booked needs a source (the patient's tap, a person, or the appointment list) but not a date. Completed comes from
+# the appointment list (Due -> Completed is a walk-in), or, for a lab test, from the patient's tap "Done at an outside
+# lab" (source patient_outside). An outside document that passes the check (name, MRN and test match, score 95+)
+# moves the card -> Report received -> Report verified by the system; one a coordinator verifies does the same.
+# Report verified needs two matching identifiers. A coordinator's "Flag as wrong" returns a card to its earlier state.
 TEST_FLOW = {
     "Due": {"Booked", "Completed", "Report received"},
     "Booked": {"Completed", "Report received"},
@@ -48,9 +48,10 @@ def check_transition(card_type: str, from_state: str, to_state: str, **ctx) -> N
         raise IllegalTransition("Attendance comes only from the appointment list or a hospital feed, never a reply")
     if move == ("test", "Due", "Booked") and source not in ("patient_button", "coordinator", "appointment_list"):
         raise IllegalTransition("A test is Booked from the patient's tap, by a person, or from the appointment list")
-    if card_type == "test" and to_state == "Completed" and source not in ("appointment_list", "hospital_feed"):
-        raise IllegalTransition("A test becomes Completed only from the appointment list, never a patient message")
     specimen = ctx.get("specimen", True) is not False
+    if card_type == "test" and to_state == "Completed" and source not in ("appointment_list", "hospital_feed")             and not (source == "patient_outside" and specimen):
+        raise IllegalTransition("A test becomes Completed only from the appointment list, or from the patient's tap "
+                                "\"Done at an outside lab\" on a lab test; never a patient message")
     if card_type == "test" and to_state == "Report received":
         if from_state in ("Due", "Booked") and source not in OUTSIDE_SOURCES:
             raise IllegalTransition("Only an outside document that is auto-matched or verified by a coordinator "

@@ -15,7 +15,7 @@ const STATUS = {
   unverified: ['Unverified', 'warn'], rejected: ['Rejected', 'gray'], held: ['In the hospital data (not sent)', 'gray'],
   auto_matched: ['Auto-matched — not yet confirmed by a person', 'warn'], flagged: ['Unverified — flagged as wrong', 'bad'],
 };
-const ROUTED = { auto_matched: 'to the doctor as auto-matched (copy for the coordinator)', wrong_report: 'patient asked for the right report', verify: 'coordinator to verify' };
+const ROUTED = { auto_matched: 'name, MRN and test match: verified by the system, to the doctor', wrong_report: 'patient asked for the right report', verify: 'coordinator to verify' };
 const ANSWER = { done_outside: 'Done at an outside lab', done_hospital: 'Done at the hospital', not_done: 'Not done yet' };
 const DELAY = { cost: 'Cost', pre_authorisation: 'Pre-authorisation', transport: 'Transport or distance', work_family: 'Work or family', other: 'Other' };
 
@@ -55,7 +55,7 @@ export function ReportsSection({ mrn }) {
   return (
     <div className="card">
       <div className="card-title">Test reports</div>
-      <div className="card-desc">A hospital report is linked by MRN and test code and verified by the system when both match. A photo or PDF from the patient is held Unverified and scored by plain rules: with all seven hard checks passed and {data.routing.threshold} or more it goes to the doctor as auto-matched (never verified on its own); below that a coordinator verifies it; the wrong kind of report or an unreadable file brings the "possible wrong report" message. Routing mode: <b>{data.routing.mode === 'live' ? 'Live' : 'Shadow (every outside report waits for the coordinator)'}</b>. CarePilot never reads a result.</div>
+      <div className="card-desc">A hospital report is linked by MRN and test code and verified by the system when both match. A photo or PDF from the patient is held Unverified, its identifiers read by AI and scored by plain rules: if the name, the MRN and the test match, all hard checks pass and the score is {data.routing.threshold} or more, it is verified by the system and goes to the doctor (no person confirms it); below that a coordinator verifies it; the wrong kind of report or an unreadable file brings the "possible wrong report" message. Routing mode: <b>{data.routing.mode === 'live' ? 'Live' : 'Shadow (every outside report waits for the coordinator)'}</b>. CarePilot never reads a result.</div>
       {data.checks.length > 0 && (
         <div className="v4-item">
           <div className="t">Report checks</div>
@@ -241,7 +241,7 @@ export function InfoCopies() {
   return (
     <div className="card">
       <div className="card-title">Copies for your information ({items.filter((k) => k.status === 'open').length})</div>
-      <div className="card-desc">Auto-matched outside reports went straight to the doctor; you may Confirm one (Report verified) or Flag it as wrong. By default you do neither. Wrong-report notes: the patient was asked for the right report. No due date and no Overdue mark.</div>
+      <div className="card-desc">Wrong-report notes: the patient was asked for the right report (older auto-matched reports from before 25 Oct may also appear: Confirm or Flag as wrong). No due date and no Overdue mark.</div>
       {items.map((k) => (
         <div key={k.copy_id} className={`v4-item ${k.status === 'open' ? 'soon' : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>

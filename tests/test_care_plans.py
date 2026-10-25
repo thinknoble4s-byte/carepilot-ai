@@ -172,7 +172,9 @@ def test_lab_report_sent_again_after_a_mismatch_is_linked(her2, client):
 def test_golden_path_report_check_in_kannada_for_savitri(seeded, client):
     """Use Case 2T v1.4 in the Golden Path data: Savitri Patil (SYN-0011, Kannada) on T1, treatment ended 26 May, so
     the 3-month blood test (19 Aug) is past with no report. The morning run sends the report check in Kannada with
-    the three buttons (REQ-24); Done at an outside lab sets the label and sends the upload request at once (REQ-25)."""
+    the three buttons (REQ-24); Done at an outside lab moves the test to Completed and sends the upload request at
+    once (REQ-25, as changed by the owner on 25 Oct). A clear report with her name, MRN and test is then verified
+    by the system."""
     r = client.post("/patients/SYN-0011/plan/confirm", headers=PRIYA, json={
         "template_id": "BC-HRPOS-1", "therapy": "Surgery and endocrine therapy",
         "treatment_end_date": "2026-05-26", "identifiers_checked": ["name", "mrn"]})
@@ -188,6 +190,11 @@ def test_golden_path_report_check_in_kannada_for_savitri(seeded, client):
                     json={"button": "done_outside", "in_reply_to": check["message_id"]})
     assert r.status_code == 201, r.text
     bt3 = next(c for c in client.get("/patients/SYN-0011/cards", headers=PRIYA).json() if c["item_code"] == "BT3")
-    assert (bt3["state"], bt3["label"]) == ("Due", "Patient says done at outside lab (report awaited)")
+    assert (bt3["state"], bt3["label"]) == ("Completed", "Patient says done at outside lab (report awaited)")
     upload = outbox("SYN-0011")[-1]
     assert (upload["template_id"], upload["language"]) == ("report_upload_request", "Kannada")
+    r = client.post("/simulator/SYN-0011/document", headers=PRIYA, data={"variant": "clear"})
+    assert r.status_code == 201, r.text
+    assert r.json()["routing_applied"] == "auto_matched" and r.json()["hard_checks"]["G8"] is True
+    bt3 = next(c for c in client.get("/patients/SYN-0011/cards", headers=PRIYA).json() if c["item_code"] == "BT3")
+    assert bt3["state"] == "Report verified"

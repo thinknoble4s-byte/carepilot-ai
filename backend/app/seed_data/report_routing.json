@@ -1,15 +1,16 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "threshold": 95,
-  "mode": "shadow",
+  "mode": "live",
   "clinical_lead": "u_anand",
   "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
   "weights": {
     "name": 30,
+    "mrn": 25,
     "test_name": 25,
-    "document_type": 15,
-    "age_sex": 15,
-    "report_date": 10,
+    "document_type": 10,
+    "age_sex": 0,
+    "report_date": 5,
     "sender": 5
   },
   "report_date_days_before_card": 14,
@@ -24,5 +25,5 @@
       "hemogram"
     ]
   },
-  "note": "REQ-29: Shadow mode, so every outside report goes to the coordinator; only the clinical lead (Dr. Anand Rao) changes the threshold, the weights or the mode."
+  "note": "Owner's decision 25 Oct 2026: Live. An outside report passes only when the name, the MRN and the test all match, it is clear (every hard check passes) and the score is 95 or more; it is then verified by the system with no person confirming it. Anything else goes to the coordinator (or, for the wrong kind of report or an unreadable file, back to the patient). Only the clinical lead (Dr. Anand Rao) changes the threshold, the weights or the mode. Golden Path patients have no age or sex, so age/sex carries no weight."
 }

@@ -7,9 +7,9 @@
     "buttons": [
       {
         "id": "booked",
-        "English": "Booked",
-        "Hindi": "बुक कर लिया",
-        "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
+        "English": "{what} booked",
+        "Hindi": "{what} बुक कर लिया",
+        "Kannada": "{what} ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
       },
       {
         "id": "help_book",
@@ -22,6 +22,13 @@
         "English": "I can't come",
         "Hindi": "नहीं आ पाऊँगी",
         "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"
+      },
+      {
+        "id": "done_outside",
+        "only": "test",
+        "English": "Done at an outside lab",
+        "Hindi": "बाहर की लैब में करवाई",
+        "Kannada": "ಹೊರಗಿನ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದೆ"
       }
     ],
     "text": {
@@ -39,9 +46,9 @@
     "buttons": [
       {
         "id": "booked",
-        "English": "Booked",
-        "Hindi": "बुक कर लिया",
-        "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
+        "English": "{what} booked",
+        "Hindi": "{what} बुक कर लिया",
+        "Kannada": "{what} ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
       },
       {
         "id": "help_book",
@@ -54,6 +61,13 @@
         "English": "I can't come",
         "Hindi": "नहीं आ पाऊँगी",
         "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"
+      },
+      {
+        "id": "done_outside",
+        "only": "test",
+        "English": "Done at an outside lab",
+        "Hindi": "बाहर की लैब में करवाई",
+        "Kannada": "ಹೊರಗಿನ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದೆ"
       }
     ],
     "text": {
@@ -84,9 +98,9 @@
     "buttons": [
       {
         "id": "booked",
-        "English": "Booked",
-        "Hindi": "बुक कर लिया",
-        "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
+        "English": "{what} booked",
+        "Hindi": "{what} बुक कर लिया",
+        "Kannada": "{what} ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
       },
       {
         "id": "help_book",
@@ -116,9 +130,9 @@
     "buttons": [
       {
         "id": "booked",
-        "English": "Booked",
-        "Hindi": "बुक कर लिया",
-        "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
+        "English": "{what} booked",
+        "Hindi": "{what} बुक कर लिया",
+        "Kannada": "{what} ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
       },
       {
         "id": "help_book",
@@ -131,6 +145,13 @@
         "English": "I can't come",
         "Hindi": "नहीं आ पाऊँगी",
         "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"
+      },
+      {
+        "id": "done_outside",
+        "only": "test",
+        "English": "Done at an outside lab",
+        "Hindi": "बाहर की लैब में करवाई",
+        "Kannada": "ಹೊರಗಿನ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದೆ"
       }
     ],
     "text": {

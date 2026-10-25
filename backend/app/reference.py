@@ -97,8 +97,8 @@ def message_templates() -> list[dict]:
                 "template_id": t["template_id"], "language": lang, "version": t["version"],
                 "approved_by": t["approved_by"], "effective_from": t["effective_from"], "note": t.get("note"),
                 "date_format": "%d/%m/%Y", "text": text, "closing": None,
-                "buttons": [{"id": b["id"], "label": b.get(lang, b["English"]), "label_en": b["English"]}
-                            for b in t["buttons"]],
+                "buttons": [{"id": b["id"], "label": b.get(lang, b["English"]), "label_en": b["English"],
+                             **({"only": b["only"]} if b.get("only") else {})} for b in t["buttons"]],
             })
     return rows
 

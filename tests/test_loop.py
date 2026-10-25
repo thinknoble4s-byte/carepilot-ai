@@ -33,7 +33,8 @@ def test_agent_sends_an_approved_reminder_and_records_why(seeded, client):
     assert [(m["recipient"], m["status"], m["language"]) for m in sent] == [
         ("patient", "sent", "Hindi"), ("caregiver", "sent", "Hindi")]
     assert sent[0]["body"].startswith("नमस्ते Sunita जी") and "09/11/2026" in sent[0]["body"]
-    assert [b["id"] for b in sent[0]["buttons"]] == ["booked", "help_book", "cant_come"]
+    assert [b["id"] for b in sent[0]["buttons"]] == ["booked", "help_book", "cant_come", "done_outside"]
+    assert [b["label_en"] for b in sent[0]["buttons"]][0] == "Blood tests booked"
     decision = last_audit("agent_decision")
     assert (decision["actor_type"], decision["rule"], decision["task"], decision["mode"], decision["policy_version"],
             decision["template_id"], decision["template_version"], decision["outcome"], decision["trigger_event"]) == \
