@@ -37,7 +37,7 @@ def test_agent_sends_an_approved_reminder_and_records_why(seeded, client):
     decision = last_audit("agent_decision")
     assert (decision["actor_type"], decision["rule"], decision["task"], decision["mode"], decision["policy_version"],
             decision["template_id"], decision["template_version"], decision["outcome"], decision["trigger_event"]) == \
-        ("agent", "G0", "booking_reminder", "live", "1.0", "booking_reminder", "1.0", "send", "gap_event:1")
+        ("agent", "G0", "booking_reminder", "live", "1.0", "test_booking_reminder", "1.2", "send", "gap_event:1")
     assert decision["reason_code"] == "gap_actionable"
     assert decision["decision_inputs"]["handover_open"] is False
     assert client.get("/patients/SYN-0007", headers=PRIYA).json()["next_planned_action"].startswith("Await patient reply")
@@ -105,8 +105,9 @@ def test_agent_off_and_missing_consent_route_to_the_coordinator(seeded, client):
 def test_g1_missed_item_reminder_in_kannada(seeded, client):
     confirm_plan(client, "SYN-0001")  # V1 due 20 Oct, T1 13 Oct: both missed by 2 Nov
     actions = morning(client)["actions"]
+    # Use Case 2T v1.4: T1 is past due with no report, so its report check is also raised and sent.
     assert {(a["rule"], a["card"], a["reason_code"]) for a in actions} == {
-        ("G1", "V1", "gap_actionable"), ("G1", "T1", "gap_actionable")}
+        ("G1", "V1", "gap_actionable"), ("G1", "T1", "gap_actionable"), ("report_check", None, "report_check_due")}
     assert outbox("SYN-0001")[0]["body"].startswith("ನಮಸ್ಕಾರ Meena ಅವರೇ")
 
 
@@ -133,7 +134,10 @@ def test_other_buttons_create_people_tasks(seeded, client):
     client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "cant_come"})
     tasks = {t["task_type"]: t for t in client.get("/needs-you", headers=PRIYA).json()["tasks"]}
     # Use Case 2b: help-booking and can't-come tasks, owned by the card's owner (T1: Laboratory) and cover.
-    assert set(tasks) >= {"confirm_test_booking", "help_booking", "cant_come"}
+    # Use Case 2T v1.4: Booked on a test moves it to Booked (no date), with no Confirm test booking task.
+    assert set(tasks) >= {"help_booking", "cant_come"} and "confirm_test_booking" not in tasks
+    t1 = next(c for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json() if c["item_code"] == "T1")
+    assert (t1["state"], t1["label"]) == ("Booked", "Patient says booked (no date)")
     assert tasks["help_booking"]["due_date"] == "2026-11-04"  # 2 working days
     assert (tasks["help_booking"]["owner_name"], tasks["help_booking"]["cover_name"]) == ("Sunil Kumar", "Priya Nair")
 

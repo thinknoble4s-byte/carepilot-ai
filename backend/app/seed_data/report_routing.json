@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "threshold": 95,
+  "mode": "shadow",
+  "clinical_lead": "u_anand",
+  "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+  "weights": {
+    "name": 30,
+    "test_name": 25,
+    "document_type": 15,
+    "age_sex": 15,
+    "report_date": 10,
+    "sender": 5
+  },
+  "report_date_days_before_card": 14,
+  "group_minutes": 10,
+  "synonyms": {
+    "CBC": [
+      "blood test",
+      "complete blood count",
+      "full blood count",
+      "cbc",
+      "haemogram",
+      "hemogram"
+    ]
+  },
+  "note": "REQ-29: Shadow mode, so every outside report goes to the coordinator; only the clinical lead (Dr. Anand Rao) changes the threshold, the weights or the mode."
+}

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from conftest import ANAND, PRIYA, scalar
+from conftest import ANAND, PRIYA, morning, outbox, scalar
 
 pytestmark = pytest.mark.demo_template
 
@@ -141,22 +141,20 @@ def test_booking_a_test_from_a_task_books_it(her2, client):
     assert (card(client, "US6")["state"], card(client, "US6")["label"]) == ("Booked", "Booked (confirmed by coordinator)")
 
 
-def test_booked_tap_on_a_test_then_record_booking_books_it(her2, client):
-    """Golden Path: Booked on a test reminder has no date -> a Confirm test booking task; its Record booking (date
-    and time) moves the test Due -> Booked. (In Use Case 2T the tap itself moves the card to Booked.)"""
+def test_booked_tap_on_a_test_moves_it_to_booked_then_the_list_adds_the_date(her2, client):
+    """Golden Path (Use Case 2T v1.4 switched on): Booked on a test reminder moves the test Due -> Booked with no date
+    and the label "Patient says booked (no date)", with no task; the appointment list adds the date later."""
     from app import db, gateway
 
     with db.connect() as c:
         gateway._apply_button(c, "SYN-0007", "booked", {"card_id": her2["MG3"]["card_id"]}, None)
-    assert card(client, "MG3")["state"] == "Due"
-    t = next(t for t in client.get("/patients/SYN-0007/tasks", headers=PRIYA).json()["tasks"]
-             if t["task_type"] == "confirm_test_booking")
-    assert t["help_task"] is True
-    r = client.post(f"/tasks/{t['task_id']}/result", headers=PRIYA,
-                    json={"result": "booked", "appointment_date": "2026-11-05", "appointment_time": "10:00"})
-    assert r.status_code == 200, r.text
     c = card(client, "MG3")
-    assert (c["state"], c["appointment_date"], c["booking_source"]) == ("Booked", "2026-11-05", "coordinator")
+    assert (c["state"], c["label"], c["booking_source"], c["appointment_date"]) ==         ("Booked", "Patient says booked (no date)", "patient_button", None)
+    assert not [t for t in client.get("/patients/SYN-0007/tasks", headers=PRIYA).json()["tasks"]
+                if t["task_type"] == "confirm_test_booking"]
+    appointment(client, "MAMMO", "2026-11-05")
+    c = card(client, "MG3")
+    assert (c["state"], c["appointment_date"]) == ("Booked", "2026-11-05")
 
 
 def test_lab_report_sent_again_after_a_mismatch_is_linked(her2, client):
@@ -169,3 +167,27 @@ def test_lab_report_sent_again_after_a_mismatch_is_linked(her2, client):
     assert card(client, "BT3")["state"] == "Report verified"
     dup = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "CBC"}).json()
     assert dup.get("duplicate") is True
+
+
+def test_golden_path_report_check_in_kannada_for_savitri(seeded, client):
+    """Use Case 2T v1.4 in the Golden Path data: Savitri Patil (SYN-0011, Kannada) on T1, treatment ended 26 May, so
+    the 3-month blood test (19 Aug) is past with no report. The morning run sends the report check in Kannada with
+    the three buttons (REQ-24); Done at an outside lab sets the label and sends the upload request at once (REQ-25)."""
+    r = client.post("/patients/SYN-0011/plan/confirm", headers=PRIYA, json={
+        "template_id": "BC-HRPOS-1", "therapy": "Surgery and endocrine therapy",
+        "treatment_end_date": "2026-05-26", "identifiers_checked": ["name", "mrn"]})
+    assert r.status_code == 201, r.text
+    morning(client)
+    check = next(m for m in outbox("SYN-0011") if m["template_id"] == "test_report_check")
+    assert (check["recipient"], check["language"], check["status"]) == ("patient", "Kannada", "sent")
+    assert check["body"].startswith("ನಮಸ್ಕಾರ Savitri ಅವರೇ") and "ರಕ್ತ ಪರೀಕ್ಷೆ" in check["body"]
+    assert [(b["id"], b["label"]) for b in check["buttons"]] == [
+        ("done_outside", "ಹೊರಗಿನ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದೆ"), ("done_hospital", "ಆಸ್ಪತ್ರೆಯಲ್ಲಿ ಮಾಡಿಸಿದೆ"),
+        ("not_done", "ಇನ್ನೂ ಮಾಡಿಸಿಲ್ಲ")]
+    r = client.post("/simulator/SYN-0011/reply", headers=PRIYA,
+                    json={"button": "done_outside", "in_reply_to": check["message_id"]})
+    assert r.status_code == 201, r.text
+    bt3 = next(c for c in client.get("/patients/SYN-0011/cards", headers=PRIYA).json() if c["item_code"] == "BT3")
+    assert (bt3["state"], bt3["label"]) == ("Due", "Patient says done at outside lab (report awaited)")
+    upload = outbox("SYN-0011")[-1]
+    assert (upload["template_id"], upload["language"]) == ("report_upload_request", "Kannada")

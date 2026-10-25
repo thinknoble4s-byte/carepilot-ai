@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "note": "Step A / Golden Path: visit and test cards (including cards from a doctor's instruction), rules G0 and G1, caregiver copy when consented, button replies update cards and free text opens a handover, tasks for people.",
+  "version": "1.1",
+  "note": "Step A / Golden Path: visit and test cards (including cards from a doctor's instruction), rules G0 and G1, caregiver copy when consented, button replies update cards and free text opens a handover, tasks for people. v1.1: the Use Case 2T v1.4 test cycle (test reminder, report check with three buttons, upload request and nudge, outside-report score and routing in Shadow, the doctor's report review).",
   "gap_rules": [
     "G0",
     "G1"
@@ -48,5 +48,18 @@
     }
   ],
   "help_keyword": "handover",
-  "hold_on_task": false
+  "hold_on_task": false,
+  "test_cycle": {
+    "reminder_template": "test_booking_reminder",
+    "doctor_days": 1,
+    "report_check": {
+      "check_after_working_days": 1,
+      "no_answer_working_days": 2,
+      "repeat_after_working_days": 3,
+      "max_repeats": 2,
+      "upload_nudge_working_days": 2,
+      "upload_call_working_days": 2
+    },
+    "note": "As Use Case 2T v1.4; the report-check timings are proposals for the clinical lead (Dr. Anand Rao)."
+  }
 }

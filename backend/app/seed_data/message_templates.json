@@ -107,5 +107,134 @@
       "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನಿಮ್ಮ ವೈದ್ಯರು {due} ಒಳಗೆ {item} ಮಾಡಿಸಲು ಹೇಳಿದ್ದಾರೆ. ದಯವಿಟ್ಟು ಬುಕ್ ಮಾಡಿ ಮತ್ತು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. — ಆಸ್ಪತ್ರೆ A"
     },
     "effective_from": "2026-10-05"
+  },
+  {
+    "template_id": "test_booking_reminder",
+    "version": "1.2",
+    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada and Hindi are drafts, to be checked by a native speaker.",
+    "buttons": [
+      {
+        "id": "booked",
+        "English": "Booked",
+        "Hindi": "बुक कर लिया",
+        "Kannada": "ಬುಕ್ ಮಾಡಿದ್ದೇನೆ"
+      },
+      {
+        "id": "help_book",
+        "English": "Please help me book",
+        "Hindi": "बुक करने में मदद करें",
+        "Kannada": "ಬುಕ್ ಮಾಡಲು ಸಹಾಯ ಮಾಡಿ"
+      },
+      {
+        "id": "cant_come",
+        "English": "I can't come",
+        "Hindi": "नहीं आ पाऊँगी",
+        "Kannada": "ಬರಲು ಆಗುವುದಿಲ್ಲ"
+      }
+    ],
+    "text": {
+      "English": "Namaste {first_name}. Dr. Anand Rao has advised your {item}, due on {due}. We have no booking for it yet. Please book it and reply with a button below. Reply HELP to reach a person. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। डॉ. आनंद राव ने आपकी {item} की सलाह दी है, जिसकी तारीख {due} है। इसकी बुकिंग अभी तक नहीं हुई है। कृपया इसे बुक करें और नीचे दिए बटन से जवाब दें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಆನಂದ್ ರಾವ್ ಅವರು ನಿಮಗೆ {item} ಸೂಚಿಸಿದ್ದಾರೆ, ದಿನಾಂಕ {due}. ಇದಕ್ಕೆ ಇನ್ನೂ ಬುಕಿಂಗ್ ಆಗಿಲ್ಲ. ದಯವಿಟ್ಟು ಬುಕ್ ಮಾಡಿ ಮತ್ತು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
+    },
+    "effective_from": "2026-10-18"
+  },
+  {
+    "template_id": "report_continue_booked",
+    "version": "1.2",
+    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada and Hindi are drafts, to be checked by a native speaker.",
+    "buttons": [],
+    "text": {
+      "English": "Namaste {first_name}. Dr. Anand Rao has reviewed your {item} report. No change to your plan is needed. Please continue with your next planned visit on {next_visit_date}. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। डॉ. आनंद राव ने आपकी {item} की रिपोर्ट देख ली है। आपकी योजना में कोई बदलाव नहीं है। कृपया {next_visit_date} को अपनी अगली तय विज़िट पर आएँ। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಆನಂದ್ ರಾವ್ ಅವರು ನಿಮ್ಮ {item} ವರದಿಯನ್ನು ನೋಡಿದ್ದಾರೆ. ನಿಮ್ಮ ಯೋಜನೆಯಲ್ಲಿ ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ. ದಯವಿಟ್ಟು {next_visit_date} ರಂದು ನಿಮ್ಮ ಮುಂದಿನ ನಿಗದಿತ ಭೇಟಿಗೆ ಬನ್ನಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
+    },
+    "effective_from": "2026-10-18"
+  },
+  {
+    "template_id": "report_continue_due",
+    "version": "1.2",
+    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada and Hindi are drafts, to be checked by a native speaker.",
+    "buttons": [],
+    "text": {
+      "English": "Namaste {first_name}. Dr. Anand Rao has reviewed your {item} report. No change to your plan is needed. Please continue with your next visit, due by {due_date}. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। डॉ. आनंद राव ने आपकी {item} की रिपोर्ट देख ली है। आपकी योजना में कोई बदलाव नहीं है। आपकी अगली विज़िट {due_date} तक होनी है। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಆನಂದ್ ರಾವ್ ಅವರು ನಿಮ್ಮ {item} ವರದಿಯನ್ನು ನೋಡಿದ್ದಾರೆ. ನಿಮ್ಮ ಯೋಜನೆಯಲ್ಲಿ ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ. ನಿಮ್ಮ ಮುಂದಿನ ಭೇಟಿ {due_date} ಒಳಗೆ ಆಗಬೇಕು. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
+    },
+    "effective_from": "2026-10-18"
+  },
+  {
+    "template_id": "test_report_check",
+    "version": "1.3",
+    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada and Hindi are drafts, to be checked by a native speaker.",
+    "buttons": [
+      {
+        "id": "done_outside",
+        "English": "Done at an outside lab",
+        "Hindi": "बाहर की लैब में करवाई",
+        "Kannada": "ಹೊರಗಿನ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದೆ"
+      },
+      {
+        "id": "done_hospital",
+        "English": "Done at the hospital",
+        "Hindi": "अस्पताल में करवाई",
+        "Kannada": "ಆಸ್ಪತ್ರೆಯಲ್ಲಿ ಮಾಡಿಸಿದೆ"
+      },
+      {
+        "id": "not_done",
+        "English": "Not done yet",
+        "Hindi": "अभी नहीं करवाई",
+        "Kannada": "ಇನ್ನೂ ಮಾಡಿಸಿಲ್ಲ"
+      }
+    ],
+    "text": {
+      "English": "Namaste {first_name}. We have not yet received the report of your {item}, advised by Dr. Anand Rao. Please reply with a button below. If you did the test at another lab, please send a clear photo or PDF of the complete report here on WhatsApp. Reply HELP to reach a person. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। डॉ. आनंद राव द्वारा सलाह दी गई आपकी {item} की रिपोर्ट हमें अभी तक नहीं मिली है। कृपया नीचे दिए बटन से जवाब दें। अगर आपने जाँच किसी दूसरी लैब में करवाई है, तो पूरी रिपोर्ट की साफ़ फ़ोटो या PDF यहीं WhatsApp पर भेजें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಆನಂದ್ ರಾವ್ ಅವರು ಸೂಚಿಸಿದ ನಿಮ್ಮ {item} ವರದಿ ನಮಗೆ ಇನ್ನೂ ಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. ನೀವು ಪರೀಕ್ಷೆಯನ್ನು ಬೇರೆ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದ್ದರೆ, ಪೂರ್ಣ ವರದಿಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಥವಾ PDF ಅನ್ನು ಇಲ್ಲೇ WhatsApp ನಲ್ಲಿ ಕಳುಹಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
+    },
+    "effective_from": "2026-10-24"
+  },
+  {
+    "template_id": "report_upload_request",
+    "version": "1.3",
+    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada and Hindi are drafts, to be checked by a native speaker.",
+    "buttons": [],
+    "text": {
+      "English": "Namaste {first_name}. Thank you for letting us know. Please send a clear photo or PDF of the complete report of your {item} here. Tap the attach (paper-clip) icon, choose Camera or Document, and send it. Reply HELP to reach a person. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। बताने के लिए धन्यवाद। कृपया अपनी {item} की पूरी रिपोर्ट की साफ़ फ़ोटो या PDF यहाँ भेजें। अटैच (पेपर-क्लिप) आइकन दबाएँ, कैमरा या डॉक्यूमेंट चुनें और भेज दें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ತಿಳಿಸಿದ್ದಕ್ಕೆ ಧನ್ಯವಾದಗಳು. ದಯವಿಟ್ಟು ನಿಮ್ಮ {item} ಪೂರ್ಣ ವರದಿಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಥವಾ PDF ಅನ್ನು ಇಲ್ಲಿ ಕಳುಹಿಸಿ. ಅಟ್ಯಾಚ್ (ಪೇಪರ್-ಕ್ಲಿಪ್) ಐಕಾನ್ ಒತ್ತಿ, ಕ್ಯಾಮೆರಾ ಅಥವಾ ಡಾಕ್ಯುಮೆಂಟ್ ಆಯ್ಕೆಮಾಡಿ ಮತ್ತು ಕಳುಹಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
+    },
+    "effective_from": "2026-10-24"
+  },
+  {
+    "template_id": "report_upload_nudge",
+    "version": "1.3",
+    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada and Hindi are drafts, to be checked by a native speaker.",
+    "buttons": [],
+    "text": {
+      "English": "Namaste {first_name}. We are still waiting for the report of your {item}. Please send a clear photo or PDF of the complete report here on WhatsApp. Reply HELP and our team will call you. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। हमें अभी भी आपकी {item} की रिपोर्ट का इंतज़ार है। कृपया पूरी रिपोर्ट की साफ़ फ़ोटो या PDF यहीं WhatsApp पर भेजें। मदद लिखें, हमारी टीम आपको फ़ोन करेगी। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನಿಮ್ಮ {item} ವರದಿಗಾಗಿ ನಾವು ಇನ್ನೂ ಕಾಯುತ್ತಿದ್ದೇವೆ. ದಯವಿಟ್ಟು ಪೂರ್ಣ ವರದಿಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಥವಾ PDF ಅನ್ನು ಇಲ್ಲೇ WhatsApp ನಲ್ಲಿ ಕಳುಹಿಸಿ. ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ, ನಮ್ಮ ತಂಡ ನಿಮಗೆ ಕರೆ ಮಾಡುತ್ತದೆ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
+    },
+    "effective_from": "2026-10-24"
+  },
+  {
+    "template_id": "report_wrong_report",
+    "version": "1.3",
+    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada and Hindi are drafts, to be checked by a native speaker.",
+    "buttons": [],
+    "text": {
+      "English": "Namaste {first_name}. The file you sent may not be the report of your {item}, or it may not be clear. Please check and send the correct report as a clear photo or PDF of the complete report. Reply HELP and our team will call you. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। आपने जो फ़ाइल भेजी है, वह शायद आपकी {item} की रिपोर्ट नहीं है, या साफ़ नहीं है। कृपया जाँच कर सही रिपोर्ट की पूरी, साफ़ फ़ोटो या PDF भेजें। मदद लिखें, हमारी टीम आपको फ़ोन करेगी। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನೀವು ಕಳುಹಿಸಿದ ಫೈಲ್ ನಿಮ್ಮ {item} ವರದಿ ಆಗಿರದಿರಬಹುದು, ಅಥವಾ ಸ್ಪಷ್ಟವಾಗಿಲ್ಲದಿರಬಹುದು. ದಯವಿಟ್ಟು ಪರಿಶೀಲಿಸಿ, ಸರಿಯಾದ ಪೂರ್ಣ ವರದಿಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಥವಾ PDF ಕಳುಹಿಸಿ. ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ, ನಮ್ಮ ತಂಡ ನಿಮಗೆ ಕರೆ ಮಾಡುತ್ತದೆ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)"
+    },
+    "effective_from": "2026-10-24"
   }
 ]

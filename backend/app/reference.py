@@ -83,6 +83,11 @@ def deadline_policy() -> dict:
     return _json("deadline_policy.json")
 
 
+def report_routing() -> dict:
+    """Step A outside-report routing (Use Case 2T v1.4), in Shadow mode."""
+    return _json("report_routing.json")
+
+
 def message_templates() -> list[dict]:
     """Step A templates, one record per template and language (as approved and stored)."""
     rows = []

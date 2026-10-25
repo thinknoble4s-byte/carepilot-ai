@@ -6,7 +6,7 @@ from conftest import ANAND, PRIYA
 
 SEED_STATE = {
     "clock": date(2026, 11, 2), "users": 5,
-    "config_versions": 17,  # thresholds, plan template, autonomy, deadlines, settings, 4 templates x 3 languages
+    "config_versions": 39,  # thresholds, plan template, autonomy, deadlines, settings, routing, 11 templates x 3 languages
     "patients": 25, "appointments": 10,
     "open_exceptions": 8, "import_batches": 2, "consents": 24, "agent_on": 23, "tasks": 1,
     "care_plans": 0, "order_cards": 0,

@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 from . import audit, clock, consent, importer, plan, states
 from .errors import Invalid
 from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy, message_templates,
-                        plan_templates, read_seed, step_a_settings, uc1, uc2a, uc2b, uc2c, uc2t)
+                        plan_templates, read_seed, report_routing, step_a_settings, uc1, uc2a, uc2b, uc2c, uc2t)
 
 SEED_USER = "u_priya"
 
@@ -107,6 +107,7 @@ def _seed_step_a(conn) -> None:
         ("autonomy_policy", "default", autonomy_policy(), autonomy_policy()["signed_off_by"]),
         ("deadline_policy", "default", deadline_policy(), deadline_policy()["signed_off_by"]),
         ("scenario_settings", "default", {**step_a_settings(), "scenario": "step_a"}, "Demo data set: Step A"),
+        ("report_routing", "default", report_routing(), report_routing()["signed_off_by"]),
         *(("message_template", f"{t['template_id']}:{t['language']}", t, t["approved_by"])
           for t in message_templates()),
     ))

@@ -146,7 +146,7 @@ def test_audit_search_and_recent_decisions(seeded, client):
     assert [e["action"] for e in found] == ["gate2_decided"]
     recent = client.get("/decisions/recent", headers=ANAND).json()
     assert [(d["mrn"], d["gate2_decision"], d["gate2_on"]) for d in recent] == [("SYN-0007", "routine", "2026-11-02")]
-    assert outbox("SYN-0007")[0]["template_id"] == "booking_reminder"
+    assert outbox("SYN-0007")[0]["template_id"] == "test_booking_reminder"  # T1 is a test (Use Case 2T v1.4)
     assert plan_body("SYN-0007")["template_id"] == "BC-SURV-1"
 
 

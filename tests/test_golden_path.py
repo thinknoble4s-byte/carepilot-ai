@@ -33,10 +33,12 @@ def test_golden_path(seeded, client):
 
     # Step 6: the agent stops; the fixed acknowledgement is the only automated message.
     assert outbox(SUNITA)[-1]["template_id"] == "handover_ack"
-    sent_before = len(outbox(SUNITA))
+    def sent():
+        return [m for m in outbox(SUNITA) if not m["blocked_reason"]]
+    sent_before = len(sent())
     advance(client, 1)
     morning(client)
-    assert len(outbox(SUNITA)) == sent_before
+    assert len(sent()) == sent_before  # e.g. the blood test's report check is held: held_handover_open
 
     # Step 7: Gate 1 coordinator, Gate 2 doctor's explicit choice, Gate 3 instruction.
     client.post(f"/handovers/{hid}/gate1", headers=PRIYA, json={"choice": "send_to_doctor"})

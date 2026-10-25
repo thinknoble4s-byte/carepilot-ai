@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
   "default_coordinator": "Priya Nair",
   "default_doctor": "u_anand",
@@ -22,7 +22,11 @@
     "contact_needed": 2,
     "help_booking": 2,
     "cant_come": 2,
-    "help_request": 1
+    "help_request": 1,
+    "find_hospital_report": 2,
+    "call_about_test": 2,
+    "call_patient_resend": 2,
+    "outside_report": 1
   },
   "escalation": {
     "coordinator_review": "cover",
@@ -37,7 +41,11 @@
     "contact_needed": "cover",
     "help_booking": "cover",
     "cant_come": "cover",
-    "help_request": "cover"
+    "help_request": "cover",
+    "find_hospital_report": "cover",
+    "call_about_test": "cover",
+    "call_patient_resend": "cover",
+    "outside_report": "cover"
   },
   "help_keywords": [
     "help",
@@ -51,5 +59,6 @@
     "transport",
     "work_family",
     "other"
-  ]
+  ],
+  "note": "v1.1 (Use Case 2T v1.4): Find hospital report, Call about test and Call the patient (resend) 2 working days; Verify outside report 1 working day."
 }
