@@ -182,6 +182,8 @@ def _seed_uc1(conn, uc: dict | None = None) -> None:
         ("scenario_settings", "default", {**uc["settings"], "scenario": uc["scenario"]}, f"Demo data set: {uc['title']}"),
         *(("message_template", f"{t['template_id']}:{t['language']}", t, t["approved_by"])
           for t in uc["message_templates"]),
+        *((("report_routing", "default", uc["report_routing"], uc["report_routing"]["signed_off_by"]),)
+          if uc.get("report_routing") else ()),
     ))
     batch = conn.execute(
         """
@@ -194,10 +196,12 @@ def _seed_uc1(conn, uc: dict | None = None) -> None:
     for pt in uc["patients"]:
         conn.execute(
             """
-            INSERT INTO patient (mrn, full_name, phone, preferred_language, batch_id, coordinator)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO patient (mrn, full_name, phone, preferred_language, batch_id, coordinator, age, sex,
+                                 caregiver_name, caregiver_phone)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (pt["mrn"], pt["full_name"], pt["phone"], pt["preferred_language"], batch, uc["coordinator"]),
+            (pt["mrn"], pt["full_name"], pt["phone"], pt["preferred_language"], batch, uc["coordinator"],
+             pt.get("age"), pt.get("sex"), pt.get("caregiver_name"), pt.get("caregiver_phone")),
         )
     audit.append(conn, actor_type="person", actor_name=coordinator, action="register_imported",
                  entity_type="import_batch", entity_id=str(batch),

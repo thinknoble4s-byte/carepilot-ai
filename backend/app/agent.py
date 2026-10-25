@@ -150,6 +150,11 @@ def _run(conn) -> list[dict]:
             record(d["reason_code"], "blocked", messages)
         results.append({"gap_id": gap["gap_id"], "mrn": gap["mrn"], "rule": gap["rule"], "card": gap["item_code"],
                         "action": d["action"], "reason_code": d["reason_code"], "outcome": outcome})
+    from . import test_cycle
+
+    for r in test_cycle.report_check_send(conn):  # Use Case 2T: the report check and the upload nudge
+        results.append({"gap_id": None, "mrn": r["mrn"], "rule": r["kind"], "card": None, "action": "send_" + r["kind"],
+                        "reason_code": r["reason_code"], "outcome": r["outcome"]})
     audit.append(conn, actor_type="agent", actor_name=AGENT, action="reminder_run", trigger_event="reminder_run_0730",
                  outcome=f"{sum(1 for r in results if r['outcome'] == 'sent')} sent, "
                          f"{sum(1 for r in results if r['outcome'] == 'blocked')} blocked",

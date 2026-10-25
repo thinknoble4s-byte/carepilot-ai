@@ -177,8 +177,8 @@ def test_status_change_needs_a_reason(seeded, client):
     assert client.get("/clock", headers=PRIYA).json()["today"] == date(2026, 11, 2).isoformat()
 
 
-def test_help_booking_on_a_test_card_schedules_the_test(seeded, client):
-    """Golden Path: "Please help me book" on the T1 blood-test reminder; Record booking schedules the test."""
+def test_help_booking_on_a_test_card_books_the_test(seeded, client):
+    """Golden Path: "Please help me book" on the T1 blood-test reminder; Record booking books the test."""
     confirm_plan(client, "SYN-0007")
     morning(client)  # T1 reminder (a test card)
     client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "help_book"})
@@ -188,4 +188,4 @@ def test_help_booking_on_a_test_card_schedules_the_test(seeded, client):
                     json={"result": "booked", "appointment_date": "2026-11-06", "appointment_time": "09:30", "note": "Lab slot"})
     assert r.status_code == 200, r.text
     t1 = next(c for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json() if c["item_code"] == "T1")
-    assert (t1["state"], t1["appointment_date"], t1["booking_source"], t1["appointment_time"]) ==         ("Scheduled", "2026-11-06", "coordinator", "09:30:00")
+    assert (t1["state"], t1["appointment_date"], t1["booking_source"], t1["appointment_time"]) ==         ("Booked", "2026-11-06", "coordinator", "09:30:00")

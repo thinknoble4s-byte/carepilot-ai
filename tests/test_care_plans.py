@@ -94,29 +94,23 @@ def test_plan_confirmed_with_17_cards(her2):
     assert (her2["V3"]["due_date"], her2["BT3"]["due_date"]) == ("2026-11-09", "2026-11-02")
 
 
-def test_specimen_test_due_scheduled_completed_report_received_verified_by_doctor(her2, client):
+def test_specimen_test_due_booked_completed_report_received_verified_by_the_system(her2, client):
+    """Use Case 2T v1.4: a hospital lab report is linked and checked by MRN and test code: Report received, then
+    Report verified by the system. The doctor's Verify is only for a non-specimen test."""
     bt3 = her2["BT3"]["card_id"]
-    assert appointment(client, "CBC", "2026-11-04")["moved"] == [{"card_id": bt3, "mrn": "SYN-0007", "to": "Scheduled"}]
+    assert appointment(client, "CBC", "2026-11-04")["moved"] == [{"card_id": bt3, "mrn": "SYN-0007", "to": "Booked"}]
     assert appointment(client, "CBC", "2026-11-04", attended=True)["moved"][0]["to"] == "Completed"
-    # The doctor cannot verify before the report; the coordinator never can.
-    assert client.post(f"/cards/{bt3}/verify", headers=ANAND).status_code == 409
+    assert client.post(f"/cards/{bt3}/verify", headers=ANAND).status_code == 409  # reports are not the doctor's Verify
+    assert client.get("/doctor/verifications", headers=ANAND).json() == []
     r = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "CBC"})
     assert r.status_code == 201, r.text
-    assert card(client, "BT3")["state"] == "Report received"  # linked and checked; not verified by the system
-    refused = client.post(f"/cards/{bt3}/transition", headers=PRIYA,
-                          json={"to_state": "Report verified", "matched_identifiers": 2})
-    assert refused.status_code == 409 and "Only the doctor" in refused.json()["detail"]
-    assert client.post(f"/cards/{bt3}/verify", headers=PRIYA).status_code == 403
-    assert [v["item_code"] for v in client.get("/doctor/verifications", headers=ANAND).json()] == ["BT3"]
-    r = client.post(f"/cards/{bt3}/verify", headers=ANAND)
-    assert r.status_code == 200, r.text
-    assert (r.json()["state"], r.json()["verified_by"]) == ("Report verified", "u_anand")
-    assert client.get("/doctor/verifications", headers=ANAND).json() == []
-    assert scalar("""SELECT details->>'role' FROM audit_ledger WHERE action = 'card_state_changed'
-                     AND details->>'to' = 'Report verified'""") == "oncologist"
+    c = card(client, "BT3")
+    assert (c["state"], c["verified_by"], c["report"]["file_name"]) == ("Report verified", "CarePilot", r.json()["file_name"])
+    assert scalar("""SELECT details->>'matched_identifiers' FROM audit_ledger WHERE action = 'card_state_changed'
+                     AND details->>'to' = 'Report verified'""") == "2"
 
 
-def test_non_specimen_test_due_scheduled_completed_verified_by_doctor(her2, client):
+def test_non_specimen_test_due_booked_completed_verified_by_doctor(her2, client):
     mg3 = her2["MG3"]["card_id"]
     appointment(client, "MAMMO", "2026-11-03")
     assert appointment(client, "MAMMO", "2026-11-03", attended=True)["moved"][0]["to"] == "Completed"
@@ -135,21 +129,21 @@ def test_non_specimen_test_due_scheduled_completed_verified_by_doctor(her2, clie
 def test_same_test_code_picks_the_earliest_open_card(her2, client):
     """The blood test is in the plan four times (months 3, 6, 9, 12): rows go to the 3-month card first."""
     appointment(client, "CBC", "2026-11-04")
-    assert (card(client, "BT3")["state"], card(client, "BT6")["state"]) == ("Scheduled", "Due")
+    assert (card(client, "BT3")["state"], card(client, "BT6")["state"]) == ("Booked", "Due")
 
 
-def test_booking_a_test_from_a_task_schedules_it(her2, client):
-    """Record booking on a test card: Due -> Scheduled with the date (no Ordered step)."""
+def test_booking_a_test_from_a_task_books_it(her2, client):
+    """Record booking on a test card: Due -> Booked with the date (confirmed by coordinator)."""
     from app import db, help_tasks
 
     with db.connect() as c:
         help_tasks._book_card(c, her2["US6"]["card_id"], date(2027, 2, 3), None, "u_priya")
-    assert card(client, "US6")["state"] == "Scheduled"
+    assert (card(client, "US6")["state"], card(client, "US6")["label"]) == ("Booked", "Booked (confirmed by coordinator)")
 
 
-def test_booked_tap_on_a_test_then_record_booking_schedules_it(her2, client):
+def test_booked_tap_on_a_test_then_record_booking_books_it(her2, client):
     """Golden Path: Booked on a test reminder has no date -> a Confirm test booking task; its Record booking (date
-    and time) moves the test Due -> Scheduled."""
+    and time) moves the test Due -> Booked. (In Use Case 2T the tap itself moves the card to Booked.)"""
     from app import db, gateway
 
     with db.connect() as c:
@@ -162,7 +156,7 @@ def test_booked_tap_on_a_test_then_record_booking_schedules_it(her2, client):
                     json={"result": "booked", "appointment_date": "2026-11-05", "appointment_time": "10:00"})
     assert r.status_code == 200, r.text
     c = card(client, "MG3")
-    assert (c["state"], c["appointment_date"], c["booking_source"]) == ("Scheduled", "2026-11-05", "coordinator")
+    assert (c["state"], c["appointment_date"], c["booking_source"]) == ("Booked", "2026-11-05", "coordinator")
 
 
 def test_lab_report_sent_again_after_a_mismatch_is_linked(her2, client):
@@ -172,6 +166,6 @@ def test_lab_report_sent_again_after_a_mismatch_is_linked(her2, client):
     appointment(client, "CBC", "2026-11-02", attended=True)
     again = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "CBC"}).json()
     assert again["status"] == "verified" and not again.get("duplicate")
-    assert card(client, "BT3")["state"] == "Report received"
+    assert card(client, "BT3")["state"] == "Report verified"
     dup = client.post("/simulated-lab/report", headers=PRIYA, json={"mrn": "SYN-0007", "test_code": "CBC"}).json()
     assert dup.get("duplicate") is True

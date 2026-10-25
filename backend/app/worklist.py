@@ -20,6 +20,8 @@ PEOPLE_TASKS = {
     "help_booking": "action", "cant_come": "action", "help_request": "action",
     # Use Case 2T: report mismatch, outside report to verify, report reviewed but no next visit card
     "report_mismatch": "action", "outside_report": "action", "no_next_visit": "action",
+    # Use Case 2T v1.4: the report check
+    "find_hospital_report": "action", "call_about_test": "action", "call_patient_resend": "action",
 }
 HELP_TAGS = {"help_booking": "Help booking", "cant_come": "Can't come", "help_request": "Help request"}
 ESCALATED = {"patient_asked_help_booking": "Escalated: help booking", "patient_cannot_come": "Escalated: can't come",
@@ -336,7 +338,7 @@ def department_lists(conn) -> list[dict]:
         """
         SELECT c.department, c.mrn, p.full_name, c.item_code, c.name, c.due_date, c.state, c.owner_name, c.cover_name
         FROM order_card c JOIN patient p USING (mrn)
-        WHERE c.state IN ('Due', 'Booked', 'Ordered', 'Scheduled') AND c.due_date BETWEEN %s AND %s
+        WHERE c.state IN ('Due', 'Booked') AND c.due_date BETWEEN %s AND %s
           AND p.status NOT IN ('Paused', 'Lost to follow-up', 'Followed up elsewhere')
         ORDER BY c.department, c.due_date, p.full_name
         """,

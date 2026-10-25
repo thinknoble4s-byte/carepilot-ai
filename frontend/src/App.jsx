@@ -82,8 +82,9 @@ function ResetChoice({ onReset }) {
         <div className="small-note" style={{ lineHeight: 1.7 }}><b>No plan is seeded in any data set.</b> On each Patient page the
           coordinator chooses one of the three care plans: <b>T1</b> hormone receptor positive, <b>T2</b> hormone receptor negative or
           <b> T3</b> HER2 positive, with the treatment end date. Visits fall at months 3, 6, 9 and 12, and each visit's tests are due
-          7 days before it. The blood test goes Due → Scheduled → Completed → Report received → Report verified; imaging goes
-          Due → Scheduled → Completed → Verified; only the doctor sets the verified status.</div>
+          7 days before it. The blood test goes Due → Booked → Completed → Report received → Report verified (the system verifies a
+          hospital report by MRN and test code, a coordinator an outside one); imaging goes Due → Booked → Completed → Verified, set by
+          the doctor.</div>
       </div>
       <div className="card-flat">
         <div className="card-title">Use Case 1 data (default)</div>
@@ -114,9 +115,10 @@ function ResetChoice({ onReset }) {
       </div>
       <div className="card-flat">
         <div className="card-title">Use Case 2T — test cycle</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001), Kavita (TP004), Lakshmi (TP005), Farida (TP006) and
-          Rekha (TP007); clock D0, Mon 2 Nov. Test reminders, the SIMULATED appointment list and lab on the Patient page, the
-          outside-lab file in the simulator, and the doctor's "Report ready for review" (the decision verifies the test).</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001), Kavita (TP004), Lakshmi (TP005), Farida (TP006),
+          Rekha (TP007), Geeta (TP008), Shobha (TP009) and Asha (TP010); clock D0, Mon 2 Nov. Test reminders, the report check
+          after the due date, the SIMULATED appointment list and lab, outside-lab files scored by plain rules (95 or more goes to the
+          doctor as auto-matched, Live mode), Copies for your information, and the doctor's "Report ready for review".</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2t')}>Reset to Use Case 2T</button></div>
       </div>
       <div className="card-flat">

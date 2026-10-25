@@ -99,10 +99,14 @@ def _run(conn) -> dict:
                               dedupe_key=f"G0-T3:{g['card_id']}")
             for g in t3
         ]
+    from . import test_cycle
+
+    checks = test_cycle.report_check_job(conn)  # Use Case 2T: report checks and their timers (REQ-24 to REQ-26)
     audit.append(conn, actor_type="system", actor_name=GAP_CHECK, action="gap_check_run", trigger_event="gap_check_0700",
                  outcome=f"{len(new)} new, {len(suppressed)} suppressed",
                  details={"today": today.isoformat(), "rules": cfg["gap_rules"], "cards": cfg["reminder_cards"],
-                          "new_gaps": len(new), "suppressed": len(suppressed), "resolved": len(resolved)})
+                          "new_gaps": len(new), "suppressed": len(suppressed), "resolved": len(resolved),
+                          "report_checks": checks or None})
     return {"today": today, "new_gaps": new, "suppressed": len(suppressed), "resolved": len(resolved),
-            "t3_tasks": len(t3_tasks), "window_days": window, "grace_days": grace,
+            "t3_tasks": len(t3_tasks), "report_checks": checks, "window_days": window, "grace_days": grace,
             "checked_through": today + timedelta(days=window)}

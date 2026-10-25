@@ -17,6 +17,10 @@ const RESULTS = {
   confirm_test_booking: ['booked', 'could_not_book', 'not_reached'],
   cant_come: ['rebooked', 'reason_recorded', 'not_reached'],
   help_request: ['sorted', 'needs_follow_up', 'not_reached'],
+  // Use Case 2T v1.4: the report-check tasks
+  find_hospital_report: ['sorted', 'needs_follow_up'],
+  call_about_test: ['booked', 'sorted', 'needs_follow_up', 'not_reached'],
+  call_patient_resend: ['sorted', 'needs_follow_up', 'not_reached'],
 };
 const REASON_LABEL = { cost: 'Cost', pre_authorisation: 'Pre-authorisation', transport: 'Transport or distance', work_family: 'Work or family', other: 'Other' };
 const STATE_TONE = { Open: 'warn', Overdue: 'bad', Done: 'good', Cancelled: 'gray', 'Moved to cover': 'bad' };
@@ -240,7 +244,7 @@ function TaskPanel({ task, reasons, need }) {
       await post(`tasks/${task.task_id}/result`, {
         result, note: note || null, appointment_date: date || null, appointment_time: time || null, reason_code: code || null,
       });
-      ui.toast(`${task.label}: ${RESULT_LABEL[result]} — task closed${['booked', 'rebooked'].includes(result) ? (task.card_type === 'test' ? ', test Scheduled' : ', card Booked (confirmed by coordinator)') : ''}`);
+      ui.toast(`${task.label}: ${RESULT_LABEL[result]} — task closed${['booked', 'rebooked'].includes(result) ? (task.card_type === 'test' ? ', test Booked (confirmed by coordinator)' : ', card Booked (confirmed by coordinator)') : ''}`);
       ui.closeModal();
       ui.refresh();
     } catch (e) {

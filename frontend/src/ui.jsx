@@ -121,7 +121,8 @@ const MARKS = {
 };
 
 // The patient's reply buttons, as the patient sees them (English labels of the approved template).
-export const BUTTON_LABEL = { booked: 'Booked', help_book: 'Please help me book', cant_come: "I can't come" };
+export const BUTTON_LABEL = { booked: 'Booked', help_book: 'Please help me book', cant_come: "I can't come",
+  done_outside: 'Done at an outside lab', done_hospital: 'Done at the hospital', not_done: 'Not done yet' };
 export const buttonLabel = (id) => BUTTON_LABEL[id] || id.replaceAll('_', ' ');
 
 export function Marks({ marks }) {

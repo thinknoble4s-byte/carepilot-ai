@@ -448,6 +448,9 @@ function Messages({ patient }) {
   const [clips, setClips] = useState([]);
   const [clip, setClip] = useState('');
   const [doc, setDoc] = useState(null);
+  const [variant, setVariant] = useState('clear');
+  const [fromPhone, setFromPhone] = useState('');
+  const [docNote, setDocNote] = useState('');
   const [lastEvent, setLastEvent] = useState(null);
   const [act, error] = useAct();
   useEffect(() => {
@@ -490,14 +493,20 @@ function Messages({ patient }) {
       load();
     }
   };
-  // Use Case 2T: a photo or PDF of an outside report; without a file, the synthetic outside-lab PDF.
+  // Use Case 2T: a photo or PDF of an outside report; without a file, a synthetic outside-lab PDF (variant).
+  const ROUTED = { auto_matched: 'sent to the doctor as auto-matched (copy for the coordinator)', wrong_report: 'the patient is asked for the right report', verify: 'coordinator to verify' };
   const sendDoc = async (file) => {
     const fd = new FormData();
     if (file) fd.append('file', file, file.name);
+    else fd.append('variant', variant);
+    if (fromPhone.trim()) fd.append('from_phone', fromPhone.trim());
+    if (docNote.trim()) fd.append('note', docNote.trim());
     fd.append('event_id', `wa-${Date.now()}`);
     if (await act(() => upload(`simulator/${patient.mrn}/document`, fd),
-      (r) => `Report saved and held Unverified${r.identifiers && Object.keys(r.identifiers).length ? ' — identifiers read' : ' — the reader could not read it; check it by eye'}`, true)) {
+      (r) => `Report held Unverified${r.identifiers && Object.keys(r.identifiers).length ? '; identifiers read' : '; the reader could not read it'}`
+        + (r.group_id ? `; joined report #${r.group_id} (sent together)` : r.score != null ? `; score ${r.score} — ${ROUTED[r.routing_applied]}` : ''), true)) {
       setDoc(null);
+      setDocNote('');
       load();
     }
   };
@@ -581,11 +590,21 @@ function Messages({ patient }) {
                 <label className="v3-field" htmlFor="msgD">Send a photo or PDF of a test report (outside lab)</label>
                 <input id="msgD" type="file" accept="image/*,application/pdf" className="v3-in"
                   onChange={(e) => setDoc(e.target.files?.[0] || null)} />
+                <label className="v3-field" htmlFor="msgDV">Or a synthetic outside-lab report (PDF)</label>
+                <select id="msgDV" className="v3-in" value={variant} onChange={(e) => setVariant(e.target.value)}>
+                  {[['clear', 'Clear photo of the right report'], ['blurred', 'Slightly blurred (name only partly read)'], ['ct_scan', 'CT scan report instead of the blood test'],
+                    ['other_name', "Report in another person's name"], ['unreadable', 'Too unclear to read'], ['future_date', 'Dated in the future']]
+                    .map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select>
+                <label className="v3-field" htmlFor="msgDP">Sent from another number (optional; an unknown number never passes)</label>
+                <input id="msgDP" className="v3-in" value={fromPhone} onChange={(e) => setFromPhone(e.target.value)} placeholder="+919999999999" />
+                <label className="v3-field" htmlFor="msgDN">Note sent with the file (optional; goes through the health check)</label>
+                <input id="msgDN" className="v3-in" value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="e.g. Done at Sunrise lab, it was cheaper" />
                 <div className="btn-row">
                   <button type="button" className="btn" disabled={!doc} onClick={() => sendDoc(doc)}>Send the file</button>
-                  <button type="button" className="btn primary" onClick={() => sendDoc(null)}>Send the synthetic outside-lab report (PDF)</button>
+                  <button type="button" className="btn primary" onClick={() => sendDoc(null)}>Send the synthetic report</button>
                 </div>
-                <div className="small-note">A file from the patient never moves a card: it is held Unverified until a coordinator checks it on the Patient page; the doctor then verifies the test.</div>
+                <div className="small-note">WhatsApp has no upload button: the patient attaches the file in the chat. It is held Unverified and scored by plain rules (seven hard checks, a score out of 100): 95 or more with every check passed goes to the doctor as auto-matched, below that a coordinator verifies it, the wrong kind of report or an unreadable file brings the "possible wrong report" message.</div>
               </>
             )}
           </>

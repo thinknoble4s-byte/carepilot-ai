@@ -1,7 +1,7 @@
 {
   "scenario": "uc2t",
   "title": "Use Case 2T — Test cycle: from test due to the doctor's decision on the report",
-  "source": "usecase-docs/CarePilot_UseCase2T_Test_Cycle_v1.2.docx (v1.2, 18 October 2026)",
+  "source": "usecase-docs/CarePilot_UseCase2T_Test_Cycle_v1.4.docx (v1.3 changes, 24 October 2026)",
   "demo_start_date": "2026-11-02",
   "users": [
     {
@@ -60,7 +60,9 @@
         "recorded_on": "2026-10-28"
       },
       "plan": null,
-      "note": "Taps Please help me book; hospital lab; Review visit already Booked Mon 14 Dec 10:30 (positive case P)"
+      "note": "Taps Please help me book; hospital lab; Review visit already Booked Mon 14 Dec 10:30 (positive case P)",
+      "age": 52,
+      "sex": "F"
     },
     {
       "mrn": "TP004",
@@ -76,7 +78,9 @@
         "recorded_on": "2026-10-28"
       },
       "plan": null,
-      "note": "Taps Booked; outside lab; sends a photo of the report (negative case N)"
+      "note": "Taps Booked; outside lab; gets the report check, taps Done at an outside lab, sends a clear photo of the right report; it scores 97 (negative case N)",
+      "age": 54,
+      "sex": "F"
     },
     {
       "mrn": "TP005",
@@ -92,7 +96,9 @@
         "recorded_on": "2026-10-28"
       },
       "plan": null,
-      "note": "Taps Booked (no date); hospital lab (T4)"
+      "note": "Taps Booked (no date); hospital lab (T4)",
+      "age": 61,
+      "sex": "F"
     },
     {
       "mrn": "TP006",
@@ -108,7 +114,9 @@
         "recorded_on": "2026-10-28"
       },
       "plan": null,
-      "note": "Hospital road; the lab sends a report with the wrong test code and one with the wrong MRN (T6)"
+      "note": "Hospital road; the lab sends a report with the wrong test code and one with the wrong MRN (T6)",
+      "age": 47,
+      "sex": "F"
     },
     {
       "mrn": "TP007",
@@ -124,11 +132,67 @@
         "recorded_on": "2026-10-28"
       },
       "plan": null,
-      "note": "Same as TP001 but no next visit card (T7)"
+      "note": "Same as TP001 but no next visit card (T7)",
+      "age": 58,
+      "sex": "F"
+    },
+    {
+      "mrn": "TP008",
+      "full_name": "Geeta",
+      "phone": "+919000000108",
+      "preferred_language": "English",
+      "age": 50,
+      "sex": "F",
+      "consent": {
+        "consent_reference": "CONS-TP008",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": null,
+      "note": "Outside-lab patient who does not follow through: each button, silence and no upload (T11)"
+    },
+    {
+      "mrn": "TP009",
+      "full_name": "Shobha",
+      "phone": "+919000000109",
+      "preferred_language": "English",
+      "age": 63,
+      "sex": "F",
+      "consent": {
+        "consent_reference": "CONS-TP009",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": null,
+      "note": "Outside-lab patient who sends a CT scan report instead of the blood test; a later file shows another person's name (T12)"
+    },
+    {
+      "mrn": "TP010",
+      "full_name": "Asha",
+      "phone": "+919000000110",
+      "preferred_language": "English",
+      "age": 45,
+      "sex": "F",
+      "consent": {
+        "consent_reference": "CONS-TP010",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-28"
+      },
+      "plan": null,
+      "note": "Outside-lab patient whose photo is slightly blurred, so the name is only partly read; it scores 82 (N2, T13)"
     }
   ],
   "deadline_policy": {
-    "version": "1.4",
+    "version": "1.5",
     "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "default_coordinator": "Anita",
     "default_doctor": "u_sekhar",
@@ -151,7 +215,11 @@
       "contact_needed": 2,
       "help_booking": 2,
       "cant_come": 2,
-      "help_request": 1
+      "help_request": 1,
+      "find_hospital_report": 2,
+      "call_about_test": 2,
+      "call_patient_resend": 2,
+      "outside_report": 1
     },
     "escalation": {
       "coordinator_review": "cover",
@@ -166,7 +234,11 @@
       "contact_needed": "cover",
       "help_booking": null,
       "cant_come": null,
-      "help_request": null
+      "help_request": null,
+      "find_hospital_report": "cover",
+      "call_about_test": "cover",
+      "call_patient_resend": "cover",
+      "outside_report": "cover"
     },
     "help_keywords": [
       "help",
@@ -181,7 +253,7 @@
       "work_family",
       "other"
     ],
-    "note": "Use Case 2T: help-booking and can't-come tasks as Use Case 2b (2 working days); the doctor has 1 working day to decide on a report, then it moves to his cover (Dr. Anand Rao). Proposed; confirm with Dr. Sekhar."
+    "note": "Use Case 2T: help-booking and can't-come tasks as Use Case 2b (2 working days); the doctor has 1 working day to decide on a report, then it moves to his cover (Dr. Anand Rao). Proposed; confirm with Dr. Sekhar. v1.4: Find hospital report, Call about test and Call the patient (resend) 2 working days; Verify outside report 1 working day."
   },
   "message_templates": [
     {
@@ -340,11 +412,71 @@
       "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. Dr. Sekhar has reviewed your {item_name} report. No change to your plan is needed. Please continue with your next visit, due by {due_date}.",
       "closing": null,
       "buttons": []
+    },
+    {
+      "template_id": "test_report_check",
+      "language": "English",
+      "version": "1.3",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead) — proposed text, pending clinician sign-off",
+      "effective_from": "2026-10-24",
+      "date_format": "%d-%b",
+      "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. We have not yet received the report of your {item_name}, advised by Dr. Sekhar. Please select one of the options below. If you did the test at another lab, please send a clear photo or PDF of the complete report here on WhatsApp.",
+      "closing": "If you need help, reply HELP, or write to us or leave a voice message.",
+      "buttons": [
+        {
+          "id": "done_outside",
+          "label": "Done at an outside lab",
+          "label_en": "Done at an outside lab"
+        },
+        {
+          "id": "done_hospital",
+          "label": "Done at the hospital",
+          "label_en": "Done at the hospital"
+        },
+        {
+          "id": "not_done",
+          "label": "Not done yet",
+          "label_en": "Not done yet"
+        }
+      ]
+    },
+    {
+      "template_id": "report_upload_nudge",
+      "language": "English",
+      "version": "1.3",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead) — proposed text, pending clinician sign-off",
+      "effective_from": "2026-10-24",
+      "date_format": "%d-%b",
+      "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. We are still waiting for the report of your {item_name}. Please send a clear photo or PDF of the complete report here on WhatsApp. If you need help, reply HELP and our team will call you.",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "report_upload_request",
+      "language": "English",
+      "version": "1.3",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead) — proposed text, pending clinician sign-off",
+      "effective_from": "2026-10-24",
+      "date_format": "%d-%b",
+      "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. Thank you for letting us know. Please send a clear photo or PDF of the complete report of your {item_name} here. Tap the attach (paper-clip) icon, choose Camera or Document, and send it. If you need help, reply HELP.",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "report_wrong_report",
+      "language": "English",
+      "version": "1.3",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead) — proposed text, pending clinician sign-off",
+      "effective_from": "2026-10-24",
+      "date_format": "%d-%b",
+      "text": "Dear {patient_name},\nGreetings from Sanjeevini Clinic. The file you sent may not be the report of your {item_name}, or it may not be clear. Please check and send the correct report as a clear photo or PDF of the complete report. If you need help, reply HELP and our team will call you.",
+      "closing": null,
+      "buttons": []
     }
   ],
   "settings": {
-    "version": "1.2",
-    "note": "Use Case 2T: G0 on plan test and visit cards, the test reminder, the Booked tap only labels a test card, Record booking schedules it, appointment-list rows and the simulated lab move it, outside reports are held Unverified until a coordinator verifies them, and the doctor decides on every verified report. Use Case 2a and 2b behaviour otherwise.",
+    "version": "1.4",
+    "note": "Use Case 2T v1.4: G0 on plan test and visit cards, the test reminder; a Booked tap moves a test card to Booked with no date; Record booking or the appointment list add the date; the simulated lab report is linked and verified by MRN and test code; the report check asks the patient once the test date has passed (hospital data first); an outside report is scored (seven hard checks, a score out of 100) and routed: auto-matched to the doctor with a coordinator copy, a coordinator Verify task, or the possible wrong report message. Use Case 2a and 2b behaviour otherwise.",
     "gap_rules": [
       "G0"
     ],
@@ -395,7 +527,43 @@
     "test_cycle": {
       "reminder_template": "test_booking_reminder",
       "doctor_days": 1,
-      "note": "Decisions D2 and 4 of the sprint spec are open (section 16)."
+      "report_check": {
+        "check_after_working_days": 1,
+        "no_answer_working_days": 2,
+        "repeat_after_working_days": 3,
+        "max_repeats": 2,
+        "upload_nudge_working_days": 2,
+        "upload_call_working_days": 2
+      },
+      "note": "Decisions D2 and 4 of the sprint spec are open (section 16); the report-check timings are proposals for Dr. Sekhar."
     }
+  },
+  "report_routing": {
+    "version": "1.0",
+    "threshold": 95,
+    "mode": "live",
+    "clinical_lead": "u_sekhar",
+    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "weights": {
+      "name": 30,
+      "test_name": 25,
+      "document_type": 15,
+      "age_sex": 15,
+      "report_date": 10,
+      "sender": 5
+    },
+    "report_date_days_before_card": 14,
+    "group_minutes": 10,
+    "synonyms": {
+      "CBC": [
+        "blood test",
+        "complete blood count",
+        "full blood count",
+        "cbc",
+        "haemogram",
+        "hemogram"
+      ]
+    },
+    "note": "REQ-29: in a pilot the mode starts as Shadow for weeks 1 to 4; the demo is set to Live. The 95 is a rule score, not a probability: run the document test set before Live is approved."
   }
 }

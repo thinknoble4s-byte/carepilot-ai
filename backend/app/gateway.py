@@ -20,7 +20,8 @@ from .errors import Invalid, NotFound
 
 GATEWAY = "WhatsApp gateway (simulated)"
 SARVAM = "Sarvam (AI)"
-BUTTONS = ("booked", "help_book", "cant_come")
+BUTTONS = ("booked", "help_book", "cant_come",
+           "done_outside", "done_hospital", "not_done")  # Use Case 2T: the report check
 CLIP_DIR = Path(__file__).resolve().parent / "seed_data" / "uc2a" / "audio"
 MAX_AUDIO_BYTES = 5 * 1024 * 1024  # a recorded note of up to 30 seconds is about 1 MB as 16 kHz WAV
 SPOKEN = ("Hindi", "Kannada", "English", "auto")  # "auto": Sarvam detects the language
@@ -164,11 +165,13 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
 
 
 def receive_document(conn, mrn: str, *, data: bytes, mime: str, file_name: str, from_role: str = "patient",
-                     event_id: str | None = None) -> dict:
-    """Use Case 2T REQ-11: a photo or PDF from the patient. Always saved; held Unverified; moves no card."""
+                     event_id: str | None = None, from_phone: str | None = None, note: str | None = None) -> dict:
+    """Use Case 2T REQ-11: a photo or PDF from the patient. Always saved; held Unverified; moves no card by itself.
+    Text sent with it goes through the Use Case 2a path; its words are kept verbatim for the doctor."""
     from . import test_cycle
 
-    if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
+    patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
+    if patient is None:
         raise NotFound(f"Patient {mrn} not found")
     if from_role not in ("patient", "caregiver"):
         raise Invalid("from_role must be patient or caregiver")
@@ -178,6 +181,15 @@ def receive_document(conn, mrn: str, *, data: bytes, mime: str, file_name: str, 
         seen = conn.execute("SELECT * FROM inbound_message WHERE event_id = %s", (event_id,)).fetchone()
         if seen:
             return {"inbound_id": seen["inbound_id"], "duplicate": True}
+    # The sender's number (hard check G7): the patient's own, or the listed caregiver's, unless the demo says other.
+    phone = (from_phone or "").strip() or (patient["phone"] if from_role == "patient" else patient["caregiver_phone"])
+    note = (note or "").strip() or None
+    translation = None
+    if note:  # the words go through the Use Case 2a path (a person sees them) and are kept with the report
+        r = receive_reply(conn, mrn, from_role=from_role, text=note, event_id=f"{event_id}:note" if event_id else None)
+        row = conn.execute("SELECT translation FROM inbound_message WHERE inbound_id = %s",
+                           (r["inbound_id"],)).fetchone()
+        translation = row["translation"] if patient["preferred_language"] in ("Hindi", "Kannada") else None
     now = clock.get_now(conn)
     blob = conn.execute("INSERT INTO audio_blob (mime, data) VALUES (%s, %s) RETURNING audio_id",
                         (mime, data)).fetchone()["audio_id"] if data else None
@@ -187,12 +199,15 @@ def receive_document(conn, mrn: str, *, data: bytes, mime: str, file_name: str, 
         (mrn, from_role, file_name, now.date(), now.time(), event_id, blob)).fetchone()
     audit.append(conn, actor_type="system", actor_name=GATEWAY, action="document_received", entity_type="inbound_message",
                  entity_id=str(inbound["inbound_id"]), mrn=mrn,
-                 details={"file": file_name, "mime": mime, "from_role": from_role, "bytes": len(data or b"")})
+                 details={"file": file_name, "mime": mime, "from_role": from_role, "from_phone": phone,
+                          "bytes": len(data or b""), "note": note})
     report = test_cycle.receive_outside(conn, mrn, data=data, mime=mime, file_name=file_name,
                                         channel=f"WhatsApp from {from_role}", inbound_id=inbound["inbound_id"],
-                                        actor=GATEWAY)
+                                        actor=GATEWAY, sender_phone=phone, note=note, note_translation=translation)
     return {"inbound_id": inbound["inbound_id"], "report_id": report["report_id"], "status": report["status"],
-            "identifiers": report["identifiers"]}
+            "identifiers": report["identifiers"], "score": report.get("score"), "routing": report.get("routing"),
+            "routing_applied": report.get("routing_applied"), "hard_checks": report.get("hard_checks"),
+            "group_id": report.get("group_id")}
 
 
 def _acknowledge(conn, mrn, recipient, handover_id, reason) -> dict:
@@ -292,11 +307,16 @@ def _apply_button(conn, mrn: str, button: str, target: dict | None, inbound_id: 
     """Deterministic: no AI call. A tap is a structured fact recorded by the system (REQ-01)."""
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s",
                         (target["card_id"],)).fetchone() if target and target["card_id"] else None
-    if button == "booked" and card and card["card_type"] == "test" and card["state"] == "Due" \
+    if button in ("done_outside", "done_hospital", "not_done"):  # Use Case 2T REQ-25: the report check
+        from . import test_cycle
+
+        check = test_cycle.check_for_message(conn, target["message_id"] if target else None)
+        outcome = test_cycle.answer_check(conn, check, button, inbound_id, GATEWAY) if check else "no_report_check"
+    elif button == "booked" and card and card["card_type"] == "test" and card["state"] == "Due" \
             and policy.settings(conn).get("test_cycle"):
         from . import test_cycle
 
-        outcome = test_cycle.tap_booked(conn, card, inbound_id, GATEWAY)  # Use Case 2T REQ-05: label only
+        outcome = test_cycle.tap_booked(conn, card, inbound_id, GATEWAY)  # Use Case 2T REQ-05: Booked, no date
     elif button == "booked" and card and card["card_type"] == "visit" and card["state"] == "Due":
         states.transition_card(conn, card["card_id"], "Booked", "system", GATEWAY, source="patient_button")
         outcome = "card_booked"

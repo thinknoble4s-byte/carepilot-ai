@@ -24,8 +24,11 @@ ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking",
 # slot offers) to the patient are held for every sender (held_open_task). A setting, pending decision 10.
 HELP_TASK_TYPES = ("help_booking", "cant_come", "help_request")
 # Use Case 2c REQ-16: the urgent call-today task holds routine reminders too, until a person reaches the patient.
-HOLD_TASK_TYPES = HELP_TASK_TYPES + ("urgent_call",)
-ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder", "test_booking_reminder")
+HOLD_TASK_TYPES = HELP_TASK_TYPES + ("urgent_call",
+                                     # Use Case 2T REQ-20: an open report-check task holds routine messages too
+                                     "find_hospital_report", "call_about_test", "call_patient_resend")
+ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder", "test_booking_reminder", "test_report_check",
+                     "report_upload_nudge")
 
 
 def task_hold(conn, mrn: str) -> bool:

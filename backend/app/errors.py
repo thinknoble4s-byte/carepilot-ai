@@ -20,3 +20,7 @@ class Conflict(DomainError):
 
 class Invalid(DomainError):
     status = 422
+
+
+class Forbidden(DomainError):
+    status = 403

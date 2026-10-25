@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { openCall, openDeptLists, openHandover, openMessages, openPause } from './Modals.jsx';
 import ProposalCard from './Proposals.jsx';
+import { InfoCopies, RoutingSettings } from './TestCycle.jsx';
 import { Chip, fmt, GapState, GUARD, Reason, ScreenHead, useUI } from './ui.jsx';
 
 const FILTERS = [['action', 'Coordinator action required'], ['noresp', 'No response'], ['overdue', 'Overdue'],
@@ -145,6 +146,8 @@ export default function Worklist() {
         </div>
       )}
 
+      <InfoCopies />
+
       <div className="card-title" style={{ margin: '6px 0 8px' }}>Needs you</div>
       <div className="v4-kpis" style={{ gridTemplateColumns: 'repeat(7,1fr)' }}>
         {FILTERS.map(([id, label]) => (
@@ -236,6 +239,8 @@ export default function Worklist() {
           </table>
         </div>
       </div>
+
+      <RoutingSettings />
 
       <details className="card agent-card" id="agentdone">
         <summary className="card-title" style={{ cursor: 'pointer', margin: 0 }}>Everything the agent did since yesterday evening ({data.feed.length} actions)</summary>

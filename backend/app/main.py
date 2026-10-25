@@ -519,20 +519,26 @@ class LabReportIn(BaseModel):
     report_mrn: str | None = None  # the MRN printed on the report (default: the patient's)
     with_file: bool = True
     report_ref: str | None = None
+    deliver: bool = True  # False: the report sits in the hospital data only (the report check finds it)
 
 
 @app.post("/simulated-lab/report", status_code=201)
 def simulated_lab_report(body: LabReportIn, user: dict = Depends(require_role(*COORDINATOR))):
     """Demo control (SIMULATED): the hospital lab sends a synthetic report with an MRN and a test code."""
     return in_tx(test_cycle.lab_report, mrn=body.mrn, test_code=body.test_code, report_mrn=body.report_mrn,
-                 with_file=body.with_file, report_ref=body.report_ref, pressed_by=user["user_id"])
+                 with_file=body.with_file, report_ref=body.report_ref, pressed_by=user["user_id"],
+                 deliver=body.deliver)
 
 
 @app.post("/simulator/{mrn}/document", status_code=201)
 async def simulator_document(mrn: str, file: UploadFile | None = File(None), from_role: str = Form("patient"),
-                             event_id: str | None = Form(None), _user: dict = Depends(require_role(*COORDINATOR))):
-    """The patient sends a photo or PDF of an outside report. Without a file: the synthetic outside-lab PDF."""
+                             event_id: str | None = Form(None), variant: str = Form("clear"),
+                             from_phone: str | None = Form(None), note: str | None = Form(None),
+                             _user: dict = Depends(require_role(*COORDINATOR))):
+    """The patient sends a photo or PDF of an outside report. Without a file: a synthetic outside-lab PDF (variant:
+    clear, blurred, ct_scan, other_name, unreadable, future_date). from_phone: another sender number (demo)."""
     data = await file.read() if file else None
+    extra = {"from_phone": from_phone, "note": note}
 
     def run(conn):
         if data is None:
@@ -541,11 +547,14 @@ async def simulator_document(mrn: str, file: UploadFile | None = File(None), fro
                 raise HTTPException(status_code=404, detail=f"Patient {mrn} not found")
             card = conn.execute("SELECT name FROM order_card WHERE mrn = %s AND card_type = 'test' ORDER BY card_id "
                                 "LIMIT 1", (mrn,)).fetchone()
-            pdf = test_cycle.outside_report_pdf(p, clock.get_today(conn), card["name"] if card else "Blood test")
+            pdf = test_cycle.outside_report_pdf(p, clock.get_today(conn), card["name"] if card else "Blood test",
+                                                variant)
             return gateway.receive_document(conn, mrn, data=pdf, mime="application/pdf",
-                                            file_name="outside-lab-report.pdf", from_role=from_role, event_id=event_id)
+                                            file_name=f"outside-lab-report-{variant}.pdf", from_role=from_role,
+                                            event_id=event_id, **extra)
         return gateway.receive_document(conn, mrn, data=data, mime=(file.content_type or "").split(";")[0],
-                                        file_name=file.filename or "document", from_role=from_role, event_id=event_id)
+                                        file_name=file.filename or "document", from_role=from_role, event_id=event_id,
+                                        **extra)
 
     return in_tx(run)
 
@@ -582,15 +591,68 @@ def reject_report(report_id: int, body: RejectReportIn, user: dict = Depends(req
     return in_tx(test_cycle.reject_outside, report_id, user["user_id"], body.reason)
 
 
+class CopyFlagIn(BaseModel):
+    reason: str | None = None
+
+
+@app.get("/copies")
+def info_copies(owner: str | None = None, _user: dict = Depends(require_role(*CLINICAL))):
+    """Copies for your information: auto-matched outside reports and wrong-report notes (no due date)."""
+    return in_tx(test_cycle.copies, owner)
+
+
+@app.post("/copies/{copy_id}/confirm")
+def confirm_copy(copy_id: int, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(test_cycle.confirm_copy, copy_id, user["user_id"])
+
+
+@app.post("/copies/{copy_id}/flag")
+def flag_copy(copy_id: int, body: CopyFlagIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(test_cycle.flag_copy, copy_id, user["user_id"], body.reason)
+
+
+@app.post("/copies/{copy_id}/read")
+def read_copy(copy_id: int, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(test_cycle.read_copy, copy_id, user["user_id"])
+
+
+@app.get("/report-routing")
+def report_routing(_user: dict = Depends(current_user)):
+    return in_tx(lambda conn: {**test_cycle.routing(conn), "use_case_2t": bool(test_cycle.config(conn))})
+
+
+class RoutingIn(BaseModel):
+    mode: str | None = None
+    threshold: int | None = None
+    weights: dict[str, int] | None = None
+
+
+@app.put("/report-routing")
+def set_report_routing(body: RoutingIn, user: dict = Depends(current_user)):
+    """REQ-29: only the clinical lead changes the threshold, the weights or Shadow / Live; each change audited."""
+    return in_tx(test_cycle.set_routing, user, mode=body.mode, threshold=body.threshold, weights=body.weights)
+
+
+@app.get("/report-routing/evaluation")
+def report_routing_evaluation(_user: dict = Depends(require_role(*CLINICAL))):
+    """REQ-29: the synthetic document set: how many reports that should not pass reached the threshold."""
+    return in_tx(test_cycle.evaluate)
+
+
+@app.post("/reviews/{review_id}/noted")
+def review_noted(review_id: int, user: dict = Depends(require_role("oncologist"))):
+    return in_tx(test_cycle.noted, review_id, user)
+
+
 @app.get("/doctor/verifications")
 def doctor_verifications(_user: dict = Depends(require_role(*CLINICAL))):
-    """Tests waiting for the doctor's Verify: a specimen-based test with its report, a non-specimen test completed."""
+    """Tests waiting for the doctor's Verify: a non-specimen test (imaging) completed."""
     return in_tx(test_cycle.to_verify)
 
 
 @app.post("/cards/{card_id}/verify")
 def verify_card(card_id: int, user: dict = Depends(require_role("oncologist"))):
-    """Only the doctor sets a test to Report verified (specimen-based) or Verified (non-specimen)."""
+    """Only the doctor sets a non-specimen test (imaging) to Verified; reports are verified by their identifiers."""
     return in_tx(test_cycle.doctor_verify, card_id, user)
 
 

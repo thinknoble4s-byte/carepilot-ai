@@ -13,6 +13,11 @@ def _who(user_id) -> str:
     return USERS_BY_ID.get(user_id, {}).get("name", user_id)
 
 
+_ROUTED = {"auto_matched": "sent to the doctor as auto-matched, with a copy for the coordinator",
+           "wrong_report": "patient asked for the right report", "verify": "coordinator to verify"}
+_ANSWER = {"done_outside": "Done at an outside lab", "done_hospital": "Done at the hospital", "not_done": "Not done yet"}
+
+
 def _ev(day, label, kind, tier, src, origin, rule=None):
     return {"date": day, "label": label, "kind": kind, "tier": tier, "src": src, "origin": origin, "rule": rule}
 
@@ -157,7 +162,9 @@ def build(conn, mrn: str) -> dict:
         src = f"Report #{r['report_id']}" + (f" ({r['file_name']})" if r["file_name"] else "")
         if r["road"] == "hospital":
             label = {"verified": f"Lab report for {what} linked and checked (MRN and test code match) — "
-                                 "report received",
+                                 "Report verified by the system",
+                     "unverified": f"Lab report for {what} received",
+                     "held": f"Lab report ({r['test_code']}) in the hospital data, not yet sent to CarePilot",
                      "mismatch": f"Lab report for {what} not linked: mismatch — coordinator to check",
                      "exception": f"Lab report ({r['test_code']}) matched no test card — exceptions list"}[r["status"]]
             events.append(_ev(r["received_at_demo"].date(), f"{label} · {hh(r['received_at_demo'])}", "routine",
@@ -166,17 +173,54 @@ def build(conn, mrn: str) -> dict:
             events.append(_ev(r["received_at_demo"].date(), f"Outside report received ({r['file_name']}) — held "
                               f"Unverified · {hh(r['received_at_demo'])}", "routine", "patient", src,
                               r["channel"] or "Outside document"))
-            if r["status"] == "verified":
-                events.append(_ev(r["verified_at_demo"].date(), f"Outside report checked by {_who(r['verified_by'])} "
+            if r["score"] is not None:
+                failed = [k for k, v in (r["hard_checks"] or {}).items() if not v]
+                events.append(_ev(r["received_at_demo"].date(), f"Outside report scored {r['score']} by plain rules"
+                                  + (f"; hard checks failed: {', '.join(failed)}" if failed else "; all hard checks pass")
+                                  + f" — {_ROUTED.get(r['routing_applied'], r['routing_applied'])}"
+                                  + (" (Shadow mode)" if r["routing_mode"] == "shadow" else ""), "routine", "carepilot",
+                                  src, "Rule score (about the document, never the patient)"))
+            if r["group_id"]:
+                events.append(_ev(r["received_at_demo"].date(), f"Photo joined report #{r['group_id']} (sent together)",
+                                  "routine", "carepilot", src, "Grouping rule"))
+            if r["confirmed_by"]:
+                events.append(_ev(r["confirmed_at_demo"].date(), f"Auto-matched outside report confirmed by "
+                                  f"{_who(r['confirmed_by'])} — {what} Report verified", "routine", "hosp", src,
+                                  "Coordinator's copy"))
+            elif r["status"] == "verified":
+                events.append(_ev(r["verified_at_demo"].date(), f"Outside report verified by {_who(r['verified_by'])} "
                                   f"({', '.join(r['matched'] or [])} match) — {what}", "routine", "hosp", src,
                                   "Coordinator verification"))
             elif r["status"] == "rejected":
                 events.append(_ev(r["received_at_demo"].date(), f"Outside report rejected by {_who(r['rejected_by'])}: "
                                   f"{r['reject_reason']}", "routine", "hosp", src, "Coordinator verification"))
-    # The three care plans: only the doctor sets a test to Report verified / Verified.
+            if r["flagged_by"]:
+                events.append(_ev(r["flagged_at_demo"].date(), f"Auto-matched outside report flagged as wrong by "
+                                  f"{_who(r['flagged_by'])}: {r['flag_reason']} — file kept Unverified", "gap", "hosp",
+                                  src, "Coordinator's copy"))
+    # Use Case 2T v1.4: the report check, its answer and its timers.
+    for k in conn.execute("""SELECT k.*, c.name AS card_name FROM report_check k JOIN order_card c USING (card_id)
+                             WHERE k.mrn = %s ORDER BY k.check_id""", (mrn,)).fetchall():
+        src = f"Report check #{k['check_id']}" + (f" (round {k['round']})" if k["round"] > 1 else "")
+        if k["status"] == "skipped" or k["closed_reason"] == "report_check_skipped":
+            events.append(_ev(k["raised_on"], f"Report check for {k['card_name']}: report found in the hospital data "
+                              "and linked — no message sent", "routine", "carepilot", src, "Rule: report check"))
+            continue
+        events.append(_ev(k["raised_on"], f"Report check raised for {k['card_name']}: no report in the hospital data",
+                          "routine", "carepilot", src, "Rule: report check"))
+        if k["sent_on"]:
+            events.append(_ev(k["sent_on"], f"Report check sent: \"Have you done your test?\" (three buttons)",
+                              "routine", "carepilot", src, "CarePilot agent"))
+        if k["answer"]:
+            events.append(_ev(k["answered_on"], f"Patient tapped: {_ANSWER[k['answer']]}", "routine", "patient", src,
+                              f"WhatsApp reply #{k['answer_inbound_id']}"))
+        if k["nudged_on"]:
+            events.append(_ev(k["nudged_on"], "Upload nudge sent (one only)", "routine", "carepilot", src,
+                              "CarePilot agent"))
+    # Non-specimen tests (imaging): only the doctor sets Verified.
     for c in conn.execute("""SELECT name, state, verified_by, verified_at_demo, card_id FROM order_card
-                             WHERE mrn = %s AND verified_at_demo IS NOT NULL ORDER BY verified_at_demo""",
-                          (mrn,)).fetchall():
+                             WHERE mrn = %s AND verified_at_demo IS NOT NULL AND state = 'Verified'
+                             ORDER BY verified_at_demo""", (mrn,)).fetchall():
         events.append(_ev(c["verified_at_demo"].date(), f"{c['name']}: {c['state']} by {_who(c['verified_by'])} at "
                           f"{hh(c['verified_at_demo'])}", "routine", "hosp", f"Order card #{c['card_id']}", "Doctor"))
     for v in conn.execute("""SELECT v.*, c.name AS card_name FROM report_review v JOIN order_card c USING (card_id)
@@ -184,6 +228,9 @@ def build(conn, mrn: str) -> dict:
         src = f"Report review #{v['review_id']}"
         events.append(_ev(v["created_at_demo"].date(), f"{v['card_name']}: report ready for review ({v['road']}) — "
                           f"{v['moved_from'] or v['doctor']}", "routine", "carepilot", src, f"Report #{v['report_id']}"))
+        if v["withdrawn_reason"]:
+            events.append(_ev(v["created_at_demo"].date(), f"Report review: {v['withdrawn_reason']}", "gap", "hosp",
+                              src, "Coordinator's flag"))
         if v["opened_at_demo"]:
             events.append(_ev(v["opened_at_demo"].date(), f"Source file opened by {_who(v['opened_by'])} at "
                               f"{hh(v['opened_at_demo'])}", "routine", "hosp", src, "Doctor"))
