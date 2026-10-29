@@ -31,7 +31,7 @@ export default function Timeline({ mrn }) {
       <div style={{ marginBottom: 12 }}>
         <label className="small-note" htmlFor="pp">Patient </label>
         <select id="pp" className="v4-sel" value={mrn} onChange={(e) => ui.nav('journey', e.target.value)}>
-          {patients.map((p) => <option key={p.mrn} value={p.mrn}>{p.full_name}{p.mrn === 'SYN-0007' ? ' (demo)' : ''}</option>)}
+          {patients.map((p) => <option key={p.mrn} value={p.mrn}>{p.full_name}{p.mrn === 'SYN-0011' ? ' (demo)' : ''}</option>)}
         </select>
       </div>
       {error && <div className="card"><div className="error">{error}</div></div>}

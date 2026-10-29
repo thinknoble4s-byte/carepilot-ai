@@ -14,7 +14,7 @@ HELP (or ಸಹಾಯ / मदद) always reaches a person directly. In data set
 """
 from pathlib import Path
 
-from . import ai, audit, clock, handover, help_tasks, messaging, policy, states, tasks
+from . import ai, audit, clock, handover, help_tasks, messaging, policy, states, tasks, triage
 from .agent import AGENT, set_next_action
 from .errors import Invalid, NotFound
 
@@ -24,7 +24,7 @@ BUTTONS = ("booked", "help_book", "cant_come",
            "done_outside", "done_hospital", "not_done")  # Use Case 2T: the report check
 CLIP_DIR = Path(__file__).resolve().parent / "seed_data" / "uc2a" / "audio"
 MAX_AUDIO_BYTES = 5 * 1024 * 1024  # a recorded note of up to 30 seconds is about 1 MB as 16 kHz WAV
-SPOKEN = ("Hindi", "Kannada", "English", "auto")  # "auto": Sarvam detects the language
+SPOKEN = ("Hindi", "Kannada", "Tamil", "English", "auto")  # "auto": Sarvam detects the language
 
 
 def clips(conn) -> list[dict]:
@@ -189,7 +189,7 @@ def receive_document(conn, mrn: str, *, data: bytes, mime: str, file_name: str, 
         r = receive_reply(conn, mrn, from_role=from_role, text=note, event_id=f"{event_id}:note" if event_id else None)
         row = conn.execute("SELECT translation FROM inbound_message WHERE inbound_id = %s",
                            (r["inbound_id"],)).fetchone()
-        translation = row["translation"] if patient["preferred_language"] in ("Hindi", "Kannada") else None
+        translation = row["translation"] if patient["preferred_language"] in ("Hindi", "Kannada", "Tamil") else None
     now = clock.get_now(conn)
     blob = conn.execute("INSERT INTO audio_blob (mime, data) VALUES (%s, %s) RETURNING audio_id",
                         (mime, data)).fetchone()["audio_id"] if data else None
@@ -257,6 +257,17 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
                  trigger_event=f"inbound_message:{iid}", decision_inputs=facts,
                  details={"action": "stop and hand over" if action == "handover" else "hold while a proposal waits"})
     words, translation = u["transcript"] or inbound["text"], u["translation"]
+
+    # Voice Triage (where switched on): a health message, or any message while an episode is open, goes to the
+    # triage episode instead of the Use Case 2c handover: the acknowledgement, then the automated call.
+    if open_h is None and triage.enabled(conn) and (action == "handover" or messaging.open_triage(conn, mrn)):
+        opened = triage.open_episode(conn, mrn, inbound=inbound, words=words, translation=translation,
+                                     from_role=from_role)
+        if opened is not None:
+            ep, created = opened
+            return {"handling": [f"ai_flag_{u['flag']}" + ("_failed" if u["failed"] else ""),
+                                 f"triage_{'call_due' if created else 'episode_updated'}:episode_{ep['episode_id']}"],
+                    "handover_id": None, "proposal_id": None, "triage_episode_id": ep["episode_id"]}
 
     if action == "handover" or open_h is not None:
         # Flag yes (or a person already owns the conversation): the words go to a person.

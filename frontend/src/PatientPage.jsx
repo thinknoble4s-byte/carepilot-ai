@@ -10,9 +10,11 @@ import { buttonLabel, Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, 
 // Test cards (Use Case 2T v1.4): specimen-based (blood test) or not (imaging). A report is verified by its two
 // identifiers (the system for a hospital report, a coordinator for an outside one); imaging is Verified by the doctor.
 const LIFE = { visit: ['Due', 'Booked', 'Attended'], test: ['Due', 'Booked', 'Completed', 'Report received', 'Report verified'],
-  imaging: ['Due', 'Booked', 'Completed', 'Verified'] };
+  imaging: ['Due', 'Booked', 'Completed', 'Verified'], imagingOutside: ['Due', 'Booked', 'Completed', 'Report received', 'Verified'] };
 const DONE = ['Attended', 'Report verified', 'Verified'];
-const canVerify = (c) => c.card_type === 'test' && c.state === 'Completed' && c.specimen === false;
+// A scan: Verified by the doctor once Completed, or, if done at an outside centre, once its report is received.
+const canVerify = (c) => c.card_type === 'test' && c.specimen === false
+  && (c.state === 'Report received' || (c.state === 'Completed' && c.report_road !== 'outside'));
 const when = (c) => `${c.appointment_date ? ` ${fmt(c.appointment_date)}` : ''}${c.appointment_time ? ` ${String(c.appointment_time).slice(0, 5)}` : ''}`;
 const SCOPES = [['whatsapp_patient', 'WhatsApp to patient'], ['whatsapp_caregiver', 'WhatsApp to caregiver'],
   ['automated_messaging', 'Automated messaging'], ['outside_records', 'Outside records'], ['external_care', 'External care']];
@@ -20,7 +22,8 @@ const CALL_OUTCOME = { noans: 'No answer', book: 'Will come', concern: 'Reported
 const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
 function Stepper({ card }) {
-  const steps = LIFE[card.card_type === 'test' && card.specimen === false ? 'imaging' : card.card_type];
+  const steps = LIFE[card.card_type === 'test' && card.specimen === false
+    ? (card.report_road === 'outside' ? 'imagingOutside' : 'imaging') : card.card_type];
   const at = steps.indexOf(card.state);
   return (
     <div className="v5-steps">
@@ -49,7 +52,7 @@ function OrderCard({ card, today, task }) {
   } else if (test && card.state === 'Report received') {
     state = <Pill tone="warn">{card.label || 'Report received'}</Pill>;
   } else if (test && card.state === 'Completed') {
-    state = <Pill tone="good">Completed {fmt(card.completed_on)} — {card.specimen === false ? "waiting for the doctor's verification" : 'waiting for the report'}</Pill>;
+    state = <Pill tone="good">Completed {fmt(card.completed_on)} — {card.specimen === false && card.report_road !== 'outside' ? "waiting for the doctor's verification" : 'waiting for the report'}</Pill>;
   } else if (test && card.state === 'Booked') {
     const by = card.booking_source === 'appointment_list' ? 'Booked (appointment list)'
       : card.booking_source === 'coordinator' ? 'Booked (confirmed by coordinator)' : 'Patient says booked (no date)';

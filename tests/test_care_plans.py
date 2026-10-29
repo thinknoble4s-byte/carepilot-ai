@@ -198,3 +198,30 @@ def test_golden_path_report_check_in_kannada_for_savitri(seeded, client):
     assert r.json()["routing_applied"] == "auto_matched" and r.json()["hard_checks"]["G8"] is True
     bt3 = next(c for c in client.get("/patients/SYN-0011/cards", headers=PRIYA).json() if c["item_code"] == "BT3")
     assert bt3["state"] == "Report verified"
+
+
+def test_scan_done_at_an_outside_centre(her2, client):
+    """A mammogram done outside (owner's decision, option 1): the reminder offers Done at an outside lab; the tap
+    moves the scan to Completed and asks for the report; a clear report with her name, MRN and test moves it to
+    Report received; the doctor opens it and verifies it (Verified)."""
+    morning(client)
+    mg = next(m for m in outbox("SYN-0007") if m["recipient"] == "patient" and m["card_id"] == her2["MG3"]["card_id"])
+    assert [b["id"] for b in mg["buttons"]] == ["booked", "help_book", "cant_come", "done_outside"]
+    assert mg["buttons"][0]["label_en"] == "Mammogram booked"
+    r = client.post("/simulator/SYN-0007/reply", headers=PRIYA,
+                    json={"button": "done_outside", "in_reply_to": mg["message_id"]})
+    assert r.status_code == 201, r.text
+    c = card(client, "MG3")
+    assert (c["state"], c["report_road"]) == ("Completed", "outside")
+    assert outbox("SYN-0007")[-1]["template_id"] == "report_upload_request"
+    assert all(v["card_id"] != c["card_id"] for v in client.get("/doctor/verifications", headers=ANAND).json())
+    r = client.post("/simulator/SYN-0007/document", headers=PRIYA, data={"variant": "clear"})
+    assert r.status_code == 201, r.text
+    assert r.json()["routing_applied"] == "auto_matched" and all(r.json()["hard_checks"].values())
+    c = card(client, "MG3")
+    assert c["state"] == "Report received" and c["label"].endswith("doctor to verify")
+    item = next(v for v in client.get("/doctor/verifications", headers=ANAND).json() if v["card_id"] == c["card_id"])
+    assert item["report"]["status"] == "auto_matched"
+    assert client.get(f"/reports/{item['report']['report_id']}/file", headers=ANAND).status_code == 200
+    assert client.post(f"/cards/{c['card_id']}/verify", headers=ANAND).status_code == 200
+    assert card(client, "MG3")["state"] == "Verified"

@@ -13,12 +13,14 @@ from psycopg.types.json import Jsonb
 
 from . import audit, clock, consent, importer, plan, states
 from .errors import Invalid
-from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy, message_templates,
-                        plan_templates, read_seed, report_routing, step_a_settings, uc1, uc2a, uc2b, uc2c, uc2t)
+from .reference import (DEMO_START_DATE, ER_DESK_USERS, STEP_A_USERS, autonomy_policy, deadline_policy,
+                        message_templates, plan_templates, read_seed, report_routing, step_a_settings, triage_history,
+                        uc1, uc2a, uc2b, uc2c, uc2t, vt)
 
 SEED_USER = "u_priya"
 
 DEMO_TABLES = (
+    "triage_document", "triage_episode", "triage_history",
     "demo_setting", "task_call_attempt", "proposal", "call_log", "inbound_message", "audio_blob", "outbox_message", "gap_event", "handover",
     "order_card", "care_plan", "coordinator_task", "consent", "appointment", "import_exception",
     "patient", "import_batch", "app_user", "demo_clock", "config_versions", "audit_ledger",
@@ -32,7 +34,7 @@ RULE_THRESHOLDS = {
 }
 
 
-SCENARIOS = ("uc1", "uc2a", "uc2b", "uc2c", "uc2t", "step_a")
+SCENARIOS = ("uc1", "uc2a", "uc2b", "uc2c", "uc2t", "vt", "step_a")
 DEFAULT_SCENARIO = "uc1"
 
 
@@ -44,7 +46,9 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     uc2b    Use Case 2b: TP001, TP004-TP007, same start; taps and HELP become tasks.
     uc2c    Use Case 2c: TP001, TP004-TP007, Urgent - call the patient today; clock Tue 10 Nov 09:30.
     uc2t    Use Case 2T test cycle: TP001, TP004-TP007; D0 Mon 2 Nov.
-    step_a  Step A / Golden Path: 25 patients from the register, Priya and Meera, everything switched on.
+    vt      Voice Triage MVP-lite: Mrs. Lakshmi V. (Tamil) and her history; clock Tue 27 Oct 10:12.
+    step_a  Step A / Golden Path: Savitri Patil and Nirmala Reddy (Tamil), Priya and Meera, everything on; a health
+            message goes to Voice Triage (the ER Desk users join).
 
     Every data set offers the same three care plans (T1 hormone receptor positive, T2 hormone receptor negative,
     T3 HER2 positive) and seeds no plan: the coordinator chooses one for each patient. A scenario file may still
@@ -56,7 +60,10 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     conn.execute(f"TRUNCATE {', '.join(DEMO_TABLES)} RESTART IDENTITY CASCADE")
     conn.execute("SET LOCAL carepilot.demo_reset = 'off'")
     conn.execute("ALTER SEQUENCE audit_ledger_seq RESTART WITH 1")
-    clock.set_today(conn, DEMO_START_DATE)  # before the first entry, so the reset entry has a demo date too
+    from datetime import date
+
+    start = date.fromisoformat(vt()["demo_start_date"]) if scenario == "vt" else DEMO_START_DATE
+    clock.set_today(conn, start)  # before the first entry, so the reset entry has a demo date too
     conn.execute("UPDATE demo_clock SET now_time = '09:00' WHERE id = 1")
 
     audit.append(
@@ -64,7 +71,7 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
         actor_type="person" if by else "system",
         actor_name=by or "system",
         action="demo_reset",
-        details={"scenario": scenario, "seed_date": DEMO_START_DATE.isoformat(), "synthetic": True},
+        details={"scenario": scenario, "seed_date": start.isoformat(), "synthetic": True},
     )
     if scenario == "uc1":
         _seed_uc1(conn)
@@ -74,6 +81,8 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
         _seed_uc2c(conn, uc2c())
     elif scenario == "uc2t":
         _seed_uc1(conn, uc2t())
+    elif scenario == "vt":
+        _seed_vt(conn, vt())
     else:
         _seed_step_a(conn)
     return {**counts(conn), "scenario": scenario, "fingerprint": fingerprint(conn)}
@@ -120,6 +129,28 @@ def _seed_step_a(conn) -> None:
     for row in csv.DictReader(io.StringIO(read_seed("consent_records.csv"))):
         consent.record_consent(conn, row["recorded_by"], row["mrn"], row["consent_reference"],
                                row["scopes"].split(";"), row["recorded_on"])
+    if (step_a_settings().get("voice_triage") or {}).get("enabled"):
+        # Voice Triage: the ER Desk joins, and the short synthetic record the call reads.
+        _users(conn, ER_DESK_USERS)
+        _triage_history(conn, {k: v for k, v in triage_history().items() if not k.startswith("_")})
+
+
+def _triage_history(conn, records: dict) -> None:
+    for mrn, data in records.items():
+        if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone():
+            conn.execute("INSERT INTO triage_history (mrn, data) VALUES (%s, %s)", (mrn, Jsonb(data)))
+
+
+def _seed_vt(conn, uc: dict) -> None:
+    """Voice Triage MVP-lite (guide v1.1, section 1.3): Mrs. Lakshmi V., 54, Tamil, son Karthik; her 10 Oct and
+    19 Oct history; Anita (cover Ravi), Dr. Ananya on duty, Dr. Sekhar, the ER Desk. Clock Tue 27 Oct 10:12, just
+    before her voice note."""
+    from datetime import date, time
+
+    _seed_uc1(conn, uc)
+    _triage_history(conn, uc["triage_history"])
+    clock.set_today(conn, date.fromisoformat(uc["seed_date"]))
+    clock.set_time(conn, time.fromisoformat(uc["seed_time"]))
 
 
 def _seed_after_uc1(conn, uc: dict) -> None:
@@ -169,10 +200,12 @@ def _seed_uc2c(conn, uc: dict) -> None:
 def _seed_uc1(conn, uc: dict | None = None) -> None:
     """Use Case 1 v1.1 section 4: TP001 (plan confirmed by hand in step 1), TP002 (no automated-messaging
     consent; plan and card seeded) and TP003 (plan seeded, card already Booked). Owner Anita, cover Ravi."""
+    from datetime import date
+
     uc = uc or uc1()
     coordinator = next(u["user_id"] for u in uc["users"] if u["name"] == uc["coordinator"])
     _users(conn, uc["users"])
-    clock.set_today(conn, DEMO_START_DATE)
+    clock.set_today(conn, date.fromisoformat(uc["demo_start_date"]) if uc.get("demo_start_date") else DEMO_START_DATE)
     seeded = [t for t in [uc.get("plan_template"), *uc.get("more_plan_templates", [])] if t]
     templates = {t["template_id"]: t for t in seeded or plan_templates(uc.get("plan_departments"))}
     _config(conn, (

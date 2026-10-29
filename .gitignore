@@ -14,3 +14,6 @@ prototype/video/*.mp4
 
 # Office lock files
 ~$*
+
+# End-to-end UI run output (scripts/e2e_voice_triage.py)
+e2e-results/

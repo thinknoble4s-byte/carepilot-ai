@@ -41,7 +41,7 @@ IDENTIFIERS = ("name", "mrn", "age", "sex", "lab_id", "facility", "report_date",
 CHECKABLE = ("name", "age", "sex", "mrn", "phone", "lab_id")  # what a coordinator can tick as matching
 LABELS = {"name": "Name", "age": "Age", "sex": "Sex", "lab_id": "Lab ID", "facility": "Facility",
           "report_date": "Report date", "document_type": "Document type", "mrn": "MRN", "phone": "Phone"}
-HARD_CHECKS = {"G1": "Report type: a laboratory report of the same kind as the test",
+HARD_CHECKS = {"G1": "Report type: the same kind of report as the test (laboratory, or radiology for a scan)",
                "G2": "Test name matches the prescribed test",
                "G3": "Patient's name matches (age and sex, if on the report, do not disagree)",
                "G4": "Report date: not in the future, not long before the card",
@@ -55,6 +55,7 @@ CHECK_LABEL = {"done_outside": "Patient says done at outside lab (report awaited
 BOOKED_BY_PATIENT = "Patient says booked (no date)"
 BOOKED_BY_COORDINATOR = "Booked (confirmed by coordinator)"
 VERIFIED_BY_COORDINATOR = "Outside report (verified by coordinator)"
+DOCTOR_TO_VERIFY = " — doctor to verify"
 DONE_OUTSIDE = "Patient says done at outside lab (report awaited)"
 
 # REQ-12 / REQ-29: the rule score and its threshold are a setting held by the clinical lead (proposed values).
@@ -129,15 +130,17 @@ VARIANTS = {
 OTHER_PERSON, OTHER_MRN = "Pushpa Rao", "HOSP-77812"
 
 
-def outside_report_pdf(patient: dict, day: date, test_name: str, variant: str = "clear") -> bytes:
+def outside_report_pdf(patient: dict, day: date, test_name: str, variant: str = "clear",
+                       imaging: bool = False) -> bytes:
     if variant not in VARIANTS:
         raise Invalid("variant must be one of: " + ", ".join(VARIANTS))
     name = OTHER_PERSON if variant == "other_name" else patient["full_name"]
-    kind = "Radiology report - CT scan of the chest" if variant == "ct_scan" else f"Laboratory report - {test_name}"
+    kind = "Radiology report - CT scan of the chest" if variant == "ct_scan" else \
+        f"{'Radiology' if imaging else 'Laboratory'} report - {test_name}"
     when = day + timedelta(days=5) if variant == "future_date" else day
     quality = {"blurred": "slightly blurred", "unreadable": "unreadable"}.get(variant, "clear")
     mrn = [] if variant == "no_mrn" else [f"MRN: {OTHER_MRN if variant == 'other_name' else patient['mrn']}"]
-    return _pdf(["SUNRISE DIAGNOSTICS (synthetic outside lab) - DEMO DOCUMENT",
+    return _pdf([f"SUNRISE {'IMAGING' if imaging else 'DIAGNOSTICS'} (synthetic outside centre) - DEMO DOCUMENT",
                  f"Name: {name}", *mrn, f"Age: {patient.get('age') or 54}", f"Sex: {patient.get('sex') or 'F'}",
                  "Lab ID: SD-2026-48213", "Facility: Sunrise Diagnostics, Jayanagar (synthetic)",
                  f"Report date: {when.isoformat()}", f"Document type: {kind}", f"Scan quality: {quality}", "",
@@ -481,7 +484,8 @@ def score_report(ids: dict, conf: dict, patient: dict, card: dict, *, sender_kno
     w = rules["weights"]
     doc = ids.get("document_type") or ""
     kind, _, test_part = doc.partition(" - ")
-    is_lab = "laboratory" in kind.casefold() and card["specimen"] is not False
+    is_lab = ("laboratory" in kind.casefold()) if card["specimen"] is not False else \
+        any(w in kind.casefold() for w in ("radiology", "imaging"))
     test_ok = bool(doc) and _test_matches(test_part or doc, card, rules)
     name_deg = name_match(ids.get("name"), patient["full_name"])
     age = None if not (ids.get("age") or "").strip().isdigit() or patient.get("age") is None else \
@@ -508,8 +512,8 @@ def score_report(ids: dict, conf: dict, patient: dict, card: dict, *, sender_kno
              "sender": w["sender"] * sender_known}
     yes = lambda b, a, n: a if b else n
     facts = [
-        "report type: " + ("not read" if not doc else yes(is_lab, "laboratory report, same kind as the test",
-                                                           "not a laboratory report of this kind")),
+        "report type: " + ("not read" if not doc else yes(is_lab, "same kind of report as the test",
+                                                           "not the kind of report this test gives")),
         "test name: " + ("not read" if not doc else yes(test_ok, "match", "no match")),
         "name: " + ("not read" if not ids.get("name") else "match" if name_deg >= 0.9 else
                     "partly read" if name_deg > 0 else "no match"),
@@ -566,6 +570,8 @@ def receive_outside(conn, mrn: str, *, data: bytes, mime: str, file_name: str, c
     digest = hashlib.sha256(data).hexdigest()
     blob = _store(conn, data, mime)
     check = _open_check(conn, mrn)
+    awaiting = conn.execute("SELECT * FROM report_check WHERE mrn = %s AND status = 'sent' AND answer = 'done_outside' "
+                            "ORDER BY check_id DESC", (mrn,)).fetchall()
     report = conn.execute(
         """INSERT INTO test_report (mrn, road, blob_id, file_name, mime, status, received_at_demo, inbound_id, channel,
                                     sender_phone, file_hash, patient_note, note_translation, check_id)
@@ -577,12 +583,6 @@ def receive_outside(conn, mrn: str, *, data: bytes, mime: str, file_name: str, c
                  entity_id=str(rid), mrn=mrn, outcome="unverified",
                  details={"file": file_name, "channel": channel, "inbound_id": inbound_id, "card_moved": False,
                           "sender_phone": sender_phone, "report_check": check["check_id"] if check else None})
-    if check and check["timer_from"]:
-        conn.execute("UPDATE report_check SET timer_from = NULL, nudge_due = false, report_id = %s WHERE check_id = %s",
-                     (rid, check["check_id"]))
-        audit.append(conn, actor_type="system", actor_name=SYSTEM, action="upload_timer_stopped",
-                     entity_type="report_check", entity_id=str(check["check_id"]), mrn=mrn,
-                     details={"report_id": rid})
     # REQ-12: the only AI step in this use case — identifiers only, validated, never a result.
     try:
         (ids, conf), failed = read_identifiers(data, mime), False
@@ -605,12 +605,29 @@ def receive_outside(conn, mrn: str, *, data: bytes, mime: str, file_name: str, c
     if head:
         return _join_group(conn, head, {**report, "identifiers": ids, "read_confidence": conf}, patient, rules)
 
+    # Which test the file answers: of the tests the patient said were done outside, the one the document names;
+    # else the open report check's test; else the earliest open lab test (or a scan marked done outside).
+    doc = ids.get("document_type") or ""
+    for ch in awaiting:
+        c = conn.execute("SELECT * FROM order_card WHERE card_id = %s", (ch["card_id"],)).fetchone()
+        if c and c["state"] == "Completed" and doc and _test_matches(doc.partition(" - ")[2] or doc, c, rules):
+            check = ch
+            break
+    if check and check["timer_from"]:
+        conn.execute("UPDATE report_check SET timer_from = NULL, nudge_due = false, report_id = %s WHERE check_id = %s",
+                     (rid, check["check_id"]))
+        conn.execute("UPDATE test_report SET check_id = %s WHERE report_id = %s", (check["check_id"], rid))
+        audit.append(conn, actor_type="system", actor_name=SYSTEM, action="upload_timer_stopped",
+                     entity_type="report_check", entity_id=str(check["check_id"]), mrn=mrn,
+                     details={"report_id": rid})
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s", (check["card_id"],)).fetchone() \
         if check else None
     if card is None or card["state"] not in ("Due", "Booked", "Completed"):
         card = conn.execute(
-            """SELECT * FROM order_card WHERE mrn = %s AND card_type = 'test' AND specimen IS NOT FALSE
-               AND state IN ('Due', 'Booked', 'Completed') ORDER BY state = 'Completed' DESC, due_date LIMIT 1""",
+            """SELECT * FROM order_card WHERE mrn = %s AND card_type = 'test'
+               AND (specimen IS NOT FALSE AND state IN ('Due', 'Booked', 'Completed')
+                    OR state = 'Completed' AND report_road = 'outside')
+               ORDER BY state = 'Completed' DESC, due_date LIMIT 1""",
             (mrn,)).fetchone()
     conn.execute("UPDATE test_report SET proposed_card_id = %s WHERE report_id = %s",
                  (card["card_id"] if card else None, rid))
@@ -699,6 +716,20 @@ def _auto_match(conn, card: dict, report: dict) -> None:
     states.transition_card(conn, card["card_id"], "Report received", "system", SYSTEM,
                            source="outside_report_auto_matched", file_ref=report["file_name"],
                            report_id=report["report_id"], score=report["score"])
+    if card["specimen"] is False:  # a scan done at an outside centre: the doctor verifies it (Verified)
+        conn.execute("UPDATE order_card SET report_road = 'outside', label = %s WHERE card_id = %s",
+                     (label + DOCTOR_TO_VERIFY, card["card_id"]))
+        report = conn.execute("UPDATE test_report SET status = 'auto_matched', card_id = %s, prior_state = %s "
+                              "WHERE report_id = %s RETURNING *",
+                              (card["card_id"], card["state"], report["report_id"])).fetchone()
+        audit.append(conn, actor_type="system", actor_name=SYSTEM, action="outside_report_auto_matched",
+                     entity_type="test_report", entity_id=str(report["report_id"]), mrn=card["mrn"],
+                     reason_code="outside_report_auto_matched",
+                     details={"score": report["score"], "card_id": card["card_id"], "label": label,
+                              "message_to_patient": None, "verified": False, "next": "doctor_verify"})
+        _stop_checks(conn, card["card_id"], "outside_report_auto_matched", report["report_id"])
+        set_next_action(conn, card["mrn"], f"{card['name']}: outside report received — doctor to verify")
+        return
     states.transition_card(conn, card["card_id"], "Report verified", "system", SYSTEM,
                            matched_identifiers=3, identifiers=["name", "mrn", "test"], report_id=report["report_id"],
                            verified_by="system (outside report check)")
@@ -808,24 +839,29 @@ def verify_outside(conn, report_id: int, user_id: str, matched: list[str] | None
         raise Invalid("Choose the patient's open test card this report answers")
     if card["state"] not in ("Due", "Booked", "Completed"):
         raise Conflict(f"The test card is already {card['state']}")
-    if card["specimen"] is False:
-        raise Invalid(f"{card['name']} is not specimen-based: it has no lab report")
+    scan = card["specimen"] is False
+    if scan and card["state"] != "Completed":
+        raise Invalid(f"{card['name']} is a scan: its outside report fits only once the patient said it was done")
     now = clock.get_now(conn)
     audit.append(conn, actor_type="person", actor_name=user_id, action="outside_report_verified", entity_type="test_report",
                  entity_id=str(report_id), mrn=r["mrn"], reason_code="outside_report_verified",
                  details={"matched": ticked, "card_id": card["card_id"], "file": r["file_name"], "score": r["score"]})
     states.transition_card(conn, card["card_id"], "Report received", "person", user_id,
                            source="outside_report_verified", file_ref=r["file_name"], report_id=report_id)
-    states.transition_card(conn, card["card_id"], "Report verified", "person", user_id,
-                           source="outside_report_verified", matched_identifiers=len(ticked), report_id=report_id)
+    if not scan:
+        states.transition_card(conn, card["card_id"], "Report verified", "person", user_id,
+                               source="outside_report_verified", matched_identifiers=len(ticked), report_id=report_id)
     conn.execute("UPDATE order_card SET report_road = 'outside', label = %s, patient_says_booked = false "
-                 "WHERE card_id = %s", (VERIFIED_BY_COORDINATOR, card["card_id"]))
+                 "WHERE card_id = %s", (VERIFIED_BY_COORDINATOR + (DOCTOR_TO_VERIFY if scan else ""), card["card_id"]))
     r = conn.execute("""UPDATE test_report SET status = 'verified', card_id = %s, matched = %s, verified_by = %s,
                         verified_at_demo = %s, prior_state = %s WHERE report_id = %s RETURNING *""",
                      (card["card_id"], ticked, user_id, now, card["state"], report_id)).fetchone()
     _close_tasks(conn, report_id, user_id, "Verified")
     _stop_checks(conn, card["card_id"], "outside_report_verified", report_id)
-    _report_ready(conn, card, r, "outside")
+    if scan:
+        set_next_action(conn, card["mrn"], f"{card['name']}: outside report verified — doctor to verify")
+    else:
+        _report_ready(conn, card, r, "outside")
     return r
 
 
@@ -1130,9 +1166,9 @@ def report_check_send(conn) -> list[dict]:
 
 
 def _complete_outside(conn, card: dict, inbound_id: int | None, actor: str) -> bool:
-    """The patient says she did the lab test at an outside lab: Due or Booked -> Completed (source patient_outside).
-    Imaging stays where it is (it has no lab report to send)."""
-    if card["state"] not in OPEN_TEST or card["specimen"] is False:
+    """The patient says she did the test outside (a lab, or an imaging centre for a scan): Due or Booked ->
+    Completed (source patient_outside)."""
+    if card["state"] not in OPEN_TEST:
         return False
     states.transition_card(conn, card["card_id"], "Completed", "system", actor, source="patient_outside",
                            inbound_id=inbound_id)
@@ -1152,7 +1188,7 @@ def _request_upload(conn, card: dict) -> None:
 def tap_done_outside(conn, card: dict, inbound_id: int, actor: str) -> str:
     """"Done at an outside lab" on a test reminder (the fourth button): as the report-check answer -- the card moves
     to Completed, the upload request goes at once, and the upload timer (one nudge, then a call task) starts."""
-    if card["card_type"] != "test" or card["specimen"] is False or card["state"] not in OPEN_TEST:
+    if card["card_type"] != "test" or card["state"] not in OPEN_TEST:
         return "already_progressed" if card["card_type"] == "test" else "not_a_test"
     open_check = conn.execute("SELECT * FROM report_check WHERE card_id = %s AND status = 'sent' AND answer IS NULL "
                               "ORDER BY check_id DESC LIMIT 1 FOR UPDATE", (card["card_id"],)).fetchone()
@@ -1355,14 +1391,15 @@ def sweep(conn) -> list[dict]:
 
 
 def doctor_verify(conn, card_id: int, user: dict, via: str = "verify_button") -> dict:
-    """A non-specimen test (imaging) has no lab report: the doctor sets it Verified once Completed. Reports are
-    verified by the system (hospital) or a coordinator (outside), never by this button."""
+    """A non-specimen test (imaging) has no lab report: the doctor sets it Verified once Completed, or once the
+    report of a scan done at an outside centre is received. Lab reports are verified by the system or a coordinator,
+    never by this button."""
     card = conn.execute("SELECT * FROM order_card WHERE card_id = %s FOR UPDATE", (card_id,)).fetchone()
     if card is None or card["card_type"] != "test":
         raise NotFound(f"Test card {card_id} not found")
     if user["role"] != "oncologist":
         raise Invalid("Only the doctor sets a non-specimen test to Verified")
-    if card["state"] == "Completed" and card["specimen"] is False:
+    if card["state"] in ("Completed", "Report received") and card["specimen"] is False:
         states.transition_card(conn, card_id, "Verified", "person", user["user_id"], role=user["role"], via=via)
     else:
         raise Conflict(f"{card['name']} is {card['state']}: " + (
@@ -1373,12 +1410,18 @@ def doctor_verify(conn, card_id: int, user: dict, via: str = "verify_button") ->
 
 
 def to_verify(conn) -> list[dict]:
-    """The doctor's list: non-specimen tests completed (they have no lab report)."""
+    """The doctor's list: non-specimen tests completed (no lab report), or with the report of a scan done at an
+    outside centre received (the file is there to open). A scan the patient says was done outside waits for its
+    report first."""
     return conn.execute(
         """SELECT c.card_id, c.mrn, p.full_name, c.item_code, c.name, c.state, c.specimen, c.completed_on,
-                  c.report_road, c.due_date, NULL::json AS report
+                  c.report_road, c.due_date, c.label,
+                  (SELECT row_to_json(r) FROM (SELECT report_id, status, score, routing_applied, file_name
+                     FROM test_report WHERE card_id = c.card_id AND status IN ('verified', 'auto_matched')
+                     ORDER BY report_id DESC LIMIT 1) r) AS report
            FROM order_card c JOIN patient p USING (mrn)
-           WHERE c.card_type = 'test' AND c.state = 'Completed' AND c.specimen IS FALSE
+           WHERE c.card_type = 'test' AND c.specimen IS FALSE
+             AND (c.state = 'Report received' OR c.state = 'Completed' AND c.report_road IS DISTINCT FROM 'outside')
            ORDER BY c.due_date, c.card_id""").fetchall()
 
 

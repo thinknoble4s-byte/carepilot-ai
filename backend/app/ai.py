@@ -10,6 +10,8 @@ Each step gets the configured number of tries (default 2: one automatic retry) w
 Providers: "sarvam" (real API, key in SARVAM_API_KEY) or "fake" (deterministic, for tests and for
 machines without a key). The demo switch "Sarvam off" makes every call fail, to test REQ-04.
 """
+import base64
+import hashlib
 import json
 import os
 import re
@@ -31,7 +33,7 @@ DRAFT_INSTRUCTION = (
 )
 INTENTS = ("booked", "help_to_book", "cant_come", "pause_request", "other")
 FORBIDDEN = re.compile(r"(severity|severe|urgent|urgency|risk|diagnos\w*|cause|triage|score|emergency)", re.I)
-LANG_CODES = {"Hindi": "hi-IN", "Kannada": "kn-IN", "English": "en-IN"}
+LANG_CODES = {"Hindi": "hi-IN", "Kannada": "kn-IN", "Tamil": "ta-IN", "English": "en-IN"}
 
 
 class AIFailure(Exception):
@@ -105,6 +107,16 @@ class Sarvam:
             raise AIFailure("empty model answer")
         return content
 
+    def tts(self, text: str, language: str, speaker: str, model: str) -> bytes:
+        """Bulbul: a fixed call line -> WAV (Voice Triage)."""
+        body = self._json("https://api.sarvam.ai/text-to-speech", {
+            "text": text, "language_code": LANG_CODES.get(language, "en-IN"), "model": model, "speaker": speaker,
+            "pace": 0.95, "speech_sample_rate": 22050, "output_audio_codec": "wav"})
+        try:
+            return base64.b64decode(body["audios"][0])
+        except (KeyError, IndexError, ValueError) as e:
+            raise AIFailure(f"text-to-speech: unexpected answer ({e})") from None
+
 
 # Synthetic clips used by the demo (stand-ins until native recordings arrive).
 FAKE_CLIPS = {
@@ -114,9 +126,12 @@ FAKE_CLIPS = {
               "I will come with my son on Saturday, please give me the morning time."),
     "HI-03": ("मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।",
               "I am perfectly fine, I have no complaints."),
+    # Voice Triage: Lakshmi's voice note (guide v1.1, section 1.3)
+    "TA-01": ("நேற்றிலிருந்து எனக்கு ரொம்ப தூக்கமாக இருக்கிறது, குமட்டல் இருக்கிறது, தலைவலி இருக்கிறது, இடது கையில் வலி இருக்கிறது.",
+              "Since yesterday I feel very sleepy, I have nausea, a headache, and pain in my left arm."),
 }
 HEALTH_WORDS = re.compile(r"pain|ache|hurt|fever|swell|bleed|breath|sick|unwell|tablet|medicine|side effect|doctor|"
-                          r"worried|concern|दर्द|बुखार|डॉक्टर|डाक्टर|ನೋವು|ಜ್ವರ", re.I)
+                          r"worried|concern|दर्द|बुखार|डॉक्टर|डाक्टर|ನೋವು|ಜ್ವರ|வலி|காய்ச்சல்|குமட்டல்|வாந்தி|மருத்துவர்", re.I)
 
 
 class Fake:
@@ -137,6 +152,8 @@ class Fake:
         return text
 
     def chat(self, system: str, user: str) -> str:
+        if "Return the JSON now" in user:  # Voice Triage answer value: the simulated model cannot tell
+            return '{"value": "UNKNOWN"}'
         message = user.split("Message:", 1)[-1]
         if "Answer yes or no" in user:
             return "yes" if HEALTH_WORDS.search(message) else "no"
@@ -229,3 +246,68 @@ def draft(conn, *, transcript: str, translation: str) -> dict:
     d = validate_draft(answer) if answer is not None else None
     return {**(d or {"summary": None, "intent": None, "intent_reason": None}), "failed": d is None,
             "attempts": attempts, "errors": errors, "model": p.llm_model, "prompt_version": DRAFT_PROMPT_VERSION}
+
+
+# ---------------------------------------------------------------------------
+# Voice Triage (MVP-lite): Bulbul speaks the fixed lines, Saaras hears each answer, the model is asked only when
+# the word lists cannot read an answer, and its value is checked by triage_rules. Nothing here decides a tier.
+# ---------------------------------------------------------------------------
+class TriageAIFailure(AIFailure):
+    pass
+
+
+def _triage_cfg(conn) -> dict:
+    t = policy.settings(conn).get("voice_triage") or {}
+    return {"speaker": t.get("speaker", "kavitha"), "tts_model": t.get("tts_model", "bulbul:v3")}
+
+
+def speak(conn, text: str, language: str) -> tuple[bytes, str] | None:
+    """Bulbul audio of one fixed line, made once and kept (tts_cache). None in simulated mode or on failure: the
+    screen then shows the text only."""
+    cfg = _triage_cfg(conn)
+    key = hashlib.sha256(f"{cfg['tts_model']}|{cfg['speaker']}|{language}|{text}".encode()).hexdigest()
+    row = conn.execute("SELECT data, mime FROM tts_cache WHERE cache_key = %s", (key,)).fetchone()
+    if row:
+        return bytes(row["data"]), row["mime"]
+    if provider_name() == "fake" or not sarvam_enabled(conn):
+        return None
+    p = _provider(conn)
+    try:
+        audio = p.tts(text, language, cfg["speaker"], cfg["tts_model"])
+    except AIFailure:
+        return None
+    conn.execute("INSERT INTO tts_cache (cache_key, mime, data) VALUES (%s, 'audio/wav', %s) ON CONFLICT DO NOTHING",
+                 (key, audio))
+    return audio, "audio/wav"
+
+
+def hear(conn, *, language: str, audio: bytes, mime: str) -> dict:
+    """A spoken answer -> text in her language and an English translation. Raises TriageAIFailure."""
+    p, errors = _provider(conn), []
+    transcript, _ = _tries(conn, lambda: p.speech(audio, mime, language, "transcribe"), errors)
+    translation, _ = _tries(conn, lambda: p.speech(audio, mime, language, "translate"), errors)
+    if transcript is None or translation is None:
+        raise TriageAIFailure("; ".join(errors) or "speech-to-text failed")
+    return {"transcript": transcript, "translation": translation, "model": p.stt_model}
+
+
+def translate(conn, text: str, language: str) -> str:
+    p, errors = _provider(conn), []
+    out, _ = _tries(conn, lambda: p.translate(text, language), errors)
+    if out is None:
+        raise TriageAIFailure("; ".join(errors) or "translation failed")
+    return out
+
+
+def answer_value_reply(conn, *, kind: str, question_en: str, transcript: str, translation: str) -> tuple[str, str]:
+    """Ask the model for one value (JSON). Returns (raw reply, model); triage_rules.model_value checks it."""
+    from .triage_rules import MODEL_SYSTEM
+
+    p, errors = _provider(conn), []
+    label = {"yesno": "yes/no", "number": "number", "temperature": "temperature"}[kind]
+    user = (f"Question ({label}): {question_en}\nAnswer: {transcript}\nEnglish translation: {translation}\n"
+            "Return the JSON now.")
+    reply, _ = _tries(conn, lambda: p.chat(MODEL_SYSTEM, user), errors)
+    if reply is None:
+        raise TriageAIFailure("; ".join(errors) or "model failed")
+    return reply, p.llm_model + (" (simulated)" if isinstance(p, Fake) else "")

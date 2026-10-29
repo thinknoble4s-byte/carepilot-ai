@@ -7,18 +7,21 @@ import Indicators from './Indicators.jsx';
 import Intake from './Intake.jsx';
 import PatientPage from './PatientPage.jsx';
 import Timeline from './Timeline.jsx';
+import { ErDesk, TriageBoard } from './Triage.jsx';
 import Worklist from './Worklist.jsx';
 import { fmt, Modal, Scope, UI } from './ui.jsx';
 
 // Tabs per role, as in prototype v7.2: [id, label, count key].
 const TABS = {
-  coordinator: [['worklist', 'Workspace', 'workspace'], ['journey', 'Patient journey'], ['intake', 'Intake & verification', 'exceptions'],
+  coordinator: [['worklist', 'Workspace', 'workspace'], ['triage', 'Voice triage', 'triage'], ['journey', 'Patient journey'],
+    ['intake', 'Intake & verification', 'exceptions'], ['audit', 'Audit trail'], ['programme', 'Care Plan']],
+  oncologist: [['decide', 'Needs my decision', 'decisions'], ['triage', 'Voice triage', 'triage'], ['journey', 'Patient journey'],
     ['audit', 'Audit trail'], ['programme', 'Care Plan']],
-  oncologist: [['decide', 'Needs my decision', 'decisions'], ['journey', 'Patient journey'], ['audit', 'Audit trail'],
-    ['programme', 'Care Plan']],
   chief: [['programme', 'Performance Indicators']],
+  // Voice Triage: the ER Desk (duty nurse and ER doctor) sees the Red alerts only.
+  er_desk: [['erdesk', 'ER Desk', 'erdesk']],
 };
-const HOME = { coordinator: 'worklist', oncologist: 'decide', chief: 'programme' };
+const HOME = { coordinator: 'worklist', oncologist: 'decide', chief: 'programme', er_desk: 'erdesk' };
 
 function readTheme() {
   try {
@@ -123,10 +126,19 @@ function ResetChoice({ onReset }) {
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2t')}>Reset to Use Case 2T</button></div>
       </div>
       <div className="card-flat">
+        <div className="card-title">Voice Triage MVP-lite</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Mrs. Lakshmi V. (SYN-0142, Tamil, son Karthik), her 10 Oct and 19 Oct
+          history; Anita (cover Ravi), Dr. Ananya on duty, Dr. Sekhar, the ER Desk; clock Tue 27 Oct 10:12. Send voice note TA-01:
+          the acknowledgement, then the automated call (10 Tamil questions), Red, Amber or Green by plain rules, the Red package
+          with the PDF, the doctor's order, the follow-up and the Pre-OPD brief. Replaces the Use Case 2c handover for health messages.</div>
+        <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('vt')}>Reset to Voice Triage</button></div>
+      </div>
+      <div className="card-flat">
         <div className="card-title">Golden Path data</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>The 25 Step A patients (Sunita Verma is the demo patient); Priya and
-          Meera. Everything switched on: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
-          tasks for people.</div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Savitri Patil (SYN-0011, the demo patient) and Nirmala Reddy (SYN-0013),
+          both Tamil; Priya and Meera. Everything switched on, including the test cycle: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
+          tasks for people. A health message goes to Voice Triage (the call, Red, Amber or Green; the ER Desk joins); HELP still
+          opens a handover.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('step_a')}>Reset to Golden Path</button></div>
       </div>
     </div>
@@ -148,7 +160,7 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [userId, setUserId] = useState(initialUser);
   const [screen, setScreen] = useState(null);
-  const [pid, setPid] = useState('SYN-0007');
+  const [pid, setPid] = useState('SYN-0011');
   const [auditMrn, setAuditMrn] = useState('');
   const [today, setToday] = useState(null);
   const [now, setNow] = useState(null);
@@ -162,7 +174,8 @@ export default function App() {
   const user = users.find((u) => u.id === userId);
   const role = user?.role || 'coordinator';
   const dbUp = health?.db === 'available';
-  const allowed = (s) => TABS[role].some((t) => t[0] === s) || (s === 'plan' && role !== 'chief');
+  const tabs = TABS[role].filter((t) => t[0] !== 'triage' || demoSettings?.voice_triage?.enabled);
+  const allowed = (s) => tabs.some((t) => t[0] === s) || (s === 'plan' && !['chief', 'er_desk'].includes(role));
   const current = screen && allowed(screen) ? screen : HOME[role];
 
   const toast = useCallback((text) => {
@@ -177,9 +190,15 @@ export default function App() {
       setToday(c.today);
       setNow(c.time);
       const next = {};
+      const d = await api('demo/settings');
+      setDemoSettings(d);
+      if (d.voice_triage?.enabled && role !== 'chief') {
+        const open = await api('triage/episodes');
+        const busy = (e) => e.tier === 'TIER_1_RED' || (role !== 'er_desk' && (e.tier === 'TIER_2_AMBER' || e.followup_due
+          || (role === 'coordinator' && ['due', 'in_call'].includes(e.call_status))));
+        next[role === 'er_desk' ? 'erdesk' : 'triage'] = open.filter(busy).length;
+      }
       if (role === 'coordinator') {
-        const d = await api('demo/settings');
-        setDemoSettings(d);
         const w = await api('worklist');
         next.workspace = w.patients.filter((p) => p.main === 'action').length;
       }
@@ -284,6 +303,8 @@ export default function App() {
   else if (current === 'worklist') body = <Worklist key={version} />;
   else if (current === 'plan') body = <PatientPage key={`${version}-${pid}`} mrn={pid} />;
   else if (current === 'decide') body = <Decisions key={version} />;
+  else if (current === 'triage') body = <TriageBoard key={version} />;
+  else if (current === 'erdesk') body = <ErDesk key={version} />;
   else if (current === 'journey') body = <Timeline key={`${version}-${pid}`} mrn={pid} />;
   else if (current === 'intake') body = <Intake key={version} />;
   else if (current === 'audit') body = <AuditTrail key={`${version}-${auditMrn}`} mrn={auditMrn} users={users} />;
@@ -313,7 +334,7 @@ export default function App() {
           </div>
         </div>
         <div className="navtabs">
-          {TABS[role].map(([id, label, countKey]) => (
+          {tabs.map(([id, label, countKey]) => (
             <button key={id} type="button" className={`navtab ${current === id || (current === 'plan' && id === HOME[role]) ? 'active' : ''}`}
               onClick={() => nav(id)}>
               {label}{countKey && counts[countKey] ? <> <span className="n">{counts[countKey]}</span></> : null}
@@ -363,7 +384,7 @@ export default function App() {
                   )}
                   <button type="button" className="scope-btn" disabled={busy}
                     onClick={() => ui.showModal('Reset demo', 'All demo data and the audit trail go back to a starting state. Choose the data set.',
-                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${{ uc1: 'Use Case 1', uc2a: 'after Use Case 1', uc2b: 'Use Case 2b', uc2c: 'Use Case 2c', uc2t: 'Use Case 2T', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
+                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${{ uc1: 'Use Case 1', uc2a: 'after Use Case 1', uc2b: 'Use Case 2b', uc2c: 'Use Case 2c', uc2t: 'Use Case 2T', vt: 'Voice Triage', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
                     Reset demo
                   </button>
                 </>

@@ -163,7 +163,7 @@ export default function Worklist() {
             <div>
               <div className="v4-name">
                 <a role="button" tabIndex={0} onClick={() => open(p.mrn)} style={{ color: 'inherit', textDecoration: 'none' }}>{p.full_name}</a>
-                {p.mrn === 'SYN-0007' && <> <span className="tag hosp">Demo patient</span></>}
+                {p.mrn === 'SYN-0011' && <> <span className="tag hosp">Demo patient</span></>}
               </div>
               <div className="v4-meta">{p.mrn} · {p.language}{p.therapy ? ` · ${p.therapy}` : ''}
                 {p.treatment_end ? ` · month ${Math.max(0, Math.round((new Date(data.today) - new Date(p.treatment_end)) / 864e5 / 30.4))}` : ''}</div>
@@ -184,7 +184,7 @@ export default function Worklist() {
                   ) : (
                     <>
                       {p.handover_id && <button type="button" className="btn sm primary" onClick={() => openHandover(ui, p)}>Review handover</button>}
-                      <button type="button" className={`btn sm ${p.mrn === 'SYN-0007' && !p.handover_id ? 'primary' : ''}`} onClick={() => openMessages(ui, p)}>Message</button>
+                      <button type="button" className={`btn sm ${p.mrn === 'SYN-0011' && !p.handover_id ? 'primary' : ''}`} onClick={() => openMessages(ui, p)}>Message</button>
                       <button type="button" className="btn sm" onClick={() => openCall(ui, p)}>Call</button>
                       <button type="button" className="btn sm" onClick={() => openPause(ui, p)}>Pause</button>
                     </>

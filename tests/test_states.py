@@ -14,6 +14,7 @@ GUARDS = {
     ("test", "Booked", "Report received"): {"source": "outside_report_auto_matched", "file_ref": "photo.pdf"},
     ("test", "Completed", "Report received"): {"file_ref": "report.pdf"},
     ("test", "Completed", "Verified"): {"specimen": False, "role": "oncologist"},
+    ("test", "Report received", "Verified"): {"specimen": False, "role": "oncologist"},  # a scan done outside
     ("test", "Report received", "Report verified"): {"matched_identifiers": 2},
     ("test", "Report received", "Due"): {"source": "flagged_wrong"},           # an auto-matched report flagged
     ("test", "Report received", "Booked"): {"source": "flagged_wrong"},
@@ -64,7 +65,10 @@ def test_only_legal_moves_pass(card_type, a, b, legal):
     ("test", "Completed", "Verified", {"role": "oncologist"}),                 # specimen-based: report first
     ("test", "Completed", "Verified", {"specimen": False}),                    # not the doctor
     ("test", "Completed", "Verified", {"specimen": False, "role": "coordinator"}),
-    ("test", "Report received", "Verified", {"role": "oncologist", "specimen": False}),
+    ("test", "Report received", "Verified", {"role": "oncologist"}),         # a lab report: Report verified
+    ("test", "Report received", "Verified", {"role": "coordinator", "specimen": False}),  # a scan: the doctor
+    ("test", "Report received", "Report verified", {"matched_identifiers": 3, "specimen": False}),
+    ("test", "Due", "Completed", {"source": "patient_reply"}),
 ])
 def test_guards(card_type, a, b, ctx):
     with pytest.raises(IllegalTransition):

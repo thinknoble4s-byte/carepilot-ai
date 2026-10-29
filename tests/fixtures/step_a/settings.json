@@ -1,0 +1,65 @@
+{
+  "version": "1.1",
+  "note": "Step A / Golden Path: visit and test cards (including cards from a doctor's instruction), rules G0 and G1, caregiver copy when consented, button replies update cards and free text opens a handover, tasks for people. v1.1: the Use Case 2T v1.4 test cycle (test reminder, report check with three buttons, upload request and nudge, outside-report score and routing in Shadow, the doctor's report review).",
+  "gap_rules": [
+    "G0",
+    "G1"
+  ],
+  "reminder_cards": "all",
+  "caregiver_copy": true,
+  "act_on_replies": true,
+  "people_tasks": true,
+  "clinic_name": "Hospital A",
+  "instruction_card": {
+    "name": "Doctor-requested visit",
+    "department": "Oncology OPD",
+    "owner": "Priya Nair",
+    "cover": "Meera Joseph"
+  },
+  "ai": {
+    "tries": 2,
+    "timeout_seconds": 10,
+    "speech_model": "saaras:v3",
+    "language_model": "sarvam-105b",
+    "note": "UC2a names Sarvam-30B; Sarvam deprecated it (API answer, 17 Oct 2026) and points to sarvam-105b."
+  },
+  "hold_on_proposal": true,
+  "voice_clips": [
+    {
+      "id": "HI-01",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-01 — arm pain for a week, wants to see the doctor",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+    },
+    {
+      "id": "HI-02",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-02 — will come on Saturday with her son, morning please",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu); replace with the native recording."
+    },
+    {
+      "id": "HI-03",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-03 — feeling perfectly OK, no complaints",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu): \"मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।\""
+    }
+  ],
+  "help_keyword": "handover",
+  "hold_on_task": false,
+  "test_cycle": {
+    "reminder_template": "test_booking_reminder",
+    "doctor_days": 1,
+    "report_check": {
+      "check_after_working_days": 1,
+      "no_answer_working_days": 2,
+      "repeat_after_working_days": 3,
+      "max_repeats": 2,
+      "upload_nudge_working_days": 2,
+      "upload_call_working_days": 2
+    },
+    "note": "As Use Case 2T v1.4; the report-check timings are proposals for the clinical lead (Dr. Anand Rao)."
+  }
+}

@@ -1,0 +1,381 @@
+{
+  "scenario": "vt",
+  "title": "Voice Triage MVP-lite — Mrs. Lakshmi V. (Tamil), the call and Red, Amber, Green",
+  "source": "usecase-docs/CarePilot_Voice_Triage_MVP_Lite_v1.1.docx (v1.1, 28 October 2026)",
+  "demo_start_date": "2026-10-27",
+  "seed_date": "2026-10-27",
+  "seed_time": "10:12",
+  "users": [
+    {
+      "user_id": "u_anita",
+      "name": "Anita",
+      "role": "coordinator"
+    },
+    {
+      "user_id": "u_ravi",
+      "name": "Ravi",
+      "role": "coordinator"
+    },
+    {
+      "user_id": "u_ananya",
+      "name": "Dr. Ananya",
+      "role": "oncologist"
+    },
+    {
+      "user_id": "u_sekhar",
+      "name": "Dr. Sekhar",
+      "role": "oncologist"
+    },
+    {
+      "user_id": "u_er_nurse",
+      "name": "Nurse Deepa (duty nurse)",
+      "role": "er_desk"
+    },
+    {
+      "user_id": "u_er_doctor",
+      "name": "Dr. Farhan (ER doctor)",
+      "role": "er_desk"
+    },
+    {
+      "user_id": "u_suresh",
+      "name": "Dr. Suresh Pillai",
+      "role": "chief"
+    }
+  ],
+  "coordinator": "Anita",
+  "plan_departments": {
+    "Oncology OPD": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "Laboratory": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "Radiology": {
+      "owner": "Anita",
+      "cover": "Ravi"
+    }
+  },
+  "patients": [
+    {
+      "mrn": "SYN-0142",
+      "full_name": "Lakshmi V.",
+      "phone": "+919000000142",
+      "preferred_language": "Tamil",
+      "age": 54,
+      "caregiver_name": "Karthik",
+      "caregiver_phone": "+919000100142",
+      "consent": {
+        "consent_reference": "CONS-0142",
+        "scopes": [
+          "whatsapp_patient",
+          "whatsapp_caregiver",
+          "automated_messaging"
+        ],
+        "recorded_on": "2026-10-02"
+      },
+      "plan": null,
+      "note": "54, left breast removal with node clearance on 1 October 2026. Consent assumed in the lite profile: WhatsApp, voice call and recording, family updates."
+    }
+  ],
+  "deadline_policy": {
+    "version": "1.0-vt",
+    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "default_coordinator": "Anita",
+    "default_doctor": "u_ananya",
+    "covers": {
+      "Anita": "Ravi",
+      "Ravi": "Anita",
+      "Dr. Ananya": "Dr. Sekhar"
+    },
+    "working_days": {
+      "coordinator_review": 1,
+      "call_first": 1,
+      "doctor_decision": 1,
+      "doctor_instruction": 1,
+      "urgent_call": 0,
+      "booking_from_instruction": 2,
+      "booking_help": 2,
+      "cannot_attend": 2,
+      "confirm_test_booking": 2,
+      "contact_needed": 2,
+      "help_booking": 2,
+      "cant_come": 2,
+      "help_request": 1,
+      "confirm_ed_visit": 0
+    },
+    "escalation": {
+      "coordinator_review": "cover",
+      "call_first": "cover",
+      "doctor_decision": "cover",
+      "doctor_instruction": "reminder",
+      "urgent_call": null,
+      "booking_from_instruction": "cover",
+      "booking_help": "cover",
+      "cannot_attend": "cover",
+      "confirm_test_booking": "cover",
+      "contact_needed": "cover",
+      "help_booking": null,
+      "cant_come": null,
+      "help_request": null,
+      "confirm_ed_visit": null
+    },
+    "help_keywords": [
+      "help",
+      "ಸಹಾಯ",
+      "मदद"
+    ],
+    "not_reached_after_attempts": 2,
+    "cant_come_reasons": [
+      "cost",
+      "pre_authorisation",
+      "transport",
+      "work_family",
+      "other"
+    ],
+    "note": "Voice Triage MVP-lite: the 'confirm the emergency visit' task is due in 30 minutes (demo time); the other tasks as Use Case 2c."
+  },
+  "message_templates": [
+    {
+      "template_id": "triage_ack",
+      "language": "English",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Voice Triage: the fixed acknowledgement after a health message; the automated call follows within 2 minutes. Tamil is a draft (native speaker to check).",
+      "text": "Thank you for your message. CarePilot's automated assistant will call you in the next 2 minutes with a few short questions. If you feel very unwell, go to the nearest emergency department. — Hospital A, Chennai (automated assistant)",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "triage_ack",
+      "language": "Tamil",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Voice Triage: the fixed acknowledgement after a health message; the automated call follows within 2 minutes. Tamil is a draft (native speaker to check).",
+      "text": "உங்கள் செய்திக்கு நன்றி. கேர்பைலட்டின் தானியங்கி உதவியாளர் அடுத்த 2 நிமிடங்களில் சில குறுகிய கேள்விகளுடன் உங்களை அழைப்பார். உடல்நிலை மிகவும் மோசமாக இருந்தால் அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்குச் செல்லுங்கள். — மருத்துவமனை A, சென்னை (தானியங்கி உதவியாளர்)",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "triage_red_caregiver",
+      "language": "English",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Voice Triage TPL_WA_RED_CAREGIVER_V1: one approved template with one of three fixed reason lines (CONFIRMED, NO ANSWER, UNCONFIRMED); the emergency summary PDF is attached. Names no hospital, no map, no ambulance link. Tamil is a draft. [SIGN-OFF]",
+      "text": "This is CarePilot's automated assistant. {reason} Please take her to the nearest emergency department now. Do not wait. Show the attached summary to the emergency doctor. Our care team has been told and will call you.",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "triage_red_caregiver",
+      "language": "Tamil",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Voice Triage TPL_WA_RED_CAREGIVER_V1: one approved template with one of three fixed reason lines (CONFIRMED, NO ANSWER, UNCONFIRMED); the emergency summary PDF is attached. Names no hospital, no map, no ambulance link. Tamil is a draft. [SIGN-OFF]",
+      "text": "இது கேர்பைலட்டின் தானியங்கி உதவியாளர். {reason} உடனே அவரை அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்கு அழைத்துச் செல்லுங்கள். காத்திருக்க வேண்டாம். இணைக்கப்பட்ட சுருக்கத்தை அவசர சிகிச்சை மருத்துவரிடம் காட்டுங்கள். எங்கள் பராமரிப்புக் குழுவுக்குத் தெரிவிக்கப்பட்டுள்ளது; அவர்கள் உங்களை அழைப்பார்கள்.",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "instruction_booking",
+      "language": "English",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Sent when a doctor's instruction creates a new order card. Kannada, Hindi and Tamil are drafts.",
+      "text": "Namaste {first_name}. Your doctor has asked for a {item} by {due}. Please book it and reply with a button below. — Hospital A, Chennai",
+      "closing": null,
+      "buttons": [
+        {
+          "id": "booked",
+          "label": "{what} booked",
+          "label_en": "{what} booked"
+        },
+        {
+          "id": "help_book",
+          "label": "Please help me book",
+          "label_en": "Please help me book"
+        },
+        {
+          "id": "cant_come",
+          "label": "I can't come",
+          "label_en": "I can't come"
+        }
+      ]
+    },
+    {
+      "template_id": "instruction_booking",
+      "language": "Tamil",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Sent when a doctor's instruction creates a new order card. Kannada, Hindi and Tamil are drafts.",
+      "text": "வணக்கம் {first_name}. உங்கள் மருத்துவர் {due} க்குள் {item} செய்யச் சொல்லியுள்ளார். தயவுசெய்து முன்பதிவு செய்து, கீழே உள்ள பொத்தான் மூலம் பதில் அளியுங்கள். — மருத்துவமனை A, சென்னை",
+      "closing": null,
+      "buttons": [
+        {
+          "id": "booked",
+          "label": "{what} முன்பதிவு செய்துவிட்டேன்",
+          "label_en": "{what} booked"
+        },
+        {
+          "id": "help_book",
+          "label": "முன்பதிவு செய்ய உதவுங்கள்",
+          "label_en": "Please help me book"
+        },
+        {
+          "id": "cant_come",
+          "label": "வர முடியாது",
+          "label_en": "I can't come"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "version": "1.1",
+    "note": "Voice Triage MVP-lite (guide v1.1): a health message brings the fixed acknowledgement and an automated call within 2 minutes (10 questions, Tamil); plain rules give Red, Amber or Green. It replaces the Use Case 2c handover for health messages. Thresholds and Tamil lines are drafts until Dr. Sekhar signs them (DEMO_LITE, DRAFT_UNSIGNED).",
+    "gap_rules": [
+      "G0"
+    ],
+    "reminder_cards": "plan_visits",
+    "caregiver_copy": false,
+    "act_on_replies": true,
+    "people_tasks": true,
+    "hold_on_proposal": true,
+    "clinic_name": "Hospital A, Chennai",
+    "instruction_card": {
+      "name": "Doctor-requested visit",
+      "department": "Oncology OPD",
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "ai": {
+      "tries": 2,
+      "timeout_seconds": 10,
+      "speech_model": "saaras:v3",
+      "language_model": "sarvam-105b",
+      "note": "UC2a names Sarvam-30B; Sarvam deprecated it (API answer, 17 Oct 2026) and points to sarvam-105b."
+    },
+    "voice_clips": [
+      {
+        "id": "TA-01",
+        "patient": null,
+        "language": "Tamil",
+        "label": "TA-01 — since yesterday very sleepy, nausea, headache, left arm pain (Tamil)",
+        "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa) from the guide's voice note; replace with a native recording."
+      }
+    ],
+    "help_keyword": "task",
+    "hold_on_task": true,
+    "voice_triage": {
+      "enabled": true,
+      "doctor_on_duty": "u_ananya",
+      "senior_oncologist": "u_sekhar",
+      "er_doctor": "u_er_doctor",
+      "coordinator": "u_anita",
+      "speaker": "kavitha",
+      "tts_model": "bulbul:v3",
+      "call_within_minutes": 2,
+      "retry_minutes": 5,
+      "confirm_within_minutes": 30,
+      "not_yet_again_minutes": 15,
+      "nurse_minutes": 15,
+      "amber_callback_minutes": 120,
+      "note": "Times as the guide; 30 minutes to confirm the emergency visit is [SIGN-OFF]."
+    }
+  },
+  "triage_history": {
+    "SYN-0142": {
+      "_note": "SYNTHETIC. What the hospital record holds for the triage call and the emergency summary.",
+      "title": "Mrs. Lakshmi V.",
+      "name_en": "Lakshmi",
+      "name_ta": "லட்சுமி",
+      "age": 54,
+      "sex": "female",
+      "caregiver_relation": "son",
+      "team": {
+        "en": "the Chennai care team",
+        "ta": "சென்னை பராமரிப்புக் குழுவின்"
+      },
+      "arm_baseline": {
+        "date": "2026-10-10",
+        "status": "no swelling and loose bangles"
+      },
+      "last_headache": {
+        "date": "2026-10-19",
+        "score": 2
+      },
+      "advice": {
+        "id": "INST-2026-10-19-01",
+        "date": "2026-10-19",
+        "by": "Dr. Ananya",
+        "en": "Dr. Ananya advised on 19 October: take your Shelcal-HD and Neurobion Forte only after a full meal, never on an empty stomach.",
+        "ta": "அக்டோபர் 19 அன்று டாக்டர் அனன்யா அறிவுறுத்தியது: ஷெல்கால்-HD மற்றும் நியூரோபியான் ஃபோர்ட் மாத்திரைகளை முழு உணவுக்குப் பிறகு மட்டுமே எடுக்கவும்; வெறும் வயிற்றில் எடுக்க வேண்டாம்."
+      },
+      "events": [
+        {
+          "date": "2026-10-10",
+          "symptoms": [
+            "arm_stiffness"
+          ],
+          "reported": "Mild left arm stiffness (2 out of 10). Bangles loose. No swelling.",
+          "instruction": null,
+          "outcome": "Noted for the next visit."
+        },
+        {
+          "date": "2026-10-19",
+          "symptoms": [
+            "headache",
+            "nausea"
+          ],
+          "reported": "Nausea and a mild headache (2 out of 10).",
+          "instruction": "Dr. Ananya: take Shelcal-HD and Neurobion Forte only after a full meal.",
+          "outcome": "Better the next day."
+        }
+      ],
+      "clinical": {
+        "diagnosis": "Left breast cancer (synthetic record)",
+        "treatment_done": [
+          "Left breast removal with node clearance, 1 October 2026"
+        ],
+        "active_treatment_completed": "Surgery, 1 October 2026",
+        "current_phase": "Recovery after surgery; follow-up with the oncology team",
+        "treating_hospital": "Hospital A, Chennai (synthetic)",
+        "care_team_phone": "+91 00000 00000 (placeholder)",
+        "treating_oncologist": "Treating oncologist: Dr. Sekhar"
+      },
+      "medicines": [
+        {
+          "name": "Shelcal-HD (calcium and vitamin D3)",
+          "schedule": "once a day, after a full meal"
+        },
+        {
+          "name": "Neurobion Forte (vitamin B complex)",
+          "schedule": "once a day, after a full meal"
+        }
+      ],
+      "signed_note": {
+        "text": "The left arm is at risk of swelling and infection after node clearance. Please keep this in mind when choosing a site for blood pressure, blood draws or injections.",
+        "signed_by": "Dr. Sekhar (MOCK signature, pending sign-off)",
+        "date": "2026-10-02"
+      },
+      "not_recorded": [
+        "Allergies",
+        "Other conditions",
+        "Other medicines",
+        "Blood group"
+      ]
+    }
+  }
+}

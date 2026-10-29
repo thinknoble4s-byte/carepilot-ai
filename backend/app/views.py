@@ -146,16 +146,16 @@ def messages(conn, mrn: str) -> list[dict]:
                body, body_en, buttons, status, blocked_reason, template_id, actor, NULL::text AS button,
                NULL::text AS handling, language, NULL::text AS kind, NULL::text AS transcript, NULL::text AS translation,
                NULL::text AS ai_flag, NULL::boolean AS ai_failed, NULL::bigint AS audio_id, NULL::text AS clip_id,
-               NULL::bigint AS reply_to
+               NULL::bigint AS reply_to, attachment_doc_id, triage_episode_id
         FROM outbox_message WHERE mrn = %(mrn)s
         UNION ALL
         SELECT 'in', inbound_id, created_at, received_on, received_time, from_role, text, NULL, NULL, NULL, NULL, NULL,
                NULL, button, handling, NULL, kind, transcript, translation, ai_flag, ai_failed, audio_id, clip_id,
-               in_reply_to
+               in_reply_to, NULL, NULL
         FROM inbound_message WHERE mrn = %(mrn)s
         UNION ALL
         SELECT 'call', call_id, created_at, called_on, NULL, who, note, NULL, NULL, outcome, NULL, NULL, called_by,
-               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
         FROM call_log WHERE mrn = %(mrn)s
         ORDER BY created_at
         """,

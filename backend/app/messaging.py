@@ -15,7 +15,10 @@ from .errors import Conflict, NotFound
 from .reference import item_label
 
 AUTOMATED = ("agent", "system")
-ALWAYS_ALLOWED_AUTOMATED = ("handover_ack",)  # the fixed acknowledgement after a health mention or HELP
+ALWAYS_ALLOWED_AUTOMATED = ("handover_ack",  # the fixed acknowledgement after a health mention or HELP
+                            # Voice Triage: the acknowledgement that a call is coming, and the Red family message
+                            # (sent the moment a case is Red; never held for a pause or an agent switch)
+                            "triage_ack", "triage_red_caregiver")
 # While a handover is open only these two pass, whoever sends (UC2a REQ-06): the acknowledgement and the
 # booking message for a doctor's instruction (a person decided that one). Everything else is refused.
 ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking",
@@ -28,6 +31,8 @@ HELP_TASK_TYPES = ("help_booking", "cant_come", "help_request")
 HOLD_TASK_TYPES = HELP_TASK_TYPES + ("urgent_call",
                                      # Use Case 2T REQ-20: an open report-check task holds routine messages too
                                      "find_hospital_report", "call_about_test", "call_patient_resend")
+# Voice Triage: while an episode is open, only the triage messages and a doctor's order booking go out.
+ALLOWED_DURING_TRIAGE = ("handover_ack", "triage_ack", "triage_red_caregiver", "instruction_booking")
 ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder", "test_booking_reminder", "test_report_check",
                      "report_upload_nudge")
 
@@ -49,12 +54,18 @@ def open_handover(conn, mrn: str) -> dict | None:
     return conn.execute("SELECT * FROM handover WHERE mrn = %s AND stage <> 'closed'", (mrn,)).fetchone()
 
 
+def open_triage(conn, mrn: str) -> dict | None:
+    return conn.execute("SELECT * FROM triage_episode WHERE mrn = %s AND status = 'open'", (mrn,)).fetchone()
+
+
 def guard(conn, patient: dict, template_id: str, recipient: str, actor_type: str) -> tuple[str | None, dict]:
     """Return (blocked_reason or None, the inputs it was decided on)."""
     scopes = latest_scopes(conn, patient["mrn"])
     handover = open_handover(conn, patient["mrn"])
+    triage = open_triage(conn, patient["mrn"])
     inputs = {"status": patient["status"], "agent_on": patient["agent_on"], "scopes": scopes,
-              "handover_open": handover is not None, "actor_type": actor_type, "recipient": recipient}
+              "handover_open": handover is not None, "actor_type": actor_type, "recipient": recipient,
+              **({"triage_open": True} if triage else {})}
     if patient["status"] in ("Lost to follow-up", "Followed up elsewhere"):
         return "patient_closed", inputs
     if f"whatsapp_{recipient}" not in scopes:
@@ -63,6 +74,8 @@ def guard(conn, patient: dict, template_id: str, recipient: str, actor_type: str
         return "no_caregiver_phone", inputs
     if handover is not None and template_id not in ALLOWED_DURING_HANDOVER:
         return "held_handover_open", inputs
+    if triage is not None and template_id not in ALLOWED_DURING_TRIAGE:
+        return "held_triage_open", inputs
     if template_id in ROUTINE_TEMPLATES and task_hold(conn, patient["mrn"]):
         inputs["open_help_task"] = True
         return "held_open_task", inputs
@@ -78,7 +91,8 @@ def guard(conn, patient: dict, template_id: str, recipient: str, actor_type: str
 
 def render(tmpl: dict, patient: dict, card: dict | None, extra: dict | None = None) -> str:
     """Fill an approved template. Placeholders: {patient_name}, {first_name}, {item}, {item_name} (the card's
-    name, e.g. "Blood test (CBC)"), {due}, {due_date}, and any extra values (e.g. {next_visit_date})."""
+    name, e.g. "Blood test (CBC)"), {due}, {due_date}, and any extra values (e.g. {next_visit_date}). An extra
+    value may be a {language: text} dict (a fixed line approved in each language, e.g. the Red reason line)."""
     lang = tmpl["language"]
     item = ""
     if card:
@@ -86,11 +100,13 @@ def render(tmpl: dict, patient: dict, card: dict | None, extra: dict | None = No
     due = card["due_date"].strftime(tmpl.get("date_format") or "%d/%m/%Y") if card else ""
     text = tmpl["text"].format(**{"patient_name": patient["full_name"], "first_name": patient["full_name"].split()[0],
                                   "item": item, "item_name": card["name"] if card else "", "due": due,
-                                  "due_date": due, **(extra or {})})
+                                  "due_date": due,
+                                  **{k: v.get(lang, v.get("English")) if isinstance(v, dict) else v
+                                     for k, v in (extra or {}).items()}})
     return f"{text}\n\n{tmpl['closing']}" if tmpl.get("closing") else text
 
 
-APPOINTMENT = {"English": "Appointment", "Hindi": "अपॉइंटमेंट", "Kannada": "ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್"}
+APPOINTMENT = {"English": "Appointment", "Hindi": "अपॉइंटमेंट", "Kannada": "ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್", "Tamil": "அப்பாயின்ட்மென்ட்"}
 
 
 def what_booked(card: dict | None, lang: str) -> str:
@@ -107,8 +123,7 @@ def render_buttons(conn, tmpl: dict, card: dict | None) -> list[dict]:
     lang, test_cycle = tmpl["language"], policy.settings(conn).get("test_cycle")
     out = []
     for b in tmpl["buttons"]:
-        if b.get("only") == "test" and not (card and card["card_type"] == "test" and card["specimen"] is not False
-                                            and test_cycle):
+        if b.get("only") == "test" and not (card and card["card_type"] == "test" and test_cycle):
             continue
         out.append({"id": b["id"], "label": b["label"].replace("{what}", what_booked(card, lang)),
                     "label_en": b["label_en"].replace("{what}", what_booked(card, "English"))})

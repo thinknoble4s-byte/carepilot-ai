@@ -328,15 +328,18 @@ export function TestVerifications() {
   return (
     <div className="card">
       <div className="card-title">Tests to verify ({items.length})</div>
-      <div className="card-desc">A non-specimen test (imaging) has no lab report: the doctor sets it Verified once it is completed. Lab reports are verified by their two identifiers (the system or a coordinator).</div>
+      <div className="card-desc">A non-specimen test (imaging) has no lab report: the doctor sets it Verified once it is completed. A scan done at an outside centre comes with the patient's report (checked by AI, or verified by a coordinator): open it, then Verify. Lab reports are verified by their two identifiers (the system or a coordinator).</div>
       {items.map((c) => (
         <div key={c.card_id} className="v4-item soon">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div className="t"><a role="button" tabIndex={0} onClick={() => ui.nav('plan', c.mrn)}>{c.full_name}</a> · {c.mrn} · {c.item_code} — {c.name}</div>
             <Pill tone="warn">{c.state} (non-specimen)</Pill>
           </div>
-          <div className="d">Completed {fmt(c.completed_on)}</div>
-          {ui.role === 'oncologist' && <div className="btn-row"><button type="button" className="btn sm primary" onClick={() => verify(c)}>Verify</button></div>}
+          <div className="d">Completed {fmt(c.completed_on)}{c.label ? ` · ${c.label}` : ''}</div>
+          <div className="btn-row">
+            {c.report && <button type="button" className="btn sm" onClick={() => openReportFile(ui, c.report.report_id)}>Open the outside report</button>}
+            {ui.role === 'oncologist' && <button type="button" className="btn sm primary" onClick={() => verify(c)}>Verify</button>}
+          </div>
         </div>
       ))}
     </div>

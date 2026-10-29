@@ -16,8 +16,8 @@ from pydantic import BaseModel
 
 from . import (agent, ai, audit, clock, consent, db, gateway, handover, help_tasks, importer, messaging, patients, plan,
                programme,
-               proposals, rules, seed, states, tasks, test_cycle, timeline, urgent_calls, views, worklist)
-from .auth import ANY_ROLE, CLINICAL, COORDINATOR, current_user, require_role
+               proposals, rules, seed, states, tasks, test_cycle, timeline, triage, urgent_calls, views, worklist)
+from .auth import ANY_ROLE, CLINICAL, COORDINATOR, TRIAGE_VIEW, current_user, require_role
 from .errors import DomainError
 from . import policy
 from .reference import ROLE_LABELS, USERS
@@ -72,7 +72,7 @@ def users():
         with db.connect() as conn:
             loaded = conn.execute("SELECT user_id, name, role FROM app_user ORDER BY role, user_id").fetchall()
         if loaded:
-            order = {"coordinator": 0, "oncologist": 1, "chief": 2}
+            order = {"coordinator": 0, "oncologist": 1, "er_desk": 2, "chief": 3}
             rows = sorted(loaded, key=lambda u: (order[u["role"]], u["user_id"]))
     except psycopg.Error:
         pass
@@ -159,7 +159,7 @@ def demo_settings(_user: dict = Depends(current_user)):
         now = clock.get_now(conn)
         return {"scenario": s.get("scenario"), "clinic_name": s.get("clinic_name"), "act_on_replies": s["act_on_replies"],
                 "sarvam_enabled": ai.sarvam_enabled(conn), "ai_provider": ai.provider_name(),
-                "today": now.date(), "time": now.strftime("%H:%M")}
+                "today": now.date(), "time": now.strftime("%H:%M"), "voice_triage": triage.config(conn)}
 
     return in_tx(run)
 
@@ -534,9 +534,10 @@ def simulated_lab_report(body: LabReportIn, user: dict = Depends(require_role(*C
 async def simulator_document(mrn: str, file: UploadFile | None = File(None), from_role: str = Form("patient"),
                              event_id: str | None = Form(None), variant: str = Form("clear"),
                              from_phone: str | None = Form(None), note: str | None = Form(None),
-                             _user: dict = Depends(require_role(*COORDINATOR))):
+                             card_id: int | None = Form(None), _user: dict = Depends(require_role(*COORDINATOR))):
     """The patient sends a photo or PDF of an outside report. Without a file: a synthetic outside-lab PDF (variant:
-    clear, blurred, ct_scan, other_name, unreadable, future_date). from_phone: another sender number (demo)."""
+    clear, blurred, ct_scan, other_name, no_mrn, unreadable, future_date) for card_id, by default the test the
+    patient last said was done outside. from_phone: another sender number (demo)."""
     data = await file.read() if file else None
     extra = {"from_phone": from_phone, "note": note}
 
@@ -545,10 +546,13 @@ async def simulator_document(mrn: str, file: UploadFile | None = File(None), fro
             p = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
             if p is None:
                 raise HTTPException(status_code=404, detail=f"Patient {mrn} not found")
-            card = conn.execute("SELECT name FROM order_card WHERE mrn = %s AND card_type = 'test' ORDER BY card_id "
-                                "LIMIT 1", (mrn,)).fetchone()
+            card = conn.execute(
+                """SELECT name, specimen FROM order_card c WHERE mrn = %s AND card_type = 'test'
+                   ORDER BY card_id = %s DESC, (SELECT max(check_id) FROM report_check k WHERE k.card_id = c.card_id
+                     AND k.status = 'sent' AND k.answer = 'done_outside') DESC NULLS LAST, card_id LIMIT 1""",
+                (mrn, card_id or 0)).fetchone()
             pdf = test_cycle.outside_report_pdf(p, clock.get_today(conn), card["name"] if card else "Blood test",
-                                                variant)
+                                                variant, imaging=bool(card) and card["specimen"] is False)
             return gateway.receive_document(conn, mrn, data=pdf, mime="application/pdf",
                                             file_name=f"outside-lab-report-{variant}.pdf", from_role=from_role,
                                             event_id=event_id, **extra)
@@ -856,3 +860,162 @@ class ModeIn(BaseModel):
 @app.post("/care-plan/autonomy/{task}")
 def set_task_mode(task: str, body: ModeIn, user: dict = Depends(require_role(*COORDINATOR))):
     return in_tx(programme.set_task_mode, task, body.mode, user["user_id"])
+
+
+# ---------------------------------------------------------------------------
+# Voice Triage MVP-lite (guide v1.1): the call (driven from the phone simulator), the tier, and what people do.
+# ---------------------------------------------------------------------------
+@app.get("/triage/episodes")
+def triage_episodes(status: str = "open", mrn: str | None = None, _user: dict = Depends(require_role(*TRIAGE_VIEW))):
+    return in_tx(triage.episodes, status, mrn)
+
+
+@app.get("/triage/episodes/{episode_id}")
+def triage_episode(episode_id: int, _user: dict = Depends(require_role(*TRIAGE_VIEW))):
+    return in_tx(triage.state, episode_id)
+
+
+@app.post("/triage/episodes/{episode_id}/pickup")
+def triage_pickup(episode_id: int, user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo: the patient picks up the automated call."""
+    return in_tx(triage.pickup, episode_id, user)
+
+
+class TriageAnswerIn(BaseModel):
+    text: str | None = None
+    value: float | str | None = None  # an on-screen answer button: YES, NO, UNKNOWN, NO_THERMOMETER or a number
+    key: str | None = None            # keypad: "0" for a nurse
+    silence: bool = False
+
+
+@app.post("/triage/episodes/{episode_id}/answer")
+def triage_answer(episode_id: int, body: TriageAnswerIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo: the patient's answer to the current question (words, an on-screen button, the key 0, or silence)."""
+    return in_tx(triage.answer, episode_id, user, text=body.text, value=body.value, key=body.key, silence=body.silence)
+
+
+@app.post("/triage/episodes/{episode_id}/answer-voice")
+async def triage_answer_voice(episode_id: int, file: UploadFile = File(...),
+                              user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo: a spoken answer recorded in the browser; Saaras hears it (stored with the call)."""
+    audio = await file.read()
+    if not audio or len(audio) > 2_000_000:
+        raise HTTPException(status_code=422, detail="Keep the spoken answer short (under 30 seconds)")
+    return in_tx(triage.answer, episode_id, user, audio=audio, mime=file.content_type or "audio/wav")
+
+
+@app.post("/triage/episodes/{episode_id}/no-answer")
+def triage_no_answer(episode_id: int, user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo: "She does not answer": the call rings out (the second call is 5 minutes later)."""
+    return in_tx(triage.no_answer, episode_id, user)
+
+
+class PlayIn(BaseModel):
+    scenario: str
+
+
+@app.post("/triage/episodes/{episode_id}/play")
+def triage_play(episode_id: int, body: PlayIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo: "Play as" a scenario of the guide (the scripted Tamil answers go through the same parsing and rules)."""
+    return in_tx(triage.play_as, episode_id, user, body.scenario)
+
+
+@app.get("/triage/episodes/{episode_id}/turns/{index}/audio")
+def triage_turn_audio(episode_id: int, index: int, _user: dict = Depends(require_role(*TRIAGE_VIEW))):
+    """Bulbul audio of a call line (made once, then cached), or the patient's recorded answer."""
+    found = in_tx(triage.turn_audio, episode_id, index)
+    if found is None:
+        raise HTTPException(status_code=404, detail="No audio for this line (simulated mode shows the text only)")
+    return Response(content=found[0], media_type=found[1])
+
+
+@app.get("/triage/documents/{doc_id}")
+def triage_document(doc_id: int, _user: dict = Depends(require_role(*TRIAGE_VIEW))):
+    doc = in_tx(triage.document, doc_id)
+    return Response(content=bytes(doc["data"]), media_type=doc["mime"],
+                    headers={"Content-Disposition": f'inline; filename="{doc["file_name"]}"'})
+
+
+class FollowupIn(BaseModel):
+    answer: str | None = None  # BETTER, SAME or WORSE (on-screen button)
+    text: str | None = None
+
+
+@app.post("/triage/episodes/{episode_id}/followup")
+def triage_followup(episode_id: int, body: FollowupIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo: the next-day follow-up call."""
+    return in_tx(triage.followup, episode_id, user, answer=body.answer, text=body.text)
+
+
+class EdCallIn(BaseModel):
+    outcome: str
+    hospital: str | None = None
+    note: str | None = None
+
+
+@app.post("/triage/episodes/{episode_id}/ed-call")
+def triage_ed_call(episode_id: int, body: EdCallIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(triage.ed_call, episode_id, user, body.outcome, body.hospital, body.note)
+
+
+@app.post("/triage/episodes/{episode_id}/acknowledge")
+def triage_acknowledge(episode_id: int, user: dict = Depends(require_role("coordinator", "er_desk"))):
+    return in_tx(triage.acknowledge, episode_id, user)
+
+
+class TriageNoteIn(BaseModel):
+    note: str | None = None
+
+
+@app.post("/triage/episodes/{episode_id}/reopen")
+def triage_reopen(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(triage.reopen, episode_id, user, body.note)
+
+
+@app.post("/triage/episodes/{episode_id}/send-package")
+def triage_send_package(episode_id: int, user: dict = Depends(require_role("coordinator", "er_desk"))):
+    """Red (unconfirmed) only: a person sends the emergency package after the nurse could not confirm."""
+    return in_tx(triage.send_package, episode_id, user)
+
+
+@app.post("/triage/episodes/{episode_id}/nurse-callback")
+def triage_nurse_callback(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role("er_desk"))):
+    return in_tx(triage.nurse_callback, episode_id, user, body.note)
+
+
+@app.post("/triage/episodes/{episode_id}/er-close")
+def triage_er_close(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role("er_desk"))):
+    """Only the ER doctor closes a Red case."""
+    return in_tx(triage.er_close, episode_id, user, body.note)
+
+
+@app.post("/triage/episodes/{episode_id}/confirm-closure")
+def triage_confirm_closure(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role("oncologist"))):
+    return in_tx(triage.confirm_closure, episode_id, user, body.note)
+
+
+class OrderIn(BaseModel):
+    order: str
+    note: str | None = None
+
+
+@app.post("/triage/episodes/{episode_id}/order")
+def triage_order(episode_id: int, body: OrderIn, user: dict = Depends(require_role("oncologist"))):
+    """Physiotherapy referral, Bring forward blood tests or No order needed (the doctor decides the care)."""
+    return in_tx(triage.doctor_order, episode_id, user, body.order, body.note)
+
+
+class TierIn(BaseModel):
+    tier: str
+    reason: str | None = None
+
+
+@app.post("/triage/episodes/{episode_id}/tier")
+def triage_tier(episode_id: int, body: TierIn, user: dict = Depends(require_role("oncologist"))):
+    return in_tx(triage.change_tier, episode_id, user, body.tier, body.reason)
+
+
+@app.get("/triage/brief/{mrn}")
+def triage_brief(mrn: str, _user: dict = Depends(require_role(*CLINICAL))):
+    """The Pre-OPD brief: 90 days, every line with its source."""
+    return in_tx(triage.brief, mrn)

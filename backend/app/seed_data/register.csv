@@ -1,30 +1,3 @@
 mrn,full_name,phone,caregiver_name,caregiver_phone,preferred_language
-SYN-0001,Meena Hegde,+919000000001,Suresh Hegde,+919000100001,Kannada
-SYN-0002,Lakshmi Gowda,+919000000002,Ramesh Gowda,+919000100002,Kannada
-SYN-0003,Anita Desai,+919000000003,,,English
-SYN-0004,Kavitha Rao,+919000000004,Mohan Rao,+919000100004,Kannada
-SYN-0005,Rekha Shetty,+919000000005,Prakash Shetty,+919000100005,Kannada
-SYN-0006,Pooja Nambiar,+919000000006,Arun Nambiar,+919000100006,English
-SYN-0007,Sunita Verma,+919000000007,Rakesh Verma,+919000100007,Hindi
-SYN-0008,Geeta Sharma,+919000000008,Vikram Sharma,+919000100008,Hindi
-SYN-0009,Shanti Kulkarni,+919000000009,,,Kannada
-SYN-0010,Deepa Menon,+919000000010,Sanjay Menon,+919000100010,English
-SYN-0011,Savitri Patil,+919000000011,Ganesh Patil,+919000100011,Kannada
-SYN-0012,Farida Khan,+919000000012,Imran Khan,+919000100012,Hindi
-SYN-0012,Farida Khan,+919000099999,Imran Khan,+919000100012,Hindi
-SYN-0013,Nirmala Reddy,+919000000013,,,Kannada
-SYN-0014,Usha Joshi,+919000000014,Mahesh Joshi,+919000100014,Hindi
-SYN-0015,Padma Iyer,+919000000015,Gopal Iyer,+919000100015,English
-SYN-0016,Kamala Bhat,+919000000016,Raghu Bhat,+919000100016,Kannada
-SYN-0017,Sarita Singh,+919000000017,Ajay Singh,+919000100017,Hindi
-SYN-0018,Vimala Naik,+919000000018,,,Kannada
-SYN-0026,Maya Pillai,98765,,,Kannada
-SYN-0019,Jayanthi Murthy,+919000000019,Ravi Murthy,+919000100019,Kannada
-SYN-0020,Rani Thomas,+919000000020,Joseph Thomas,+919000100020,English
-SYN-0021,Mala Acharya,+919000000021,Sudhir Acharya,+919000100021,Kannada
-SYN-0022,Bharathi Kamath,+919000000022,,,Kannada
-,Tara Bose,+919000000027,,,Hindi
-SYN-0023,Anjali Mishra,+919000000023,Dinesh Mishra,+919000100023,Hindi
-SYN-0024,Neelam Gupta,+919000000024,,,Hindi
-SYN-0028,Leena Fernandes,+919000000028,,,French
-SYN-0025,Sheela Dsouza,+919000000025,Peter Dsouza,+919000100025,English
+SYN-0011,Savitri Patil,+919000000011,Ganesh Patil,+919000100011,Tamil
+SYN-0013,Nirmala Reddy,+919000000013,,,Tamil

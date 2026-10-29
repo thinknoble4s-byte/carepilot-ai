@@ -1,7 +1,8 @@
 // Pop-ups from prototype v7.2: handover review, log a call, pause, messages (WhatsApp, simulated),
 // the doctor's instruction in the hospital record, and the morning department lists.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { api, post, upload } from './api.js';
+import { api, blobUrl, post, upload } from './api.js';
+import { CallPane } from './Triage.jsx';
 import { buttonLabel, fmt, useUI, VoiceClip } from './ui.jsx';
 
 export const CLOSE_REASONS = ['Nothing clinical', 'Travel or booking plans only', 'Patient called; matter resolved',
@@ -207,7 +208,7 @@ function PauseForm({ patient, via }) {
 // Converted in the browser to 16 kHz mono WAV, the format Sarvam reads most reliably, and kept under 30 seconds.
 const MAX_SECONDS = 30;
 
-async function toWav(blob) {
+export async function toWav(blob) {
   const Ctx = window.AudioContext || window.webkitAudioContext;
   const ctx = new Ctx();
   let decoded;
@@ -318,6 +319,7 @@ function VoiceRecorder({ patient, onSend }) {
             <option value="">Patient's language ({patient.preferred_language || patient.language})</option>
             <option value="Hindi">Hindi</option>
             <option value="Kannada">Kannada</option>
+            <option value="Tamil">Tamil</option>
             <option value="English">English</option>
             <option value="auto">Detect automatically</option>
           </select>
@@ -406,6 +408,12 @@ export function WaPhone({ thread, patient, settings, english, coordinator, onTap
                       <div><b>{m.body || 'document'}</b><span>Held Unverified until a coordinator checks it</span></div></div>
                   )}
                   {m.body && m.kind !== 'document' && <div className="wa-text v31-kn">{m.body}</div>}
+                  {out && m.attachment_doc_id && (
+                    <button type="button" className="wa-doc" style={{ cursor: 'pointer', border: 0, textAlign: 'left', width: '100%' }}
+                      onClick={async () => window.open(await blobUrl(`triage/documents/${m.attachment_doc_id}`), '_blank', 'noopener')}>
+                      <span className="wa-doc-ic" aria-hidden="true">PDF</span>
+                      <div><b>emergency_summary.pdf</b><span>Emergency summary for the treating doctor (synthetic)</span></div></button>
+                  )}
                   {m.kind === 'voice' && m.transcript && <div className="wa-note">Transcript: {m.transcript}</div>}
                   {english && m.translation && m.translation !== m.body && m.translation !== m.transcript && <div className="wa-note">AI translation: {m.translation}</div>}
                   {english && out && m.body_en && m.body_en !== m.body && <div className="wa-note">English: {m.body_en}</div>}
@@ -532,14 +540,15 @@ function Messages({ patient }) {
         <WaPhone thread={thread} patient={patient} settings={settings} english={english} coordinator={coordinator}
           now={ui.now} onTap={(m, b) => reply({ button: b.id, in_reply_to: m.id })} />
         {thread.some((m) => m.language && m.language !== 'English') && (
-          <div className="small-note" style={{ marginTop: 8 }}>Kannada and Hindi wording are drafts — to be checked by a native speaker.</div>
+          <div className="small-note" style={{ marginTop: 8 }}>Kannada, Hindi and Tamil wording are drafts — to be checked by a native speaker.</div>
         )}
       </div>
       <div>
+        {coordinator && settings?.voice_triage?.enabled && <CallPane patient={patient} onChange={load} />}
         {coordinator ? (
           <>
             <div className={awaiting ? 'card-flat' : ''} style={awaiting ? { borderLeft: '4px solid var(--amber, #d97706)', marginBottom: 14 } : { marginBottom: 14 }}>
-              <div className="card-title">Upload the test report (test done at an outside lab)</div>
+              <div className="card-title">Upload the test report (test done at an outside lab or imaging centre)</div>
               {awaiting && <div className="small-note"><b>Waiting for the report:</b> the patient said the test was done at an outside lab and was asked to send it here.</div>}
               <label className="v3-field" htmlFor="msgD">A photo or PDF of the report</label>
               <input id="msgD" type="file" accept="image/*,application/pdf" className="v3-in"

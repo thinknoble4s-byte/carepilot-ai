@@ -1,6 +1,6 @@
 {
-  "version": "1.1",
-  "note": "Step A / Golden Path: visit and test cards (including cards from a doctor's instruction), rules G0 and G1, caregiver copy when consented, button replies update cards and free text opens a handover, tasks for people. v1.1: the Use Case 2T v1.4 test cycle (test reminder, report check with three buttons, upload request and nudge, outside-report score and routing in Shadow, the doctor's report review).",
+  "version": "1.2",
+  "note": "Step A / Golden Path: visit and test cards (including cards from a doctor's instruction), rules G0 and G1, caregiver copy when consented, button replies update cards and free text opens a handover, tasks for people. v1.1: the Use Case 2T v1.4 test cycle (test reminder, report check with three buttons, upload request and nudge, outside-report score and routing in Shadow, the doctor's report review). v1.2: Voice Triage MVP-lite: a health message brings the acknowledgement and an automated call (10 Tamil questions); Red, Amber or Green by plain rules.",
   "gap_rules": [
     "G0",
     "G1"
@@ -45,6 +45,13 @@
       "language": "Hindi",
       "label": "HI-03 — feeling perfectly OK, no complaints",
       "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu): \"मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।\""
+    },
+    {
+      "id": "TA-01",
+      "patient": null,
+      "language": "Tamil",
+      "label": "TA-01 — since yesterday very sleepy, nausea, headache, left arm pain (Tamil)",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa) from the guide's voice note; replace with a native recording."
     }
   ],
   "help_keyword": "handover",
@@ -61,5 +68,21 @@
       "upload_call_working_days": 2
     },
     "note": "As Use Case 2T v1.4; the report-check timings are proposals for the clinical lead (Dr. Anand Rao)."
+  },
+  "voice_triage": {
+    "enabled": true,
+    "doctor_on_duty": "u_kavita",
+    "senior_oncologist": "u_anand",
+    "er_doctor": "u_er_doctor",
+    "coordinator": "u_priya",
+    "speaker": "kavitha",
+    "tts_model": "bulbul:v3",
+    "call_within_minutes": 2,
+    "retry_minutes": 5,
+    "confirm_within_minutes": 30,
+    "not_yet_again_minutes": 15,
+    "nurse_minutes": 15,
+    "amber_callback_minutes": 120,
+    "note": "Voice Triage MVP-lite replaces the handover for health messages (the Golden Path keeps it for HELP). History in triage_history.json; drafts until signed."
   }
 }

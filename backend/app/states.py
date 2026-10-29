@@ -7,7 +7,8 @@ VISIT_FLOW = {"Due": {"Booked"}, "Booked": {"Attended"}, "Attended": set()}
 
 # Test cards follow one of two roads, set by the plan item (order_card.specimen) — Use Case 2T v1.4:
 #   specimen-based (blood test):  Due -> Booked -> Completed -> Report received -> Report verified
-#   non-specimen (imaging, echo): Due -> Booked -> Completed -> Verified (the doctor)
+#   non-specimen (imaging, echo): Due -> Booked -> Completed -> Verified (the doctor); done at an outside centre:
+#                                 Completed -> Report received (the uploaded report, checked) -> Verified (the doctor)
 # Booked needs a source (the patient's tap, a person, or the appointment list) but not a date. Completed comes from
 # the appointment list (Due -> Completed is a walk-in), or, for a lab test, from the patient's tap "Done at an outside
 # lab" (source patient_outside). An outside document that passes the check (name, MRN and test match, score 95+)
@@ -17,7 +18,7 @@ TEST_FLOW = {
     "Due": {"Booked", "Completed", "Report received"},
     "Booked": {"Completed", "Report received"},
     "Completed": {"Report received", "Verified"},
-    "Report received": {"Report verified", "Due", "Booked"},
+    "Report received": {"Report verified", "Verified", "Due", "Booked"},
     "Report verified": set(),
     "Verified": set(),
 }
@@ -49,26 +50,31 @@ def check_transition(card_type: str, from_state: str, to_state: str, **ctx) -> N
     if move == ("test", "Due", "Booked") and source not in ("patient_button", "coordinator", "appointment_list"):
         raise IllegalTransition("A test is Booked from the patient's tap, by a person, or from the appointment list")
     specimen = ctx.get("specimen", True) is not False
-    if card_type == "test" and to_state == "Completed" and source not in ("appointment_list", "hospital_feed")             and not (source == "patient_outside" and specimen):
+    if card_type == "test" and to_state == "Completed" and \
+            source not in ("appointment_list", "hospital_feed", "patient_outside"):
         raise IllegalTransition("A test becomes Completed only from the appointment list, or from the patient's tap "
-                                "\"Done at an outside lab\" on a lab test; never a patient message")
+                                "\"Done at an outside lab\"; never a patient message")
     if card_type == "test" and to_state == "Report received":
         if from_state in ("Due", "Booked") and source not in OUTSIDE_SOURCES:
             raise IllegalTransition("Only an outside document that is auto-matched or verified by a coordinator "
                                     f"moves a test from {from_state} to Report received")
-        if not specimen:
-            raise IllegalTransition("A non-specimen test has no lab report: the doctor verifies it once Completed")
+        if not specimen and (source not in OUTSIDE_SOURCES or from_state != "Completed"):
+            raise IllegalTransition("A non-specimen test gets a report only from an outside centre (checked by AI or "
+                                    "a coordinator); otherwise the doctor verifies it once Completed")
         if not ctx.get("file_ref"):
             raise IllegalTransition("A report needs an attached file (file_ref)")
     if from_state == "Report received" and to_state in ("Due", "Booked") and source != "flagged_wrong":
         raise IllegalTransition("A report is taken off a card only when a coordinator flags it as wrong")
-    if move == ("test", "Completed", "Verified"):
+    if card_type == "test" and to_state == "Verified":
         if specimen:
             raise IllegalTransition("A specimen-based test needs its report received before it is verified")
         if ctx.get("role") != "oncologist":
             raise IllegalTransition("Only the doctor sets a non-specimen test to Verified")
-    if move == ("test", "Report received", "Report verified") and int(ctx.get("matched_identifiers") or 0) < 2:
-        raise IllegalTransition("Verification needs two or more matching identifiers")
+    if move == ("test", "Report received", "Report verified"):
+        if not specimen:
+            raise IllegalTransition("A non-specimen test is verified by the doctor (Verified)")
+        if int(ctx.get("matched_identifiers") or 0) < 2:
+            raise IllegalTransition("Verification needs two or more matching identifiers")
 
 
 def transition_card(conn, card_id: int, new_state: str, actor_type: str, actor: str, **ctx) -> dict:

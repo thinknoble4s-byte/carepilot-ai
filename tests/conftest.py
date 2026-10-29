@@ -24,6 +24,9 @@ os.environ["AI_PROVIDER"] = "fake"
 # each use case's documented plan with the plans its start state was scripted from (tests/fixtures/
 # usecase_plans.json). Tests marked `demo_template` use the real data sets.
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
+# The demo Golden Path data has two patients (Savitri Patil and Nirmala Reddy, Tamil); engine tests use the full Step
+# A register, appointment list and consent records (the answer key), kept in tests/fixtures/step_a.
+os.environ["CAREPILOT_SEED_DIR"] = str(FIXTURES / "step_a")
 FIXED_TEMPLATE = FIXTURES / "care_plan_template_v1_0.json"
 USECASE_PLANS = FIXTURES / "usecase_plans.json"
 
@@ -134,6 +137,18 @@ def uc2c(monkeypatch):
 
     with db.connect() as c:
         return seed.reset(c, scenario="uc2c")
+
+
+@pytest.fixture()
+def vt(monkeypatch):
+    """Voice Triage MVP-lite data set: Mrs. Lakshmi V., clock Tue 27 Oct 10:12."""
+    if not DSN:
+        pytest.skip("TEST_DATABASE_URL not set")
+    monkeypatch.setenv("DATABASE_URL", DSN)
+    from app import db, seed
+
+    with db.connect() as c:
+        return seed.reset(c, scenario="vt")
 
 
 @pytest.fixture()
