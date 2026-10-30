@@ -13,6 +13,18 @@ def test_health_reports_db_unreachable_without_failing(client):
     assert r.json()["db"] == "unreachable"
 
 
+def test_start_database_button(client, monkeypatch):
+    from app import db
+
+    assert client.post("/demo/start-db").status_code == 409  # not on AWS: nothing to start
+    status, started = ["stopped"], []
+    monkeypatch.setattr(db, "instance_status", lambda: status[0])
+    monkeypatch.setattr(db, "start_instance", lambda: started.append(1) or "starting")
+    assert client.post("/demo/start-db").json() == {"db": "starting"} and started == [1]
+    status[0] = "starting"  # a second press while it starts does nothing
+    assert client.post("/demo/start-db").json() == {"db": "starting"} and started == [1]
+
+
 def test_users_listed_without_db(client):
     users = client.get("/users").json()
     assert [u["id"] for u in users] == ["u_priya", "u_meera", "u_anand", "u_kavita", "u_suresh",

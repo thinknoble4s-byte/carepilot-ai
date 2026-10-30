@@ -63,6 +63,24 @@ def health():
         return {"api": "ok", "db": status or "unreachable", "env": os.environ.get("APP_ENV", "local")}
 
 
+@app.post("/demo/start-db")
+def start_db():
+    """Anyone with the demo link may switch the stopped demo database on (no user: the database holds the users).
+    It stops again by itself after 60 idle minutes and every night."""
+    try:
+        status = db.instance_status()
+    except Exception:
+        raise HTTPException(503, "The database status could not be read; try again in a minute") from None
+    if status is None:
+        raise HTTPException(409, "Not running on AWS: there is no demo database to start")
+    if status != "stopped":
+        return {"db": status}
+    try:
+        return {"db": db.start_instance()}
+    except Exception:
+        raise HTTPException(503, "AWS did not start the database; try again in a minute") from None
+
+
 @app.get("/users")
 def users():
     """Synthetic users for the "Viewing as" switcher: the people in the loaded demo data set

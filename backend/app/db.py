@@ -40,3 +40,14 @@ def instance_status() -> str | None:
 
     rds = boto3.client("rds")
     return rds.describe_db_instances(DBInstanceIdentifier=instance_id)["DBInstances"][0]["DBInstanceStatus"]
+
+
+def start_instance() -> str | None:
+    """Start the stopped RDS instance (the "Start database" button). None when not on AWS."""
+    instance_id = os.environ.get("DB_INSTANCE_ID")
+    if not instance_id:
+        return None
+    import boto3
+
+    rds = boto3.client("rds")
+    return rds.start_db_instance(DBInstanceIdentifier=instance_id)["DBInstance"]["DBInstanceStatus"]

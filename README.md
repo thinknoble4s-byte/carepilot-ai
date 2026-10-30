@@ -91,6 +91,7 @@ The database stays **stopped** and is started only by the owner, for a scheduled
 | Action | How |
 |---|---|
 | Start before a demo or tests | `scripts/db.sh start` (ready in about 5 minutes; check with `scripts/db.sh status`) |
+| Collaborators without AWS access | **Start database** on the app's "Demo is paused" screen (`POST /demo/start-db`, anyone with the link); the page opens the demo by itself when it is ready |
 | Stop right after | `scripts/db.sh stop` |
 | Safety net: idle stop | Every 30 min: stopped if the API had no calls in the last 60 min (`dbIdleMinutes` in `infra/cdk.json`) |
 | Safety net: nightly stop | 21:00 IST every day (`dbStopCron`) |

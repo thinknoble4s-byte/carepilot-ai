@@ -97,7 +97,8 @@ class CarePilotStack(Stack):
             log_group=logs.LogGroup(self, "ApiLogs", retention=logs.RetentionDays.TWO_WEEKS, removal_policy=RemovalPolicy.DESTROY),
         )
         api_fn.add_to_role_policy(iam.PolicyStatement(
-            actions=["rds:DescribeDBInstances"],  # read status only; starting is owner-only
+            # Read the status, and start it from the "Start database" button. Stopping stays with the idle/nightly stop.
+            actions=["rds:DescribeDBInstances", "rds:StartDBInstance"],
             resources=[db.instance_arn],
         ))
         api_url = api_fn.add_function_url(

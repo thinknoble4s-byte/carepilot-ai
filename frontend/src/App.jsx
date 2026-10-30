@@ -245,6 +245,23 @@ export default function App() {
     if (dbUp) loadShell();
   }, [dbUp, loadShell, userId]);
 
+  // While the database is starting, look every 20 seconds; once it is up, reload so the users load too.
+  const [startErr, setStartErr] = useState('');
+  const [pressed, setPressed] = useState(false);
+  const waiting = health?.db === 'starting' || pressed;
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const t = setInterval(() => {
+      api('health').then((h) => { if (h.db === 'available') window.location.reload(); else setHealth(h); }).catch(() => {});
+    }, 20000);
+    return () => clearInterval(t);
+  }, [waiting]);
+  const startDb = () => {
+    setStartErr('');
+    setPressed(true);
+    post('demo/start-db').then((r) => setHealth((h) => ({ ...h, db: r.db }))).catch((e) => { setPressed(false); setStartErr(e.message); });
+  };
+
   // The loaded data set decides who can be picked; fall back to its first coordinator.
   useEffect(() => {
     if (users.length && !users.some((u) => u.id === userId)) {
@@ -295,8 +312,14 @@ export default function App() {
         <div className="card-title">Demo is paused</div>
         <div className="small-note">
           {health.api === 'down' ? 'The API is not reachable.' : DB_LABEL[health.db] || `Database ${health.db}`}. The demo
-          database is switched on by the CarePilot team for scheduled demos. Ask them to start it, then reload this page.
+          database is kept off between demos to save cost; it switches itself off after 60 minutes without use and every night at 21:00.
         </div>
+        {health.db === 'stopped' && !pressed && (
+          <div className="btn-row"><button type="button" className="btn primary" onClick={startDb}>Start database</button>
+            <span className="small-note">Takes about 5 minutes; this page opens the demo by itself when it is ready.</span></div>
+        )}
+        {waiting && <div className="small-note">Starting… this page checks every 20 seconds and opens the demo when the database is ready.</div>}
+        {startErr && <div className="error">{startErr}</div>}
       </div>
     );
   } else if (!user) body = <div className="card"><div className="empty">Loading…</div></div>;
