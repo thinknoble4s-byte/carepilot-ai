@@ -176,3 +176,5 @@ button.wa-tap:hover { background: #f5f6f6; }
 .vt-banner { background: var(--bad); color: #fff; font-weight: 700; font-size: 13px; padding: 8px 12px; border-radius: 8px;
   margin: 0 0 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .vt-banner .btn { background: #fff; }
+.vt-rec { display: flex; flex-direction: column; gap: 4px; flex-basis: 100%; margin-top: 4px; }
+.vt-rec audio { width: 100%; max-width: 460px; height: 36px; }

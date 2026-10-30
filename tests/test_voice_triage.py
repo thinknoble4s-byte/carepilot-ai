@@ -364,3 +364,73 @@ def test_golden_path_health_message_goes_to_voice_triage(monkeypatch, seeded, cl
         "AMBER_NAUSEA_DESPITE_MEALS"}
     assert any("2026-10-10" in w or "10 Oct" in w for w in s["result"]["why"])
     assert "Dr. Kavita Menon" in json.dumps(s["history"]["advice"])
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The call recording (the call put back together for a doctor or coordinator to check the transcript)
+# ---------------------------------------------------------------------------------------------------------------
+def wav(seconds: float, rate: int, channels: int = 1, hz: int = 440) -> bytes:
+    import io
+    import math
+    import struct
+    import wave
+
+    frames = b"".join(struct.pack("<" + "h" * channels, *[int(8000 * math.sin(2 * math.pi * hz * k / rate))] * channels)
+                      for k in range(int(seconds * rate)))
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(channels)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(frames)
+    return buf.getvalue()
+
+
+def read_wav(data: bytes) -> tuple[int, float]:
+    import io
+    import wave
+
+    with wave.open(io.BytesIO(data)) as w:
+        return w.getframerate(), w.getnframes() / w.getframerate()
+
+
+def test_call_recording_puts_the_call_back_together_and_is_audited(vt, client, monkeypatch):
+    from app import ai
+
+    monkeypatch.setattr(ai, "speak", lambda conn, text, language, cached_only=False: (wav(1.0, 22050), "audio/wav"))
+    monkeypatch.setattr(ai, "hear", lambda conn, **kw: {"transcript": "இல்லை", "translation": "No", "model": "test"})
+    voice_note(client)
+    eid = episode(client)["episode_id"]
+    client.post(f"/triage/episodes/{eid}/pickup", headers=ANITA)
+    s = client.post(f"/triage/episodes/{eid}/answer-voice", headers=ANITA,
+                    files={"file": ("answer.wav", wav(2.0, 8000, channels=2), "audio/wav")}).json()
+    assert [t for t in s["turns"] if t["who"] == "patient"][0]["value"] == "NO"  # spoken answer to question 1
+    s = client.post(f"/triage/episodes/{eid}/answer", headers=ANITA, json={"value": "YES"}).json()  # a button: Red
+    assert s["tier"] == "TIER_1_RED" and s["has_call"] is True
+
+    r = client.get(f"/triage/episodes/{eid}/recording", headers=ANANYA)
+    assert r.status_code == 200 and r.headers["content-type"] == "audio/wav"
+    rate, seconds = read_wav(r.content)
+    agent = sum(t["who"] == "agent" for t in s["turns"])
+    # Bulbul lines (1 s each), her spoken answer (2 s, 8 kHz stereo resampled), the tone for the button (0.3 s),
+    # a 0.45 s pause after each.
+    assert rate == 16000 and abs(seconds - (agent * 1.0 + 2.0 + 0.3 + (agent + 2) * 0.45)) < 0.05
+    rows = client.get("/audit", headers=ANITA, params={"mrn": MRN, "limit": 400}).json()["entries"]
+    opened = [x for x in rows if x["action"] == "triage_recording_opened"]
+    assert opened and opened[0]["actor_name"] == "u_ananya"
+    assert client.get(f"/triage/episodes/{eid}/recording", headers=NURSE).status_code == 200
+    assert client.get(f"/triage/episodes/{eid}/recording", headers=users_header("u_suresh")).status_code == 403
+    brief = client.get(f"/triage/brief/{MRN}", headers=SEKHAR).json()
+    assert any(src["kind"] == "recording" for line in brief["lines"] for src in line["sources"])
+
+
+def test_no_recording_when_she_never_answered_or_in_simulated_mode(vt, client):
+    voice_note(client)
+    eid = episode(client)["episode_id"]
+    client.post(f"/triage/episodes/{eid}/no-answer", headers=ANITA)
+    s = client.post(f"/triage/episodes/{eid}/no-answer", headers=ANITA).json()
+    assert s["red_kind"] == "NO_ANSWER" and s["has_call"] is False
+    assert client.get(f"/triage/episodes/{eid}/recording", headers=ANANYA).status_code == 404
+    s = client.post(f"/triage/episodes/{eid}/play", headers=ANITA, json={"scenario": "amber"}).json()
+    assert s["has_call"] is True  # a call took place, but simulated mode has no Bulbul audio and no voice answers
+    assert client.get(f"/triage/episodes/{s['episode_id']}/recording", headers=ANANYA).status_code == 404

@@ -261,15 +261,15 @@ def _triage_cfg(conn) -> dict:
     return {"speaker": t.get("speaker", "kavitha"), "tts_model": t.get("tts_model", "bulbul:v3")}
 
 
-def speak(conn, text: str, language: str) -> tuple[bytes, str] | None:
+def speak(conn, text: str, language: str, cached_only: bool = False) -> tuple[bytes, str] | None:
     """Bulbul audio of one fixed line, made once and kept (tts_cache). None in simulated mode or on failure: the
-    screen then shows the text only."""
+    screen then shows the text only. cached_only: never call Sarvam (a line not made yet gives None)."""
     cfg = _triage_cfg(conn)
     key = hashlib.sha256(f"{cfg['tts_model']}|{cfg['speaker']}|{language}|{text}".encode()).hexdigest()
     row = conn.execute("SELECT data, mime FROM tts_cache WHERE cache_key = %s", (key,)).fetchone()
     if row:
         return bytes(row["data"]), row["mime"]
-    if provider_name() == "fake" or not sarvam_enabled(conn):
+    if cached_only or provider_name() == "fake" or not sarvam_enabled(conn):
         return None
     p = _provider(conn)
     try:

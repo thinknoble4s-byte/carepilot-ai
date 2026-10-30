@@ -672,6 +672,34 @@ def steps(page, run: Run):
     run.case("TC-30", "Answering before the question finishes: one voice at a time", "Priya (playing Savitri)",
              "Bug: overlapping voices", "The voice stops at the answer; never two voices; closing the pop-up stops it", tc30)
 
+    def tc31():
+        persona("u_priya")
+        pane = messages("Savitri Patil")
+        replay(pane, "red")
+        tier(pane, "Red · CONFIRMED")
+        close_modal()
+        persona("u_anand")
+        tab("Voice triage")
+        card = page.locator(".card.a-bad").first
+        expect(card).to_contain_text("Savitri Patil")
+        card.get_by_role("button", name="▶ Call recording").click()
+        audio = card.locator(".vt-rec audio")
+        expect(audio).to_be_visible(timeout=60_000)
+        page.wait_for_function("(a) => a.readyState >= 1 && a.duration > 3", arg=audio.element_handle(), timeout=60_000)
+        seconds = audio.evaluate("(a) => a.duration")
+        page.wait_for_timeout(3000)  # let it play a little in the video
+        assert audio.evaluate("(a) => !a.paused || a.currentTime > 0"), "the recording did not play"
+        card.get_by_role("button", name="Call transcript").click()
+        expect(page.locator(".modal").get_by_role("button", name="▶ Call recording")).to_be_visible()
+        close_modal()
+        persona("u_priya")
+        tab("Audit trail")
+        expect(page.locator(".wrap")).to_contain_text(re.compile("triage_recording_opened|recording", re.I))
+        print(f"   recording {seconds:.1f} s", flush=True)
+    run.case("TC-31", "Oncologist plays the call recording on the Red card", "Dr. Anand Rao · Senior Oncologist",
+             "Request: call recording beside the transcript", "▶ Call recording plays the call (Bulbul lines + her answers); "
+             "also in the transcript pop-up; listening is audited", tc31)
+
 
 
 def summary_card(page, run: Run):

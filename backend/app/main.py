@@ -929,6 +929,15 @@ def triage_turn_audio(episode_id: int, index: int, _user: dict = Depends(require
     return Response(content=found[0], media_type=found[1])
 
 
+@app.get("/triage/episodes/{episode_id}/recording")
+def triage_recording(episode_id: int, user: dict = Depends(require_role(*TRIAGE_VIEW))):
+    """The whole call as one WAV (Bulbul's lines and her spoken answers in call order), to check the transcript."""
+    found = in_tx(triage.recording, episode_id, user)
+    if found is None:
+        raise HTTPException(status_code=404, detail="No call audio: she did not answer, or simulated mode (text only)")
+    return Response(content=found, media_type="audio/wav")
+
+
 @app.get("/triage/documents/{doc_id}")
 def triage_document(doc_id: int, _user: dict = Depends(require_role(*TRIAGE_VIEW))):
     doc = in_tx(triage.document, doc_id)

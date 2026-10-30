@@ -342,6 +342,42 @@ function Outcome({ ep }) {
   return <div className="small-note vt-out">Green: a digest line for the coordinator, no alert{ep.result?.repeat_advice ? '; the doctor’s own signed sentence was repeated (she reported nausea)' : ''}. Follow-up call on {fmt(ep.followup_due_on)}.</div>;
 }
 
+// The call put back together (Bulbul's lines and her spoken answers in call order) so a doctor or coordinator can
+// check what the transcript says she said. A tone marks an answer given on screen; listening is audited.
+export function CallRecording({ ep }) {
+  const [src, setSrc] = useState(null);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => () => { if (src) URL.revokeObjectURL(src); }, [src]);
+  if (!ep.has_call) return null;
+  if (src) {
+    return (
+      <div className="vt-rec">
+        <audio controls autoPlay preload="auto" src={src} onPlay={() => stopVoice()} />
+        <span className="small-note">Call recording: Bulbul's lines and her spoken answers, in call order. ♪ a short
+          tone = an answer given on screen (button or typed), no voice recorded.</span>
+      </div>
+    );
+  }
+  const open = async () => {
+    setBusy(true);
+    setErr('');
+    try {
+      setSrc(await blobUrl(`triage/episodes/${ep.episode_id}/recording`));
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <button type="button" className="btn sm ghost" disabled={busy} onClick={open}>{busy ? 'Preparing the recording…' : '▶ Call recording'}</button>
+      {err && <span className="error"> {err}</span>}
+    </>
+  );
+}
+
 // ---- Episode pop-up: transcript, answers, Why, sources ----
 export function openEpisode(ui, id) {
   ui.showModal(`Triage call #${id}`, 'The call as it happened: every line spoken (fixed templates), every answer heard and the value it became.',
@@ -355,6 +391,7 @@ function EpisodeView({ id }) {
   return (
     <>
       <Synthetic />
+      <div className="btn-row"><CallRecording ep={{ ...ep, has_call: ep.turns.some((t) => t.who === 'agent') }} /></div>
       <div className="grid-2">
         <div><Turns ep={ep} /></div>
         <div><AnswerTable table={ep.table} /><WhyPanel ep={ep} />
@@ -378,6 +415,7 @@ function Brief({ mrn }) {
   const source = (s, line) => {
     if (s.kind === 'audio') return <VoiceClip key="a" inboundId={s.inbound_id} />;
     if (s.kind === 'pdf') return <button key="p" type="button" className="btn sm ghost" onClick={() => openPdf(s.doc_id)}>{s.label}</button>;
+    if (s.kind === 'recording') return <CallRecording key="r" ep={{ episode_id: s.episode_id, has_call: true }} />;
     if (s.kind === 'transcript') return <button key="t" type="button" className="btn sm ghost" onClick={() => openEpisode(ui, s.episode_id)}>{s.label}</button>;
     if (s.kind === 'note') return <button key="n" type="button" className="btn sm ghost" onClick={() => api(`triage/episodes/${s.episode_id}`).then((e) => setNote(e.doctor_note))}>{s.label}</button>;
     if (s.kind === 'card') return <button key="c" type="button" className="btn sm ghost" onClick={() => ui.nav('plan', mrn)}>{s.label}</button>;
@@ -437,6 +475,7 @@ function Sources({ ep, brief }) {
   return (
     <div className="btn-row">
       <button type="button" className="btn sm ghost" onClick={() => openEpisode(ui, ep.episode_id)}>Call transcript</button>
+      <CallRecording ep={ep} />
       {ep.pdf_doc_id && <button type="button" className="btn sm ghost" onClick={() => openPdf(ep.pdf_doc_id)}>Emergency summary PDF</button>}
       {brief && <button type="button" className="btn sm ghost" onClick={() => openBrief(ui, ep.mrn)}>Pre-OPD brief</button>}
     </div>

@@ -17,7 +17,13 @@ switch it on (settings.voice_triage.enabled).
 
 Every sentence sent or shown is a template or a stored fact; no model writes one. SYNTHETIC DEMO only.
 """
+import array
+import io
+import math
+import sys
 import textwrap
+import time
+import wave
 from datetime import datetime, timedelta
 
 from psycopg.types.json import Jsonb
@@ -822,6 +828,7 @@ def _summary(conn, ep: dict, now: datetime) -> dict:
         "task": task, "task_overdue": bool(task and task["status"] == "open" and task["due_at_demo"]
                                            and now > task["due_at_demo"]),
         "pdf_doc_id": doc["doc_id"] if doc else None,
+        "has_call": any(t["who"] == "agent" for t in ep["turns"]),  # a call took place: there is a recording
         "now": now,
     }
 
@@ -858,7 +865,7 @@ def state(conn, episode_id: int) -> dict:
             "language": _lang(_patient(conn, ep["mrn"])), "protocol": R.PROTOCOL, "scenarios": R.SCENARIO_LABELS}
 
 
-def turn_audio(conn, episode_id: int, index: int) -> tuple[bytes, str] | None:
+def turn_audio(conn, episode_id: int, index: int, cached_only: bool = False) -> tuple[bytes, str] | None:
     ep = conn.execute("SELECT * FROM triage_episode WHERE episode_id = %s", (episode_id,)).fetchone()
     if ep is None or not 0 <= index < len(ep["turns"]):
         raise NotFound("No such turn")
@@ -869,7 +876,99 @@ def turn_audio(conn, episode_id: int, index: int) -> tuple[bytes, str] | None:
     if t["who"] != "agent":
         return None
     language = _lang(_patient(conn, ep["mrn"]))
-    return ai.speak(conn, t["ta"] if language == "Tamil" else t["en"], language)
+    return ai.speak(conn, t["ta"] if language == "Tamil" else t["en"], language, cached_only=cached_only)
+
+
+# ---- The call recording: the call put back together for a doctor or coordinator to check the transcript ----
+REC_RATE = 16_000          # phone quality, mono 16-bit
+REC_GAP_S = 0.45           # pause between turns
+REC_MAX_S = 130            # longer calls drop to 8 kHz to stay under the API's response size
+REC_TTS_BUDGET_S = 10      # Bulbul lines not made yet are made within this time (the API times out at 20 s)
+
+
+def _pcm(data: bytes) -> array.array | None:
+    """WAV bytes -> mono 16-bit samples at REC_RATE (linear resampling); None when the clip cannot be read."""
+    try:
+        with wave.open(io.BytesIO(data)) as w:
+            if w.getsampwidth() != 2:
+                return None
+            channels, rate, raw = w.getnchannels(), w.getframerate(), w.readframes(w.getnframes())
+    except (wave.Error, EOFError):
+        return None
+    s = array.array("h")
+    s.frombytes(raw[: len(raw) // 2 * 2])
+    if sys.byteorder == "big":
+        s.byteswap()
+    if channels > 1:
+        s = s[::channels]
+    if rate == REC_RATE or not s:
+        return s
+    step, last = rate / REC_RATE, len(s) - 1
+    out = array.array("h", bytes(2 * int(len(s) / step)))
+    for k in range(len(out)):
+        x = k * step
+        j = int(x)
+        a, b = s[j], s[min(j + 1, last)]
+        out[k] = int(a + (b - a) * (x - j))
+    return out
+
+
+def _silence(seconds: float) -> array.array:
+    return array.array("h", bytes(2 * int(REC_RATE * seconds)))
+
+
+def _tone(seconds: float = 0.3, hz: int = 660) -> array.array:
+    """The marker for an answer given on screen (button, typed or scripted words, keypad): no voice was recorded."""
+    n = int(REC_RATE * seconds)
+    return array.array("h", (int(2500 * math.sin(2 * math.pi * hz * k / REC_RATE)) for k in range(n)))
+
+
+def recording(conn, episode_id: int, user: dict) -> bytes | None:
+    """The whole call as one WAV, in call order: Bulbul's lines and her spoken answers; a short tone where she
+    answered on screen and a pause where she was silent. Built from what the call already stored (the Bulbul cache
+    and her recorded answers). None when there is no call audio (she did not answer, or simulated mode)."""
+    ep = _load(conn, episode_id)
+    out, voiced, missing = array.array("h"), 0, 0
+    started = time.monotonic()
+    for t in ep["turns"]:
+        if t["who"] == "agent":
+            late = time.monotonic() - started > REC_TTS_BUDGET_S
+            found = turn_audio(conn, episode_id, t["i"], cached_only=late)
+            pcm = _pcm(found[0]) if found else None
+            if pcm is None:
+                missing += 1
+                pcm = _silence(0.6)
+            else:
+                voiced += 1
+        elif t["who"] == "patient":
+            found = turn_audio(conn, episode_id, t["i"]) if t.get("audio_id") else None
+            pcm = _pcm(found[0]) if found else None
+            if pcm is not None:
+                voiced += 1
+            else:
+                pcm = _silence(1.5) if t.get("how") == "no speech" else _tone()
+        else:
+            continue
+        out.extend(pcm)
+        out.extend(_silence(REC_GAP_S))
+    if not voiced:
+        return None
+    rate = REC_RATE
+    if len(out) > REC_MAX_S * REC_RATE:
+        out, rate = out[::2], REC_RATE // 2
+    if sys.byteorder == "big":
+        out.byteswap()
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(out.tobytes())
+    audit.append(conn, actor_type="person", actor_name=user["user_id"], action="triage_recording_opened",
+                 entity_type="triage_episode", entity_id=str(episode_id), mrn=ep["mrn"],
+                 details={"seconds": round(len(out) / rate, 1), "lines_with_voice": voiced,
+                          "lines_without_audio": missing})
+    return buf.getvalue()
 
 
 def document(conn, doc_id: int) -> dict:
@@ -896,6 +995,7 @@ def brief(conn, mrn: str, days: int = 90) -> dict:
                            (mrn, since)).fetchall():
         eid = ep["episode_id"]
         src_call = {"kind": "transcript", "label": "Call transcript", "episode_id": eid}
+        src_rec = {"kind": "recording", "label": "Call recording", "episode_id": eid}
         if ep["inbound_id"]:
             words = ep["translation"] or ep["patient_words"] or ""
             lines.append({"at": ep["opened_at"].isoformat(timespec="minutes"), "kind": "message", "episode_id": eid,
@@ -907,7 +1007,8 @@ def brief(conn, mrn: str, days: int = 90) -> dict:
                           "tier": ep["result"]["tier"],
                           "text": f"Call result {TIERS[r['tier']]}" + (f" ({ep['red_kind']})" if ep["red_kind"] else "")
                                   + ": " + " ".join(r["why"]),
-                          "sources": [src_call]})
+                          "sources": [src_call, src_rec] if any(t["who"] == "agent" for t in ep["turns"])
+                          else [src_call]})
         if ep["package_sent_at"]:
             doc = conn.execute("SELECT doc_id FROM triage_document WHERE episode_id = %s", (eid,)).fetchone()
             lines.append({"at": ep["package_sent_at"].isoformat(timespec="minutes"), "kind": "red", "episode_id": eid,
