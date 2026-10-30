@@ -88,15 +88,46 @@ function AnswerTable({ table }) {
   );
 }
 
+// One voice at a time on the page, as on a real call: a new step (the caller answers before the question has
+// finished) or a click on a line stops the voice that is playing, and a line still being fetched for an earlier
+// step is dropped instead of played late.
+const voicePlayer = { audio: null, url: null, gen: 0 };
+
+function stopVoice() {
+  voicePlayer.gen += 1;
+  if (voicePlayer.audio) voicePlayer.audio.pause();
+  if (voicePlayer.url) URL.revokeObjectURL(voicePlayer.url);
+  voicePlayer.audio = null;
+  voicePlayer.url = null;
+  return voicePlayer.gen;
+}
+
+// Plays one line; resolves true when it ends, false when it was stopped or a newer step took over.
+async function playVoice(path, gen) {
+  const url = await blobUrl(path);
+  if (gen !== voicePlayer.gen) {
+    URL.revokeObjectURL(url);
+    return false;
+  }
+  if (voicePlayer.url) URL.revokeObjectURL(voicePlayer.url);
+  const audio = new Audio(url);
+  voicePlayer.audio = audio;
+  voicePlayer.url = url;
+  return new Promise((resolve) => {
+    const done = () => resolve(gen === voicePlayer.gen);  // 'pause' also fires at the natural end
+    audio.onpause = done;
+    audio.onerror = done;
+    audio.play().catch(done);
+  });
+}
+
 function Turns({ ep, tamil = true }) {
   const box = useRef(null);
   useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [ep.turns.length]);
-  const play = async (i) => {
-    try {
-      new Audio(await blobUrl(`triage/episodes/${ep.episode_id}/turns/${i}/audio`)).play();
-    } catch (e) {
-      // Simulated mode: no audio, the text is shown.
-    }
+  useEffect(() => () => stopVoice(), []);  // closing the pop-up stops the voice
+  const play = (i) => {
+    // Simulated mode has no audio: the text is shown.
+    playVoice(`triage/episodes/${ep.episode_id}/turns/${i}/audio`, stopVoice()).catch(() => {});
   };
   return (
     <div className="vt-turns" ref={box}>
@@ -173,16 +204,17 @@ export function CallPane({ patient, onChange }) {
   const seen = useRef(0);
 
   const speak = useCallback(async (e, from) => {
+    const gen = stopVoice();
     if (!voice || provider === 'fake') return;
     for (const t of e.turns.slice(from).filter((x) => x.who === 'agent')) {
       try {
-        const audio = new Audio(await blobUrl(`triage/episodes/${e.episode_id}/turns/${t.i}/audio`));
-        await new Promise((resolve) => { audio.onended = resolve; audio.onerror = resolve; audio.play().catch(resolve); });
+        if (!(await playVoice(`triage/episodes/${e.episode_id}/turns/${t.i}/audio`, gen))) return;
       } catch (err) {
         // No audio for this line: the text is on screen.
       }
     }
   }, [voice, provider]);
+  useEffect(() => () => stopVoice(), []);
 
   // Show the new state and speak the lines the call has added since the last one.
   const show_ = useCallback((e, say) => {
@@ -206,8 +238,10 @@ export function CallPane({ patient, onChange }) {
 
   const [run, error, busy] = useRun();
   const shown = (r) => { if (r) { show_(r, true); if (onChange) onChange(); } };
-  const act = (path, body, done) => run(() => post(`triage/episodes/${ep.episode_id}/${path}`, body), done).then(shown);
+  // The agent stops talking the moment she answers, not when the server replies.
+  const act = (path, body, done) => { stopVoice(); return run(() => post(`triage/episodes/${ep.episode_id}/${path}`, body), done).then(shown); };
   const sendVoice = (blob) => {
+    stopVoice();
     const fd = new FormData();
     fd.append('file', blob, 'answer.wav');
     run(() => upload(`triage/episodes/${ep.episode_id}/answer-voice`, fd)).then(shown);
@@ -223,7 +257,7 @@ export function CallPane({ patient, onChange }) {
       {!ep && <div className="small-note">No call yet. Send a voice note about her health (e.g. TA-01 below): the fixed acknowledgement goes out and the call is due within 2 minutes.</div>}
       {ep && (
         <div className="small-note">Her message: “{ep.translation || ep.patient_words}” · consent: WhatsApp, voice call and recording, family updates (lite profile).
-          <label style={{ marginLeft: 8 }}><input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} /> Play Bulbul voice{provider === 'fake' ? ' (simulated mode: text only)' : ''}</label></div>
+          <label style={{ marginLeft: 8 }}><input type="checkbox" checked={voice} onChange={(e) => { if (!e.target.checked) stopVoice(); setVoice(e.target.checked); }} /> Play Bulbul voice{provider === 'fake' ? ' (simulated mode: text only)' : ''}</label></div>
       )}
       {ep?.call_status === 'due' && ep.status === 'open' && (
         <div className="vt-ring">

@@ -36,6 +36,22 @@ T = 20_000  # ms to wait for anything on screen
 CAPTION = """
 (() => {
   if (window.__cap) return;
+  // Count the voices playing at once (TC-30: one voice at a time).
+  window.__playing = 0;
+  window.__maxPlaying = 0;
+  const play = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function (...args) {
+    if (!this.__tracked) {
+      this.__tracked = true;
+      const off = () => { if (this.__on) { this.__on = false; window.__playing -= 1; } };
+      this.addEventListener('playing', () => {
+        if (!this.__on) { this.__on = true; window.__playing += 1; }
+        window.__maxPlaying = Math.max(window.__maxPlaying, window.__playing);
+      });
+      ['pause', 'ended', 'emptied', 'error'].forEach((ev) => this.addEventListener(ev, off));
+    }
+    return play.apply(this, args);
+  };
   const make = () => {
     const box = document.createElement('div');
     box.id = '__e2e_cap';
@@ -116,7 +132,7 @@ def main():
     raw = OUT / "raw"
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=args.headless, slow_mo=120, args=["--window-size=1460,1000"])
+        browser = pw.chromium.launch(headless=args.headless, slow_mo=120, args=["--window-size=1460,1000", "--autoplay-policy=no-user-gesture-required"])
         ctx = browser.new_context(viewport={"width": 1440, "height": 900}, record_video_dir=str(raw),
                                   record_video_size={"width": 1440, "height": 900})
         ctx.add_init_script(CAPTION)
@@ -631,6 +647,30 @@ def steps(page, run: Run):
         expect(page.locator(".card.a-blue").first).to_contain_text("Savitri Patil")
     run.case("TC-29", "Golden Path: a health message goes to Voice Triage", "Priya · coordinator (Golden Path)",
              "Scope: New data set + Golden Path", "Savitri's voice note brings a triage call, not a handover", tc29)
+
+    def tc30():
+        pane = messages("Savitri Patil")
+        voice = pane.locator("input[type=checkbox]")
+        if not voice.is_checked():
+            voice.check()
+        pane.get_by_role("button", name="Pick up").click()
+        # Wait for Bulbul to start the opening line, then answer straight away, before the questions are spoken.
+        page.wait_for_function("window.__playing >= 1", timeout=60_000)
+        page.evaluate("window.__maxPlaying = window.__playing")
+        answer(pane, 1, NO)
+        page.wait_for_timeout(500)
+        assert page.evaluate("window.__playing") <= 1, "the old line kept playing after the answer"
+        page.wait_for_function("window.__playing >= 1", timeout=60_000)  # the next question is spoken
+        answer(pane, 2, NO)
+        page.wait_for_timeout(6000)
+        most = page.evaluate("window.__maxPlaying")
+        assert most <= 1, f"{most} voices played at the same time"
+        expect(pane.locator(".vt-q").first.locator(".small-note").first).to_contain_text("Question 3")
+        close_modal()
+        page.wait_for_timeout(500)
+        assert page.evaluate("window.__playing") == 0, "the voice kept playing after the pop-up closed"
+    run.case("TC-30", "Answering before the question finishes: one voice at a time", "Priya (playing Savitri)",
+             "Bug: overlapping voices", "The voice stops at the answer; never two voices; closing the pop-up stops it", tc30)
 
 
 
