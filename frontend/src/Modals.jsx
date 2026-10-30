@@ -320,6 +320,7 @@ function VoiceRecorder({ patient, onSend }) {
             <option value="Hindi">Hindi</option>
             <option value="Kannada">Kannada</option>
             <option value="Tamil">Tamil</option>
+            <option value="Telugu">Telugu</option>
             <option value="English">English</option>
             <option value="auto">Detect automatically</option>
           </select>
@@ -540,7 +541,7 @@ function Messages({ patient }) {
         <WaPhone thread={thread} patient={patient} settings={settings} english={english} coordinator={coordinator}
           now={ui.now} onTap={(m, b) => reply({ button: b.id, in_reply_to: m.id })} />
         {thread.some((m) => m.language && m.language !== 'English') && (
-          <div className="small-note" style={{ marginTop: 8 }}>Kannada, Hindi and Tamil wording are drafts — to be checked by a native speaker.</div>
+          <div className="small-note" style={{ marginTop: 8 }}>Kannada, Hindi, Tamil and Telugu wording are drafts — to be checked by a native speaker.</div>
         )}
       </div>
       <div>

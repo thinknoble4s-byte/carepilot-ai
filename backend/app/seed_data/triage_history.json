@@ -1,16 +1,15 @@
 {
-  "_note": "SYNTHETIC. Golden Path: the short record the Voice Triage call reads (arm baseline, last headache, the doctor's signed advice, earlier events) and the emergency summary prints.",
+  "_note": "SYNTHETIC. Golden Path: the short record the Voice Triage call reads (arm baseline, last headache, the doctor's signed advice, earlier events) and the emergency summary prints. Native-language text per patient: name_<code>, team.<code>, advice.<code> (ta Tamil, hi Hindi, te Telugu); drafts for a native speaker to check.",
   "SYN-0011": {
     "_note": "SYNTHETIC. What the hospital record holds for the triage call and the emergency summary.",
     "title": "Mrs. Savitri Patil",
     "name_en": "Savitri",
-    "name_ta": "சாவித்ரி",
     "age": 58,
     "sex": "female",
     "caregiver_relation": "son",
     "team": {
       "en": "the Hospital A care team",
-      "ta": "மருத்துவமனை A பராமரிப்புக் குழுவின்"
+      "hi": "अस्पताल A की देखभाल टीम"
     },
     "arm_baseline": {
       "date": "2026-10-20",
@@ -25,7 +24,7 @@
       "date": "2026-10-26",
       "by": "Dr. Kavita Menon",
       "en": "Dr. Kavita Menon advised on 26 October: take your Shelcal-HD and Neurobion Forte only after a full meal, never on an empty stomach.",
-      "ta": "அக்டோபர் 26 அன்று டாக்டர் கவிதா மேனன் அறிவுறுத்தியது: ஷெல்கால்-HD மற்றும் நியூரோபியான் ஃபோர்ட் மாத்திரைகளை முழு உணவுக்குப் பிறகு மட்டுமே எடுக்கவும்; வெறும் வயிற்றில் எடுக்க வேண்டாம்."
+      "hi": "डॉ. कविता मेनन ने 26 अक्टूबर को सलाह दी थी: शेलकाल-HD और न्यूरोबियान फ़ोर्टे की गोलियाँ सिर्फ़ पूरा खाना खाने के बाद ही लें, खाली पेट कभी नहीं।"
     },
     "events": [
       {
@@ -80,19 +79,19 @@
       "Other conditions",
       "Other medicines",
       "Blood group"
-    ]
+    ],
+    "name_hi": "सावित्री"
   },
   "SYN-0013": {
     "_note": "SYNTHETIC. What the hospital record holds for the triage call and the emergency summary.",
     "title": "Mrs. Nirmala Reddy",
     "name_en": "Nirmala",
-    "name_ta": "நிர்மலா",
     "age": 61,
     "sex": "female",
     "caregiver_relation": null,
     "team": {
       "en": "the Hospital A care team",
-      "ta": "மருத்துவமனை A பராமரிப்புக் குழுவின்"
+      "te": "ఆసుపత్రి A సంరక్షణ బృందం"
     },
     "arm_baseline": {
       "date": "2026-10-22",
@@ -107,7 +106,7 @@
       "date": "2026-10-28",
       "by": "Dr. Kavita Menon",
       "en": "Dr. Kavita Menon advised on 28 October: take your Shelcal-HD and Neurobion Forte only after a full meal, never on an empty stomach.",
-      "ta": "அக்டோபர் 28 அன்று டாக்டர் கவிதா மேனன் அறிவுறுத்தியது: ஷெல்கால்-HD மற்றும் நியூரோபியான் ஃபோர்ட் மாத்திரைகளை முழு உணவுக்குப் பிறகு மட்டுமே எடுக்கவும்; வெறும் வயிற்றில் எடுக்க வேண்டாம்."
+      "te": "డా. కవిత మీనన్ అక్టోబర్ 28 న ఇలా సూచించారు: షెల్‌కాల్-HD మరియు న్యూరోబియాన్ ఫోర్టే మాత్రలను పూర్తి భోజనం తర్వాత మాత్రమే వేసుకోండి, ఖాళీ కడుపుతో ఎప్పుడూ వేసుకోవద్దు."
     },
     "events": [
       {
@@ -152,7 +151,8 @@
       "Other conditions",
       "Other medicines",
       "Blood group"
-    ]
+    ],
+    "name_te": "నిర్మల"
   },
   "SYN-0142": {
     "_note": "SYNTHETIC. What the hospital record holds for the triage call and the emergency summary.",

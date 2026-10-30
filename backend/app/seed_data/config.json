@@ -1,6 +1,6 @@
 {
   "demo_start_date": "2026-11-02",
-  "supported_languages": ["Kannada", "Hindi", "Tamil", "English"],
+  "supported_languages": ["Kannada", "Hindi", "Tamil", "Telugu", "English"],
   "departments": ["Oncology OPD", "Laboratory", "Radiology"],
   "consent_scopes": ["whatsapp_patient", "whatsapp_caregiver", "automated_messaging", "outside_records", "external_care"],
   "identifier_options": ["name", "mrn", "phone"],

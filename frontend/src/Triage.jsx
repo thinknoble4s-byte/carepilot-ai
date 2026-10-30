@@ -1,7 +1,7 @@
-// Voice Triage MVP-lite (CarePilot_Voice_Triage_MVP_Lite_v1.1): the call pane in the phone simulator, the "Why this
-// tier" panel, the coordinator's and the doctor's Voice triage screens, the ER Desk and the Pre-OPD brief.
-// The call is simulated: Bulbul speaks the fixed Tamil lines (text only in simulated mode), the tester answers by
-// voice, words or on-screen buttons, and plain rules give Red, Amber or Green. Every screen says SYNTHETIC DEMO.
+// Voice Triage MVP-lite (CarePilot_Voice_Triage_MVP_Lite_v1.2): the call pane in the phone simulator (what the AI
+// heard and the questions the router built), the "Why this tier" panel, the Triage Room and the Pre-OPD brief.
+// The call is simulated: Bulbul speaks the fixed lines in the patient's language (Tamil, Hindi or Telugu; text only
+// in simulated mode), the tester answers by voice, words or on-screen buttons, and plain rules give Red, Amber or Green. Every screen says SYNTHETIC DEMO.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, blobUrl, post, upload } from './api.js';
 import { openMessages, toWav } from './Modals.jsx';
@@ -21,10 +21,18 @@ export function TierPill({ ep }) {
   return <Pill tone={tone}>{label}{ep.red_kind ? ` · ${KIND[ep.red_kind]}` : ''}</Pill>;
 }
 
+// The answer buttons and the follow-up line in the call's language (drafts, like the call's lines).
+const OWN = {
+  Tamil: { YES: 'ஆம்', NO: 'இல்லை', UNKNOWN: 'தெரியவில்லை', followup: 'வணக்கம். … இன்று எப்படி இருக்கிறீர்கள்: நேற்றை விட நன்றாக, அதே போல, அல்லது மோசமாக?' },
+  Hindi: { YES: 'हाँ', NO: 'नहीं', UNKNOWN: 'पता नहीं', followup: 'नमस्ते। … आज आप कैसी हैं: कल से बेहतर, वैसी ही, या ज़्यादा खराब?' },
+  Telugu: { YES: 'అవును', NO: 'లేదు', UNKNOWN: 'తెలియదు', followup: 'నమస్కారం. … ఈ రోజు మీరు ఎలా ఉన్నారు: నిన్నటి కంటే బాగా, అలాగే, లేదా ఇంకా బాగోలేదా?' },
+};
+const answerLabel = (lang, v, en) => (OWN[lang] ? `${en} · ${OWN[lang][v]}` : en);
+
 export function Synthetic() {
   return (
-    <div className="vt-synth">SYNTHETIC DEMO · Voice Triage MVP-lite · protocol DEMO_LITE · DRAFT_UNSIGNED — thresholds and Tamil
-      lines are clinician-reviewed drafts until Dr. Sekhar signs them. AI listens, code decides, people decide care.</div>
+    <div className="vt-synth">SYNTHETIC DEMO · Voice Triage MVP-lite v1.2 · DRAFT_UNSIGNED — thresholds, the new rules and the
+      Tamil, Hindi and Telugu lines are clinician-reviewed drafts until Dr. Sekhar signs them. AI listens, code decides, people decide care.</div>
   );
 }
 
@@ -62,7 +70,7 @@ export function WhyPanel({ ep }) {
   return (
     <div className={`vt-why ${TIER[ep.result.tier][1]}`}>
       <div className="card-title">Why this tier <TierPill ep={{ tier: r.tier, red_kind: r.red_kind }} />
-        {ep.tier !== r.tier && <span className="small-note">· now {TIER[ep.tier][0]} (changed by a doctor)</span>}</div>
+        {ep.tier !== r.tier && <span className="small-note">· now {TIER[ep.tier][0]} (changed by a person; see Set by)</span>}</div>
       <ul>{r.why.map((w) => <li key={w}>{w}</li>)}</ul>
       <div className="small-note">Rules: {r.reason_codes.join(', ') || 'none fired'} · action {r.action_code} ·
         {' '}{r.protocol_profile} / {r.protocol_status}{r.stopped_after_danger_sign ? ' · the call stopped at the first danger sign' : ''}.
@@ -71,15 +79,19 @@ export function WhyPanel({ ep }) {
   );
 }
 
+const MODULE = { core: 'core', history_arm: 'history', dizziness_or_vision: 'dizzy/vision', fever_chills: 'fever/chills',
+  headache: 'headache', nausea_vomiting: 'nausea', sleepiness: 'sleepy', arm_pain: 'arm pain',
+  arm_swelling_or_redness: 'arm swelling', tiredness: 'tired' };
+
 function AnswerTable({ table }) {
   return (
     <table className="vt-table">
       <thead><tr><th>#</th><th>Question</th><th>Value</th></tr></thead>
       <tbody>
-        {table.map((q) => (
+        {table.map((q, i) => (
           <tr key={q.id} className={q.asked ? '' : 'off'}>
-            <td>{q.id.slice(1)}{q.danger && <span className="vt-danger" title="Red question: an unclear answer gives Red (unconfirmed)">!</span>}</td>
-            <td>{q.en}{q.history && <span className="tag">history</span>}</td>
+            <td>{i + 1}{q.danger && <span className="vt-danger" title="Red question: an unclear answer gives Red (unconfirmed)">!</span>}</td>
+            <td>{q.en}{q.module && <span className={`tag vt-mod ${q.module === 'core' ? 'core' : ''}`}>{MODULE[q.module] || q.module}</span>}{q.history && <span className="tag">history</span>}</td>
             <td><b>{q.asked ? show(q.value) : q.skipped ? 'skipped' : 'not asked'}</b></td>
           </tr>
         ))}
@@ -121,7 +133,7 @@ async function playVoice(path, gen) {
   });
 }
 
-function Turns({ ep, tamil = true }) {
+function Turns({ ep, own = true }) {
   const box = useRef(null);
   useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [ep.turns.length]);
   useEffect(() => () => stopVoice(), []);  // closing the pop-up stops the voice
@@ -138,8 +150,8 @@ function Turns({ ep, tamil = true }) {
             <div>
               {t.who === 'agent' && <button type="button" className="vt-play" title="Play (Bulbul)" onClick={() => play(t.i)}>🔊</button>}
               {t.who === 'patient' && t.audio_id && <button type="button" className="vt-play" title="Her recorded answer" onClick={() => play(t.i)}>▶</button>}
-              {tamil && t.ta && <span className="v31-kn">{t.ta}</span>}
-              {(t.en && (!tamil || t.en !== t.ta)) && <div className="vt-en">{t.en}</div>}
+              {own && t.ta && <span className="v31-kn">{t.ta}</span>}
+              {(t.en && (!own || t.en !== t.ta)) && <div className="vt-en">{t.en}</div>}
               {t.who === 'patient' && t.value !== undefined && <div className="vt-val">→ <b>{show(t.value)}</b> <span>({t.how})</span></div>}
               {t.history && <span className="tag">history</span>}
             </div>
@@ -188,6 +200,24 @@ function AnswerRecorder({ onSend, disabled }) {
         : <button type="button" className="btn sm" disabled={disabled} onClick={start}>● Speak the answer</button>}
       {err && <span className="error"> {err}</span>}
     </>
+  );
+}
+
+// What the AI heard in her message (tags from fixed lists) and what the rules built from it: the danger core, the
+// bangles question, the modules she mentioned, and the floors her own words set. The AI chose nothing else.
+export function PlanChips({ ep }) {
+  const p = ep?.plan;
+  if (!p) return null;
+  return (
+    <div className="vt-plan">
+      <div><span className="small-note">AI heard:</span>{' '}
+        {p.tagged && p.tags_valid ? (p.heard.length ? p.heard.map((h) => <span key={h} className="vt-chip">{h}</span>)
+          : <span className="vt-chip">{p.health_related === 'UNSURE' ? 'unsure' : 'no symptom named'}</span>)
+          : <span className="vt-chip off">{p.tagged ? 'tags unusable' : 'not tagged'}</span>}</div>
+      <div className="small-note">Rules built <b>{p.question_ids.length} questions</b>: {p.modules.map((m) => m === 'fallback' ? 'the fixed 12 (the AI could not tell)' : (MODULE[m] || m)).join(' + ')}
+        {p.floors.length > 0 && <> · floor: {p.floors.map((f) => f === 'AMBER_PATIENT_SAYS_SEVERE' ? 'at least Amber (she said “severe”)' : 'at least Amber, a nurse calls (a problem we have no questions for)').join('; ')}</>}.
+        {' '}The five danger questions come first and are never skipped.</div>
+    </div>
   );
 }
 
@@ -254,11 +284,14 @@ export function CallPane({ patient, onChange }) {
       <div className="card-title">📞 Automated triage call {ep && <TierPill ep={ep} />}
         {ep && <span className="small-note">#{ep.episode_id} · {ep.call_status.replace('_', ' ')}{ep.status === 'closed' ? ' · closed' : ''}</span>}</div>
       <Synthetic />
-      {!ep && <div className="small-note">No call yet. Send a voice note about her health (e.g. TA-01 below): the fixed acknowledgement goes out and the call is due within 2 minutes.</div>}
+      {!ep && <div className="small-note">No call yet. Send a voice note about her health (e.g. TA-01 below): the AI tags it, the rules build
+        the questions, the fixed acknowledgement goes out and the call is due within 2 minutes. A message that is clearly not about health
+        (e.g. “I want to go shopping tomorrow”) gets one standard reply and no call.</div>}
       {ep && (
         <div className="small-note">Her message: “{ep.translation || ep.patient_words}” · consent: WhatsApp, voice call and recording, family updates (lite profile).
           <label style={{ marginLeft: 8 }}><input type="checkbox" checked={voice} onChange={(e) => { if (!e.target.checked) stopVoice(); setVoice(e.target.checked); }} /> Play Bulbul voice{provider === 'fake' ? ' (simulated mode: text only)' : ''}</label></div>
       )}
+      {ep && <PlanChips ep={ep} />}
       {ep?.call_status === 'due' && ep.status === 'open' && (
         <div className="vt-ring">
           <div><b>Incoming call — {ep.attempts ? 'second call' : `due by ${hm(ep.call_due_at)}`}</b><span className="small-note"> · from {ui.user?.person ? 'the clinic' : 'CarePilot'} (automated)</span></div>
@@ -270,11 +303,11 @@ export function CallPane({ patient, onChange }) {
       )}
       {ep?.call_status === 'in_call' && q && (
         <div className="vt-q">
-          <div className="small-note">Question {q.id.slice(1)}{q.history && <span className="tag">history</span>}{q.danger && <span className="tag">Red question</span>}</div>
+          <div className="small-note">Question {ep.table.findIndex((x) => x.id === q.id) + 1} of {ep.table.length}{q.history && <span className="tag">history</span>}{q.danger && <span className="tag">Red question</span>}</div>
           <div className="v31-kn vt-qta">{q.ta}</div>
           <div className="vt-en">{q.en}</div>
           <div className="btn-row">
-            {q.kind === 'yesno' && [['YES', 'Yes · ஆம்'], ['NO', 'No · இல்லை'], ['UNKNOWN', "Don't know · தெரியவில்லை"]].map(([v, l]) => (
+            {q.kind === 'yesno' && [['YES', 'Yes'], ['NO', 'No'], ['UNKNOWN', "Don't know"]].map(([v, en]) => [v, answerLabel(ep.language, v, en)]).map(([v, l]) => (
               <button key={v} type="button" className="btn sm" disabled={busy} onClick={() => act('answer', { value: v })}>{l}</button>))}
             {q.kind === 'number' && NUMBERS.map((n) => <button key={n} type="button" className="btn sm" disabled={busy} onClick={() => act('answer', { value: n })}>{n}</button>)}
             {q.kind === 'number' && <button type="button" className="btn sm" disabled={busy} onClick={() => act('answer', { value: 'UNKNOWN' })}>Don't know</button>}
@@ -282,7 +315,7 @@ export function CallPane({ patient, onChange }) {
             {q.kind === 'temperature' && <button type="button" className="btn sm" disabled={busy} onClick={() => act('answer', { value: 'NO_THERMOMETER' })}>No thermometer</button>}
           </div>
           <div className="btn-row">
-            <input className="v3-in" style={{ flex: 1, minWidth: 160 }} value={text} placeholder="Or type what she says (Tamil or English)"
+            <input className="v3-in" style={{ flex: 1, minWidth: 160 }} value={text} placeholder={`Or type what she says (${ep.language === 'English' ? 'English' : `${ep.language} or English`})`}
               onChange={(e) => setText(e.target.value)} />
             <button type="button" className="btn sm primary" disabled={busy || !text.trim()} onClick={() => { act('answer', { text }); setText(''); }}>Send words</button>
             {provider !== 'fake' && <AnswerRecorder disabled={busy} onSend={sendVoice} />}
@@ -296,7 +329,7 @@ export function CallPane({ patient, onChange }) {
           <select className="v3-in" style={{ width: 'auto' }} value={scenario} onChange={(e) => setScenario(e.target.value)}>
             {Object.entries(ep.scenarios).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
-          <button type="button" className="btn sm" disabled={busy} title="The guide's scripted Tamil answers go through the same parsing and rules"
+          <button type="button" className="btn sm" disabled={busy} title={`The guide's scripted answers (in ${ep.language}) go through the same parsing and rules`}
             onClick={() => act('play', { scenario }, (r) => `Played as ${scenario}: ${TIER[r.tier]?.[0] || r.call_status}`)}>
             {['done', 'no_answer'].includes(ep.call_status) ? 'Replay the call as' : 'Play as'}</button>
         </div>
@@ -309,7 +342,7 @@ export function CallPane({ patient, onChange }) {
         ep.followup_due ? (
           <div className="vt-q">
             <div className="card-title">Follow-up call (next day)</div>
-            <div className="v31-kn">வணக்கம். … இன்று எப்படி இருக்கிறீர்கள்: நேற்றை விட நன்றாக, அதே போல, அல்லது மோசமாக?</div>
+            {OWN[ep.language] && <div className="v31-kn">{OWN[ep.language].followup}</div>}
             <div className="vt-en">How are you today: better than yesterday, the same, or worse?</div>
             <div className="btn-row">
               {['BETTER', 'SAME', 'WORSE'].map((a) => <button key={a} type="button" className="btn sm" disabled={busy}
@@ -530,63 +563,34 @@ function Simple({ label, path, ep, done, tone = '', disabled, title }) {
   );
 }
 
-function RedCard({ ep, role, erDoctor }) {
-  const ui = useUI();
-  return (
-    <div className="card card-accent a-bad">
-      <Head ep={ep}>{ep.task_overdue && <Pill tone="bad">Overdue</Pill>}</Head>
-      {ep.doctor_note ? <div className="vt-note">{ep.doctor_note}</div>
-        : <div className="small-note" style={{ marginTop: 6 }}>{ep.result.why.join(' · ')}. No family message sent: a nurse calls back by <b>{hm(ep.callback_due_at)}</b>.</div>}
-      {ep.nurse_callback && <div className="small-note">Nurse callback ({ui.name(ep.nurse_callback.by)}, {hm(ep.nurse_callback.at)}): “{ep.nurse_callback.note}”</div>}
-      {ep.ed_calls.length > 0 && <div className="small-note">Calls to the family: {ep.ed_calls.map((c, i) => `${i + 1}) ${hm(c.at)} ${ui.name(c.by)} — ${c.outcome.replace('_', ' ')}${c.hospital ? ` (${c.hospital})` : ''}`).join(' · ')}{ep.doctor_told_at ? ' · Doctor on Duty told' : ''}</div>}
-      {ep.er_ack_by && <div className="small-note">Acknowledged at the ER Desk by {ui.name(ep.er_ack_by)} at {hm(ep.er_ack_at)}.</div>}
-      <Sources ep={ep} brief={role === 'oncologist'} />
-      {role === 'coordinator' && ep.task?.status === 'open' && (
-        <div className="vt-task"><b>Task (due {hm(ep.task.due_at_demo)}):</b> {ep.task.reason}<EdCallForm ep={ep} /></div>
-      )}
-      {['coordinator', 'er_desk'].includes(role) && ep.red_kind === 'UNCONFIRMED' && !ep.package_sent_at && (
-        <div className="btn-row"><Simple label="Send emergency package" path="send-package" ep={ep} tone="warn"
-          done="Emergency package sent: family message with the PDF, doctor note, coordinator task" /></div>
-      )}
-      {role === 'er_desk' && (
-        <>
-          {!ep.er_ack_by && <div className="btn-row"><Simple label="Acknowledge" path="acknowledge" ep={ep} done="Acknowledged" /></div>}
-          {ep.result?.action_code === 'NURSE_CALLBACK_15_MIN' && !ep.nurse_callback && (
-            <NoteAction label="Record nurse callback" path="nurse-callback" ep={ep} placeholder="What the nurse found on the call" done="Nurse callback recorded" />)}
-          {ui.user?.id === erDoctor
-            ? <NoteAction label="Close case" path="er-close" ep={ep} tone="primary" placeholder="ER doctor's closing note" done="Red case closed by the ER doctor" />
-            : <div className="small-note">Only the ER doctor closes a Red case.</div>}
-        </>
-      )}
-    </div>
-  );
+// Confirm closure (Amber): the Doctor on Duty or the coordinator, only once the 24-hour call proposed it.
+function ConfirmClosure({ ep }) {
+  if (ep.tier !== 'TIER_2_AMBER' || !(ep.doctor_order || ep.nurse_callback)) return null;
+  if (ep.state !== 'CLOSURE_PROPOSED') {
+    return <div className="btn-row"><button type="button" className="btn sm" disabled
+      title="An Amber ticket is closed only after the 24-hour call proposes closure">Confirm closure</button>
+      <span className="small-note">after the 24-hour call says “better” (now: {ep.state_label})</span></div>;
+  }
+  return <NoteAction label="Confirm closure" path="confirm-closure" ep={ep} tone="primary"
+    placeholder={ep.followup ? `Closing note (follow-up: ${ep.followup.answer.toLowerCase()})` : 'Closing note'} done="Closure confirmed; routine follow-up resumes" />;
 }
 
-function Sbar({ ep }) {
-  const h = ep.history || {};
-  return (
-    <div className="vt-sbar">
-      <div><b>S</b> {ep.full_name} sent a message (“{ep.translation || ep.patient_words}”); the automated call gave {TIER[ep.tier][0]}.
-        Callback by <b>{hm(ep.callback_due_at)}</b>{ep.callback_overdue ? <Pill tone="bad">2-hour clock passed</Pill> : null}.</div>
-      {h.clinical && <div><b>B</b> {h.clinical.treatment_done.join('; ')}. Left arm on {fmt(h.arm_baseline.date)}: {h.arm_baseline.status}. Headache {h.last_headache.score}/10 on {fmt(h.last_headache.date)}. Advice: “{h.advice.en}”</div>}
-      <div><b>Her answers</b> {ep.facts || '—'}</div>
-      <div><b>Rules that fired</b> {ep.result.reason_codes.join(', ') || 'none'}</div>
-      <div className="small-note">No assessment and no recommendation: the doctor decides the care.</div>
-    </div>
-  );
+// Acknowledge: the Amber card (Doctor on Duty, nurse or coordinator).
+function Ack({ ep }) {
+  const ui = useUI();
+  if (ep.tier !== 'TIER_2_AMBER' || ep.status !== 'open') return null;
+  if (ep.coord_ack_by) return <span className="small-note">✓ Acknowledged by {ui.name(ep.coord_ack_by)}</span>;
+  return <Simple label="Acknowledge" path="acknowledge" ep={ep} done="Acknowledged" />;
 }
 
 function DoctorActions({ ep }) {
   const [note, setNote] = useState('');
-  const [tier, setTier] = useState('');
-  const [reason, setReason] = useState('');
   const [run, error, busy] = useRun();
-  const other = ep.tier === 'TIER_2_AMBER' ? 'TIER_3_GREEN' : 'TIER_2_AMBER';
   return (
     <>
-      {ep.tier === 'TIER_2_AMBER' && !ep.doctor_order && (
+      {ep.tier === 'TIER_2_AMBER' && !ep.doctor_order && !ep.nurse_asked && (
         <div className="btn-row">
-          <input className="v3-in" style={{ flex: 1, minWidth: 160 }} placeholder="Short note (optional), e.g. pause Neurobion Forte for 5 days" value={note} onChange={(e) => setNote(e.target.value)} />
+          <input className="v3-in" style={{ flex: 1, minWidth: 160 }} placeholder="Outcome of your call (optional), e.g. pause Neurobion Forte for 5 days" value={note} onChange={(e) => setNote(e.target.value)} />
           {Object.entries(ORDER).map(([k, l]) => (
             <button key={k} type="button" className={`btn sm ${k === 'none' ? '' : 'primary'}`} disabled={busy}
               onClick={() => run(() => post(`triage/episodes/${ep.episode_id}/order`, { order: k, note }), k === 'none' ? 'No order needed — recorded' : `${l}: order card created, booking message sent`)}>{l}</button>
@@ -594,163 +598,380 @@ function DoctorActions({ ep }) {
         </div>
       )}
       {ep.doctor_order && <div className="small-note">Order: <b>{ORDER[ep.doctor_order.order]}</b>{ep.doctor_order.note ? ` — “${ep.doctor_order.note}”` : ''}</div>}
-      {ep.followup && <div className="small-note">Follow-up call: <b>{ep.followup.answer.toLowerCase()}</b> ({hm(ep.followup.at)})</div>}
-      <div className="btn-row">
-        <select className="v3-in" style={{ width: 'auto' }} value={tier} onChange={(e) => setTier(e.target.value)}>
-          <option value="">{ep.tier === 'TIER_2_AMBER' ? 'Lower tier…' : 'Raise tier…'}</option>
-          <option value={other}>{TIER[other][0]}</option>
-        </select>
-        <input className="v3-in" style={{ flex: 1, minWidth: 140 }} placeholder="Reason (required)" value={reason} onChange={(e) => setReason(e.target.value)} />
-        <button type="button" className="btn sm" disabled={busy || !tier || !reason.trim()}
-          onClick={() => run(() => post(`triage/episodes/${ep.episode_id}/tier`, { tier, reason }), 'Tier changed, with the reason recorded')}>Change tier</button>
-      </div>
-      <NoteAction label="Confirm closure" path="confirm-closure" ep={ep} tone="primary"
-        placeholder={ep.followup ? `Closing note (follow-up: ${ep.followup.answer.toLowerCase()})` : 'Closing note'} done="Closure confirmed; routine follow-up resumes" />
+      <ConfirmClosure ep={ep} />
       {error && <div className="error">{error}</div>}
     </>
   );
 }
 
-export function TriageBoard() {
-  const ui = useUI();
-  const [tab, setTab] = useState('needs');
-  const [list, , error] = useEpisodes('open');
-  const [closed] = useEpisodes('closed');
-  const [cfg, setCfg] = useState(null);
-  useEffect(() => { api('demo/settings').then((s) => setCfg(s.voice_triage)).catch(() => {}); }, []);
-  const role = ui.role;
-  const doctor = role === 'oncologist';
-  const senior = doctor && cfg && ui.user?.id === cfg.senior_oncologist;
-  const onDuty = doctor && cfg && ui.user?.id === cfg.doctor_on_duty;
-  if (!list) return <div className="card"><div className="empty">{error || 'Loading…'}</div></div>;
-  const red = list.filter((e) => e.tier === 'TIER_1_RED');
-  const amber = list.filter((e) => e.tier === 'TIER_2_AMBER');
-  const green = list.filter((e) => e.tier === 'TIER_3_GREEN');
-  const calls = list.filter((e) => ['due', 'in_call'].includes(e.call_status));
-  const followups = list.filter((e) => e.followup_due);
-  const mrns = [...new Map([...list, ...(closed || [])].map((e) => [e.mrn, e])).values()];
+// ---- The Triage Room: one staff-only screen, one ticket per case (it replaces the Voice triage and ER Desk
+// screens). The role switch shows each person their own next action; the server checks who may press what.
+const RANKS = { TIER_3_GREEN: 0, TIER_2_AMBER: 1, TIER_1_RED: 2 };
+const STATES = [['IN_DIGEST', 'In digest'], ['OPEN', 'Open'], ['ACKNOWLEDGED', 'Acknowledged'], ['OUTCOME_LOGGED', 'Outcome logged'],
+  ['CLOSURE_PROPOSED', 'Closure proposed'], ['CLOSED', 'Closed'], ['REOPENED', 'Reopened']];
+const ROLE_CARDS = [['ai', 'AI'], ['doctor', 'Doctor'], ['nurse', 'Nurse'], ['coordinator', 'Coordinator']];
+const VIEWS = [['coordinator', 'Coordinator'], ['doctor', 'Doctor'], ['nurse', 'Nurse (ER Desk)'], ['ai', 'AI']];
+// The screen is rebuilt after every action: the open ticket, the view and the tab are kept here.
+const room = { user: null, open: null, view: null, tab: 'needs' };
+
+export function myView(role, userId, cfg) {
+  if (role === 'oncologist') return 'doctor';
+  if (role === 'er_desk') return userId && userId === cfg?.er_doctor ? 'doctor' : 'nurse';
+  return 'coordinator';
+}
+
+// Does this ticket wait on this role? The doctor card is the ER doctor's on Red and the oncologists' otherwise.
+export function waitsOn(ep, view, role) {
+  if (ep.status !== 'open') return false;
+  if (view === 'doctor' && role === 'er_desk' && ep.tier !== 'TIER_1_RED') return false;
+  if (view === 'doctor' && role === 'oncologist' && ep.tier === 'TIER_1_RED') return false;
+  if (view === 'coordinator' && (['due', 'in_call'].includes(ep.call_status) || ep.followup_due)) return true;
+  const c = ep.next?.[view];
+  return !!c && !c.done && c.text !== 'Nothing';
+}
+
+function countdown(ep) {
+  if (!ep.due) return null;
+  const mins = Math.round((new Date(ep.due.at) - new Date(ep.now)) / 60000);
+  const abs = Math.abs(mins);
+  const span = abs >= 1440 ? `${Math.floor(abs / 1440)} d ${Math.floor((abs % 1440) / 60)} h`
+    : abs >= 60 ? `${Math.floor(abs / 60)} h ${abs % 60} min` : `${abs} min`;
+  return { late: mins < 0, text: mins < 0 ? `overdue ${span}` : `in ${span}` };
+}
+
+function Countdown({ ep }) {
+  const c = countdown(ep);
+  if (!c) return <span className="small-note">{ep.status === 'closed' ? 'Closed' : '—'}</span>;
   return (
-    <>
-      <ScreenHead eyebrow={`${doctor ? (senior ? 'Senior Oncologist' : onDuty ? 'Doctor on Duty' : 'Oncologist') : 'Care coordinator'} · ${ui.user?.person || ''}`}
-        title="Voice triage" sub="A health message brings an automated call; plain rules give Red, Amber or Green. Red goes to the ER Desk with the family message and PDF; Amber to the Doctor on Duty within 2 hours; Green gets the doctor's own sentence and a follow-up tomorrow." />
-      <Synthetic />
-      {doctor && red.length > 0 && red.map((e) => (
-        <div key={e.episode_id} className="vt-banner">RED alert: {e.full_name} ({e.mrn}) · {KIND[e.red_kind]} · {e.result.why.join('; ')}
-          {e.pdf_doc_id && <button type="button" className="btn sm ghost" onClick={() => openPdf(e.pdf_doc_id)}>PDF</button>}
-          <button type="button" className="btn sm ghost" onClick={() => openBrief(ui, e.mrn)}>Pre-OPD brief</button></div>
-      ))}
-      <div className="seg" style={{ margin: '6px 0 12px' }}>
-        {[['needs', `Needs ${doctor ? 'me' : 'you'} (${red.length + amber.length + calls.length + followups.length})`], ['digest', `Green digest (${green.length})`],
-          ['closed', `Closed (${closed?.length || 0})`], ...(doctor ? [['brief', 'Pre-OPD briefs']] : [])].map(([k, l]) => (
-          <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>))}
-      </div>
-      {tab === 'needs' && (
-        <>
-          {!doctor && calls.map((e) => (
-            <div key={e.episode_id} className="card card-accent a-blue">
-              <Head ep={e}><Pill tone="brand">Call {e.call_status === 'due' ? `due by ${hm(e.call_due_at)}` : 'in progress'}</Pill></Head>
-              <div className="small-note">“{e.translation || e.patient_words}” — the automated call runs in the phone simulator.</div>
-              <div className="btn-row"><button type="button" className="btn sm primary" onClick={() => openMessages(ui, e)}>Open the phone simulator</button></div>
-            </div>
-          ))}
-          {red.map((e) => <RedCard key={e.episode_id} ep={e} role={role} erDoctor={cfg?.er_doctor} />)}
-          {amber.map((e) => (
-            <div key={e.episode_id} className="card card-accent a-warn">
-              <Head ep={e}>{e.coord_ack_by && <Pill tone="gray">Acknowledged by {ui.name(e.coord_ack_by)}</Pill>}</Head>
-              <WhyPanel ep={e} />
-              <Sbar ep={e} />
-              <Sources ep={e} brief={doctor} />
-              {doctor ? <DoctorActions ep={e} /> : (
-                <>
-                  {e.doctor_order && <div className="small-note">Doctor's order: <b>{ORDER[e.doctor_order.order]}</b>{e.doctor_order.note ? ` — “${e.doctor_order.note}”` : ''}</div>}
-                  {!e.coord_ack_by && <div className="btn-row"><Simple label="Acknowledge" path="acknowledge" ep={e} done="Acknowledged" /></div>}
-                </>
-              )}
-            </div>
-          ))}
-          {followups.filter((e) => e.tier !== 'TIER_2_AMBER').map((e) => (
-            <div key={`f${e.episode_id}`} className="card card-accent a-blue">
-              <Head ep={e}><Pill tone="brand">Follow-up call due</Pill></Head>
-              {!doctor && <div className="btn-row"><button type="button" className="btn sm primary" onClick={() => openMessages(ui, e)}>Open the phone simulator</button></div>}
-            </div>
-          ))}
-          {red.length + amber.length + calls.length + followups.length === 0 && <div className="card"><div className="empty">Nothing waiting.</div></div>}
-        </>
-      )}
-      {tab === 'digest' && (
-        <div className="card">
-          <div className="card-title">Green digest</div>
-          {green.length === 0 && <div className="small-note">No Green calls open.</div>}
-          {green.map((e) => (
-            <div key={e.episode_id} className="v4-item">
-              <Head ep={e} />
-              <div className="d">{e.result.why[0]}{e.result.repeat_advice ? ' · the doctor’s signed sentence was repeated' : ''} · follow-up {fmt(e.followup_due_on)}{e.followup ? `: ${e.followup.answer.toLowerCase()}` : ''}</div>
-              <Sources ep={e} brief={doctor} />
-              {doctor && <DoctorActions ep={e} />}
-            </div>
-          ))}
-        </div>
-      )}
-      {tab === 'closed' && (
-        <div className="card">
-          {(closed || []).length === 0 && <div className="small-note">No closed episodes.</div>}
-          {(closed || []).map((e) => (
-            <div key={e.episode_id} className="v4-item">
-              <Head ep={e} />
-              <div className="d">Closed by {ui.name(e.closed_by)} {when(e.closed_at)}: “{e.close_note}”</div>
-              <Sources ep={e} brief={doctor} />
-              {!doctor && e.tier !== 'TIER_1_RED' && <NoteAction label="Reopen" path="reopen" ep={e} placeholder="Reason to reopen" done="Episode reopened" />}
-            </div>
-          ))}
-        </div>
-      )}
-      {tab === 'brief' && (
-        <div className="card">
-          <div className="card-title">Pre-OPD briefs</div>
-          {mrns.map((e) => <div key={e.mrn} className="btn-row"><button type="button" className="btn sm" onClick={() => openBrief(ui, e.mrn)}>{e.full_name} · {e.mrn}</button></div>)}
-          {mrns.length === 0 && <div className="small-note">No triage episodes yet.</div>}
-        </div>
-      )}
-    </>
+    <span className={`vt-due ${c.late ? 'late' : ''}`} title={`${ep.due.what} by ${when(ep.due.at)} (demo clock)`}>
+      ⏱ {c.text}<span className="vt-due-what"> · {ep.due.what} by {hm(ep.due.at)}</span></span>
   );
 }
 
-export function ErDesk() {
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function TierChange({ ep, cfg }) {
   const ui = useUI();
-  const [list, , error] = useEpisodes('open');
+  const [to, setTo] = useState('');
+  const [reason, setReason] = useState('');
+  const [run, error, busy] = useRun();
+  if (!['coordinator', 'oncologist', 'er_desk'].includes(ui.role)) return null;
+  const canLower = ep.tier === 'TIER_1_RED' ? ui.user?.id === cfg?.er_doctor : ui.role === 'oncologist';
+  const options = Object.keys(TIER).filter((t) => t !== ep.tier && (RANKS[t] > RANKS[ep.tier] || canLower));
+  return (
+    <div className="vt-tierchg">
+      <div className="small-note"><b>Changing the tier:</b> {ep.tier_rule}</div>
+      {options.length > 0 ? (
+        <div className="btn-row">
+          <select className="v3-in" style={{ width: 'auto' }} value={to} onChange={(e) => setTo(e.target.value)} aria-label="Change tier">
+            <option value="">Change tier…</option>
+            {options.map((t) => <option key={t} value={t}>{RANKS[t] > RANKS[ep.tier] ? 'Raise' : 'Lower'} to {TIER[t][0]}</option>)}
+          </select>
+          <input className="v3-in" style={{ flex: 1, minWidth: 140 }} placeholder="Reason (required)" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <button type="button" className="btn sm" disabled={busy || !to || !reason.trim()}
+            onClick={() => run(() => post(`triage/episodes/${ep.episode_id}/tier`, { tier: to, reason }), `Tier ${RANKS[to] > RANKS[ep.tier] ? 'raised' : 'lowered'} to ${TIER[to][0]}, with the reason recorded`)}>Change tier</button>
+        </div>
+      ) : <div className="small-note">Red is lowered only by the ER doctor.</div>}
+      {error && <div className="error">{error}</div>}
+    </div>
+  );
+}
+
+function NextCard({ k, label, ep, cfg, selected, view }) {
+  const ui = useUI();
+  const c = ep.next?.[k] || { text: 'Nothing', done: true };
+  const role = ui.role;
+  const isErDoctor = ui.user?.id === cfg?.er_doctor;
+  const open = ep.status === 'open';
+  const red = ep.tier === 'TIER_1_RED';
+  let actions = null;
+  if (open && k === 'ai' && role === 'coordinator' && (['due', 'in_call'].includes(ep.call_status) || ep.followup_due)) {
+    actions = <div className="btn-row"><button type="button" className="btn sm primary" onClick={() => openMessages(ui, ep)}>Open the phone simulator</button></div>;
+  }
+  if (open && k === 'doctor') {
+    if (role === 'oncologist' && ep.tier === 'TIER_2_AMBER') actions = <><div className="btn-row"><Ack ep={ep} /></div><DoctorActions ep={ep} /></>;
+    if (red && role === 'er_desk') {
+      const logged = ['OUTCOME_LOGGED', 'CLOSURE_PROPOSED'].includes(ep.state);
+      actions = (
+        <>
+          {!ep.er_log && <NoteAction label="Log what was done" path="er-log" ep={ep} placeholder="What was done (e.g. seen in ED, admitted)" done="Outcome logged" />}
+          {isErDoctor && logged
+            ? <NoteAction label="Close case" path="er-close" ep={ep} tone="primary" placeholder="ER doctor's closing note" done="Red case closed by the ER doctor" />
+            : <div className="btn-row"><button type="button" className="btn sm" disabled title={isErDoctor ? 'Acknowledge the alert and log what was done first' : 'Only the ER doctor can close a Red case'}>Close case</button>
+              <span className="small-note">{isErDoctor ? 'after the alert is acknowledged and the outcome logged' : 'only the ER doctor closes a Red case'}</span></div>}
+        </>
+      );
+    }
+  }
+  if (open && k === 'nurse' && role === 'er_desk') {
+    actions = (
+      <>
+        {red && !ep.er_ack_by && <div className="btn-row"><Simple label="Acknowledge the alert" path="acknowledge" ep={ep} done="Acknowledged" /></div>}
+        {ep.tier === 'TIER_2_AMBER' && <div className="btn-row"><Ack ep={ep} /></div>}
+        {ep.nurse_asked && !ep.nurse_callback && <NoteAction label="Record nurse callback" path="nurse-callback" ep={ep} placeholder="What the nurse found on the call" done="Nurse callback recorded" />}
+        {red && ep.red_kind === 'UNCONFIRMED' && !ep.package_sent_at && <div className="btn-row"><Simple label="Send emergency package" path="send-package" ep={ep} tone="warn"
+          done="Emergency package sent: family message with the PDF, doctor note, coordinator task" /></div>}
+      </>
+    );
+  }
+  if (k === 'coordinator' && role === 'coordinator') {
+    if (open && red) {
+      actions = (
+        <>
+          {ep.task?.status === 'open' && <EdCallForm ep={ep} />}
+          {ep.red_kind === 'UNCONFIRMED' && !ep.package_sent_at && <div className="btn-row"><Simple label="Send emergency package" path="send-package" ep={ep} tone="warn"
+            done="Emergency package sent: family message with the PDF, doctor note, coordinator task" /></div>}
+        </>
+      );
+    } else if (open && ep.tier === 'TIER_2_AMBER') {
+      actions = (
+        <>
+          <div className="btn-row">
+            <Ack ep={ep} />
+            {ep.doctor_order?.card_id && <button type="button" className="btn sm" onClick={() => ui.nav('plan', ep.mrn)}>Open her plan to book</button>}
+          </div>
+          <ConfirmClosure ep={ep} />
+        </>
+      );
+    } else if (open && ep.tier === 'TIER_3_GREEN' && !ep.digest_ack_by) {
+      actions = (
+        <>
+          <div className="btn-row"><Simple label="Acknowledge the digest" path="digest-ack" ep={ep} tone="primary" done="Digest acknowledged" /></div>
+          <NoteAction label="Reopen as Amber" path="reopen" ep={ep} placeholder="Reason to reopen (it becomes an open Amber ticket)" done="Reopened: now an open Amber ticket" />
+        </>
+      );
+    }
+  }
+  // Any staff reopens a closed ticket, with a reason (on their own card).
+  if (!open && k === view && ['coordinator', 'oncologist', 'er_desk'].includes(role)) {
+    actions = <NoteAction label="Reopen" path="reopen" ep={ep} placeholder="Reason to reopen" done="Ticket reopened" />;
+  }
+  const nothing = c.text === 'Nothing';
+  return (
+    <div className={`vt-ncard ${selected ? 'mine' : ''} ${c.done && !nothing ? 'done' : ''}`}>
+      <div className="vt-nrole">{label}</div>
+      <div className={nothing ? 'small-note' : ''}>{c.done && !nothing ? '✓ ' : ''}{c.text}</div>
+      {c.due_at && !c.done && <div className="small-note">Due {hm(c.due_at)}</div>}
+      {actions}
+    </div>
+  );
+}
+
+function Ticket({ id, view, cfg }) {
+  const ui = useUI();
+  const [ep, setEp] = useState(null);
+  const [src, setSrc] = useState(null);
+  const [recBusy, setRecBusy] = useState(false);
+  const [recErr, setRecErr] = useState('');
+  const player = useRef(null);
+  const seekTo = useRef(null);
+  useEffect(() => { api(`triage/episodes/${id}`).then(setEp).catch((e) => setRecErr(e.message)); }, [id]);
+  useEffect(() => () => { if (src) URL.revokeObjectURL(src); }, [src]);
+  if (!ep) return <div className="empty">{recErr || 'Loading…'}</div>;
+
+  const openRecording = async () => {
+    setRecBusy(true);
+    setRecErr('');
+    try {
+      setSrc(await blobUrl(`triage/episodes/${id}/recording`));
+      const fresh = await api(`triage/episodes/${id}`);  // where each answer starts in the recording
+      setEp(fresh);
+      return fresh;
+    } catch (e) {
+      setRecErr(e.message);
+      return null;
+    } finally {
+      setRecBusy(false);
+    }
+  };
+  // A summary line jumps to the moment in the recording where she said it.
+  const jump = async (turn) => {
+    let offsets = ep.rec_offsets;
+    if (!src) {
+      const fresh = await openRecording();
+      if (!fresh) return;
+      offsets = fresh.rec_offsets;
+    }
+    const at = offsets?.[String(turn)];
+    if (at === undefined) return;
+    stopVoice();
+    const a = player.current;
+    if (a && a.readyState >= 1) {
+      a.currentTime = at;
+      a.play().catch(() => {});
+    } else seekTo.current = at;
+  };
+  const onLoaded = () => {
+    if (seekTo.current === null || !player.current) return;
+    player.current.currentTime = seekTo.current;
+    seekTo.current = null;
+    player.current.play().catch(() => {});
+  };
+
+  return (
+    <div className="vt-ticket">
+      <div className="vt-thead">
+        <div>
+          <div className="vt-tid">{ep.ticket_id}</div>
+          <div><a role="button" tabIndex={0} onClick={() => ui.nav('plan', ep.mrn)}>{ep.full_name}</a>
+            <span className="v4-meta"> · {ep.mrn} · {ep.preferred_language} · opened {when(ep.opened_at)}</span></div>
+        </div>
+        <div className="vt-chipbig">{ep.tier ? <TierPill ep={ep} /> : <Pill tone="brand">Call {ep.call_status === 'due' ? 'due' : 'in progress'}</Pill>}
+          {' '}<span className={`vt-state s-${ep.state}`}>{ep.state_label}</span></div>
+        <Countdown ep={ep} />
+      </div>
+      {ep.owner && <div className="small-note">Waiting on: <b>{ep.owner}</b>{ep.state === 'REOPENED' ? ` · reopened ${when(ep.reopened_at)}` : ''}</div>}
+      <PlanChips ep={ep} />
+      {ep.status === 'closed' && <div className="small-note">Closed by {ui.name(ep.closed_by)} {when(ep.closed_at)}: “{ep.close_note}”</div>}
+      {ep.proposed && <div className="vt-proposed">AI proposes (a person decides): {ep.proposed.replace(/^Proposed: /, '')}</div>}
+      {ep.cover_alerted_at && ep.status === 'open' && <div className="vt-proposed late">Nobody acted on this Amber ticket in {cfg?.cover_alert_minutes || 90} minutes: the cover ({ep.cover_task?.owner_name}) was alerted at {hm(ep.cover_alerted_at)}.</div>}
+      <div className="grid-2 vt-tgrid">
+        <div>
+          <div className="card-title">Conversation</div>
+          {ep.has_call ? (
+            src ? (
+              <div className="vt-rec">
+                <audio ref={player} controls preload="auto" src={src} onLoadedMetadata={onLoaded} onPlay={() => stopVoice()} />
+                <div className="btn-row"><a className="btn sm ghost" href={src} download={`${ep.ticket_id}.wav`}>⬇ Download the recording</a></div>
+              </div>
+            ) : <div className="btn-row"><button type="button" className="btn sm" disabled={recBusy} onClick={openRecording}>{recBusy ? 'Preparing the recording…' : '▶ Call recording'}</button></div>
+          ) : <div className="small-note">No call audio yet.</div>}
+          {recErr && <div className="error">{recErr}</div>}
+          <div className="small-note">One file, in call order: the AI's questions and her answers. ♪ a short tone = an answer given on screen. Her language and the English translation:</div>
+          {ep.turns.length > 0 && <Turns ep={ep} />}
+          {/* Her voice note is for the coordinator and doctors (the ER Desk has the call recording). */}
+          {ep.inbound_id && ui.role !== 'er_desk' && <><div className="small-note">Her voice note:</div><VoiceClip inboundId={ep.inbound_id} /></>}
+        </div>
+        <div>
+          <div className="card-title">Summary <span className="small-note">facts from her answers and the record; no assessment</span></div>
+          {ep.summary.length === 0 ? <div className="small-note">No answers yet.</div> : (
+            <ul className="vt-sum">
+              {ep.summary.map((l, i) => (
+                <li key={i}>
+                  {l.turn !== null && ep.has_call
+                    ? <button type="button" className="vt-jump" title="Play from where she said it" onClick={() => jump(l.turn)}>▶{ep.rec_offsets?.[String(l.turn)] !== undefined ? ` ${mmss(ep.rec_offsets[String(l.turn)])}` : ''}</button>
+                    : <span className="tag">{l.source === 'hospital record' ? 'record' : 'answer'}</span>}
+                  {' '}{l.text}
+                </li>
+              ))}
+            </ul>
+          )}
+          {ep.tier && ep.not_asked?.length > 0 && <div className="small-note">Not asked: {ep.not_asked.join(', ')}.</div>}
+          <div className="small-note"><i>Built from her answers. Not a diagnosis.</i></div>
+          <div className="card-title">Triage status</div>
+          {ep.result ? <WhyPanel ep={ep} /> : <div className="small-note">The call has not finished: no tier yet.</div>}
+          {ep.tier_set_by && <div className="small-note">Set by: <b>{ep.tier_set_by}</b></div>}
+          {ep.er_log && <div className="small-note">Logged by {ui.name(ep.er_log.by)} at {ep.er_log.at.slice(11, 16)}: “{ep.er_log.note}”</div>}
+          {ep.tier_changes.length > 1 && <div className="small-note">Earlier changes: {ep.tier_changes.slice(0, -1).map((c) => `${TIER[c.from][0]} → ${TIER[c.to][0]} by ${ui.name(c.by)} (“${c.reason}”)`).join(' · ')}</div>}
+          {ep.status === 'open' && ep.tier && <TierChange ep={ep} cfg={cfg} />}
+        </div>
+      </div>
+      <div className="card-title">Next action</div>
+      <div className="vt-next">
+        {ROLE_CARDS.map(([k, l]) => <NextCard key={k} k={k} label={l} ep={ep} cfg={cfg} selected={k === view} view={view} />)}
+      </div>
+      <div className="btn-row">
+        {ep.doctor_note && <button type="button" className="btn sm ghost" onClick={() => ui.showModal('Doctor note', ep.ticket_id, <div className="vt-note">{ep.doctor_note}</div>)}>Doctor note</button>}
+        {ep.pdf_doc_id && <button type="button" className="btn sm ghost" onClick={() => openPdf(ep.pdf_doc_id)}>Emergency summary PDF</button>}
+        {['oncologist', 'er_desk'].includes(ui.role) && <button type="button" className="btn sm ghost" onClick={() => openBrief(ui, ep.mrn)}>Pre-OPD brief</button>}
+      </div>
+    </div>
+  );
+}
+
+export function TriageRoom() {
+  const ui = useUI();
+  const [list, reload, error] = useEpisodes('open');
   const [closed] = useEpisodes('closed');
   const [cfg, setCfg] = useState(null);
   useEffect(() => { api('demo/settings').then((s) => setCfg(s.voice_triage)).catch(() => {}); }, []);
+  // The countdowns follow the demo clock: look again now and then.
+  useEffect(() => { const t = setInterval(reload, 15000); return () => clearInterval(t); }, [reload]);
+  if (room.user !== ui.user?.id) Object.assign(room, { user: ui.user?.id, open: null, view: null, tab: 'needs' });
+  const mine = myView(ui.role, ui.user?.id, cfg);
+  const [view, setViewState] = useState(room.view);
+  const [tab, setTabState] = useState(room.tab);
+  const [open, setOpenState] = useState(room.open);
+  const [colour, setColour] = useState('');
+  const [stateF, setStateF] = useState('');
+  const shown = view || mine;
+  const setView = (v) => { room.view = v; setViewState(v); };
+  const setTab = (t) => { room.tab = t; setTabState(t); };
+  const toggle = (id) => { const next = open === id ? null : id; room.open = next; setOpenState(next); };
   if (!list) return <div className="card"><div className="empty">{error || 'Loading…'}</div></div>;
+  const doctor = ui.role === 'oncologist';
+  const senior = doctor && cfg && ui.user?.id === cfg.senior_oncologist;
   const red = list.filter((e) => e.tier === 'TIER_1_RED');
-  const nurse = list.filter((e) => e.tier === 'TIER_2_AMBER' && e.result?.action_code === 'NURSE_CALLBACK_15_MIN');
-  const isErDoctor = ui.user?.id === cfg?.er_doctor;
+  const needs = list.filter((e) => waitsOn(e, shown, ui.role));
+  const green = list.filter((e) => e.tier === 'TIER_3_GREEN');
+  // Most urgent first: Red, Amber, Green (a call still running counts as Red), then the nearest due time.
+  const urgency = (e) => -(e.tier ? RANKS[e.tier] : 2);
+  const byUrgency = (xs) => [...xs].sort((a, b) => urgency(a) - urgency(b) || String(a.due?.at || '~').localeCompare(String(b.due?.at || '~')));
+  const pick = (xs) => xs.filter((e) => (!colour || e.tier === colour) && (!stateF || e.state === stateF));
+  const rows = pick({ needs: byUrgency(needs), open: byUrgency(list), digest: byUrgency(green), closed: closed || [] }[tab] || []);
+  const mrns = [...new Map([...list, ...(closed || [])].map((e) => [e.mrn, e])).values()];
+  const viewLabel = VIEWS.find(([k]) => k === shown)?.[1];
   return (
     <>
-      <ScreenHead eyebrow={`ER Desk · ${ui.user?.person || ''}`} title="Red alerts"
-        sub="Facts-only alert cards with the doctor note and the summary PDF. Label CONFIRMED, NO ANSWER or UNCONFIRMED. Only the ER doctor closes a Red case." />
+      <ScreenHead eyebrow={`Staff only · ${senior ? 'Senior Oncologist' : doctor ? (ui.user?.id === cfg?.doctor_on_duty ? 'Doctor on Duty' : 'Oncologist') : ui.role === 'er_desk' ? 'ER Desk' : 'Care coordinator'} · ${ui.user?.person || ''}`}
+        title="Triage Room" sub="One ticket per case. The rules set Red, Amber or Green; people decide care and close the ticket. The patient never sees this screen." />
       <Synthetic />
-      {red.length === 0 && <div className="card"><div className="empty">No Red alerts open.</div></div>}
-      {red.map((e) => <RedCard key={e.episode_id} ep={e} role="er_desk" erDoctor={cfg?.er_doctor} />)}
-      {nurse.length > 0 && <div className="card-title" style={{ margin: '10px 0 8px' }}>Nurse callbacks (she pressed 0)</div>}
-      {nurse.map((e) => (
-        <div key={e.episode_id} className="card card-accent a-warn">
-          <Head ep={e} />
-          <div className="small-note">Call back by <b>{hm(e.callback_due_at)}</b>. {e.result.why.join(' · ')}</div>
-          <Sources ep={e} />
-          {e.nurse_callback ? <div className="small-note">Recorded: “{e.nurse_callback.note}”</div>
-            : <NoteAction label="Record nurse callback" path="nurse-callback" ep={e} placeholder="What the nurse found on the call" done="Nurse callback recorded" />}
-        </div>
+      {(doctor || ui.role === 'er_desk') && red.map((e) => (
+        <div key={e.episode_id} className="vt-banner">RED {e.ticket_id}: {e.full_name} ({e.mrn}) · {KIND[e.red_kind]} · {e.result?.why?.join('; ')}
+          <button type="button" className="btn sm ghost" onClick={() => { setTab('open'); room.open = e.episode_id; setOpenState(e.episode_id); }}>Open ticket</button></div>
       ))}
-      {(closed || []).filter((e) => e.tier === 'TIER_1_RED').length > 0 && (
+      <div className="vt-room-bar">
+        <div className="seg" role="group" aria-label="Role">
+          {VIEWS.map(([k, l]) => <button key={k} type="button" className={shown === k ? 'on' : ''} onClick={() => setView(k)}>{l}{k === mine ? ' (you)' : ''}</button>)}
+        </div>
+        <div className="seg" role="group" aria-label="Tickets">
+          {[['needs', `Needs ${viewLabel} (${needs.length})`], ['open', `All open (${list.length})`], ['digest', `Green digest (${green.length})`],
+            ['closed', `Closed (${closed?.length || 0})`], ...(doctor ? [['brief', 'Pre-OPD briefs']] : [])].map(([k, l]) => (
+            <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>))}
+        </div>
+        <select className="v3-in" style={{ width: 'auto' }} value={colour} onChange={(e) => setColour(e.target.value)} aria-label="Filter by colour">
+          <option value="">All colours</option>
+          {Object.entries(TIER).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+        <select className="v3-in" style={{ width: 'auto' }} value={stateF} onChange={(e) => setStateF(e.target.value)} aria-label="Filter by state">
+          <option value="">All states</option>
+          {STATES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
+      </div>
+      {tab === 'brief' ? (
         <div className="card">
-          <div className="card-title">Closed Red cases</div>
-          {closed.filter((e) => e.tier === 'TIER_1_RED').map((e) => (
-            <div key={e.episode_id} className="v4-item"><Head ep={e} /><div className="d">Closed by {ui.name(e.closed_by)} {when(e.closed_at)}: “{e.close_note}”</div></div>
-          ))}
+          <div className="card-title">Pre-OPD briefs</div>
+          {mrns.map((e) => <div key={e.mrn} className="btn-row"><button type="button" className="btn sm" onClick={() => openBrief(ui, e.mrn)}>{e.full_name} · {e.mrn}</button></div>)}
+          {mrns.length === 0 && <div className="small-note">No triage tickets yet.</div>}
+        </div>
+      ) : (
+        <div className="card vt-room">
+          {rows.length === 0 ? <div className="empty">{tab === 'needs' ? `Nothing waiting for the ${viewLabel.toLowerCase()}.` : 'No tickets.'}</div> : (
+            <table className="vt-table vt-rows">
+              <thead><tr><th>Ticket</th><th>Patient</th><th>Time</th><th>Tier · state</th><th>Due</th><th>Owner</th><th>Next action · {viewLabel}</th></tr></thead>
+              <tbody>
+                {rows.map((e) => (
+                  <React.Fragment key={e.episode_id}>
+                    <tr className={`vt-row ${open === e.episode_id ? 'on' : ''}`} onClick={() => toggle(e.episode_id)}
+                      tabIndex={0} onKeyDown={(k) => { if (k.key === 'Enter') toggle(e.episode_id); }}>
+                      <td className="vt-tid">{e.ticket_id}</td>
+                      <td>{e.full_name}<div className="small-note">{e.mrn} · {e.preferred_language}</div></td>
+                      <td>{hm(e.result_at || e.opened_at)}<div className="small-note">{fmt(String(e.opened_at).slice(0, 10))}</div></td>
+                      <td className="vt-chipbig">{e.tier ? <TierPill ep={e} /> : <Pill tone="brand">Call</Pill>}<div className={`vt-state s-${e.state}`}>{e.state_label}</div></td>
+                      <td>{e.status === 'closed' ? <span className="small-note">Closed {when(e.closed_at)}</span> : <Countdown ep={e} />}</td>
+                      <td className="small-note">{e.owner || '—'}</td>
+                      <td>{e.status === 'closed' ? <span className="small-note">{e.close_note}</span>
+                        : ['due', 'in_call'].includes(e.call_status) && shown === 'coordinator' ? 'Run the call in the phone simulator'
+                          : e.next?.[shown]?.text}</td>
+                    </tr>
+                    {open === e.episode_id && <tr className="vt-open"><td colSpan={7}><Ticket id={e.episode_id} view={shown} cfg={cfg} /></td></tr>}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
-      {!isErDoctor && <div className="small-note">Viewing as the duty nurse: switch to the ER doctor to close a case.</div>}
     </>
   );
 }

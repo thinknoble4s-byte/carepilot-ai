@@ -33,7 +33,7 @@ DRAFT_INSTRUCTION = (
 )
 INTENTS = ("booked", "help_to_book", "cant_come", "pause_request", "other")
 FORBIDDEN = re.compile(r"(severity|severe|urgent|urgency|risk|diagnos\w*|cause|triage|score|emergency)", re.I)
-LANG_CODES = {"Hindi": "hi-IN", "Kannada": "kn-IN", "Tamil": "ta-IN", "English": "en-IN"}
+LANG_CODES = {"Hindi": "hi-IN", "Kannada": "kn-IN", "Tamil": "ta-IN", "Telugu": "te-IN", "English": "en-IN"}
 
 
 class AIFailure(Exception):
@@ -126,12 +126,42 @@ FAKE_CLIPS = {
               "I will come with my son on Saturday, please give me the morning time."),
     "HI-03": ("मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।",
               "I am perfectly fine, I have no complaints."),
+    # Voice Triage: the guide's voice note (section 1.3) in Hindi (Savitri) and Telugu (Nirmala)
+    "HI-04": ("कल से मुझे बहुत नींद आ रही है, जी मिचला रहा है, सिरदर्द है, और बाईं बाँह में दर्द है।",
+              "Since yesterday I feel very sleepy, I feel nauseous, I have a headache, and pain in my left arm."),
+    "TE-01": ("నిన్నటి నుండి నాకు చాలా నిద్రగా ఉంది, వికారంగా ఉంది, తలనొప్పిగా ఉంది, ఎడమ చేతిలో నొప్పిగా ఉంది.",
+              "Since yesterday I feel very sleepy, I feel nauseous, I have a headache, and pain in my left arm."),
     # Voice Triage: Lakshmi's voice note (guide v1.1, section 1.3)
     "TA-01": ("நேற்றிலிருந்து எனக்கு ரொம்ப தூக்கமாக இருக்கிறது, குமட்டல் இருக்கிறது, தலைவலி இருக்கிறது, இடது கையில் வலி இருக்கிறது.",
               "Since yesterday I feel very sleepy, I have nausea, a headache, and pain in my left arm."),
+    # Voice Triage v1.2: severe arm pain, tired, shopping, in each patient's language
+    "HI-05": ("मेरे बाएँ हाथ में बहुत तेज़ दर्द है।", "I have severe pain in my left arm."),
+    "HI-06": ("पिछले दस दिनों से मैं बहुत थकी हुई महसूस कर रही हूँ।", "I have been feeling very tired for the last ten days."),
+    "HI-07": ("मैं कल शॉपिंग के लिए जाना चाहती हूँ।", "I want to go shopping tomorrow."),
+    "TE-02": ("నా ఎడమ చేతిలో తీవ్రమైన నొప్పి ఉంది.", "I have severe pain in my left arm."),
+    "TE-03": ("గత పది రోజులుగా నాకు చాలా అలసటగా ఉంది.", "I have been feeling very tired for the last ten days."),
+    "TE-04": ("నేను రేపు షాపింగ్‌కి వెళ్లాలనుకుంటున్నాను.", "I want to go shopping tomorrow."),
+    "TA-02": ("என் இடது கையில் கடுமையான வலி இருக்கிறது.", "I have severe pain in my left arm."),
+    "TA-03": ("கடந்த பத்து நாட்களாக எனக்கு ரொம்ப சோர்வாக இருக்கிறது.", "I have been feeling very tired for the last ten days."),
+    "TA-04": ("நான் நாளைக்கு ஷாப்பிங் போக வேண்டும்.", "I want to go shopping tomorrow."),
 }
 HEALTH_WORDS = re.compile(r"pain|ache|hurt|fever|swell|bleed|breath|sick|unwell|tablet|medicine|side effect|doctor|"
-                          r"worried|concern|दर्द|बुखार|डॉक्टर|डाक्टर|ನೋವು|ಜ್ವರ|வலி|காய்ச்சல்|குமட்டல்|வாந்தி|மருத்துவர்", re.I)
+                          r"worried|concern|दर्द|बुखार|डॉक्टर|डाक्टर|ನೋವು|ಜ್ವರ|வலி|காய்ச்சல்|குமட்டல்|வாந்தி|மருத்துவர்|"
+                          r"उल्टी|जी मिचला|నొప్పి|జ్వరం|వికారం|వాంతి|డాక్టర్", re.I)
+
+FAKE_TAGS = (  # the simulated tagger: English words in the translation -> a tag from the fixed list
+    ("headache", re.compile(r"headache", re.I)),
+    ("nausea_vomiting", re.compile(r"nause|vomit", re.I)),
+    ("sleepiness", re.compile(r"sleepy|drowsy|groggy", re.I)),
+    ("tiredness", re.compile(r"tired|weak", re.I)),
+    ("arm_pain", re.compile(r"(pain|hurts?|aches?) in my (left )?arm|arm (pain|hurts)", re.I)),
+    ("arm_swelling_or_redness", re.compile(r"arm is (swollen|red)|swelling|swollen", re.I)),
+    ("fever_chills", re.compile(r"fever|chills|shiver", re.I)),
+    ("chest_or_breathing", re.compile(r"chest|breath", re.I)),
+    ("dizziness_or_vision", re.compile(r"dizz|vision|blurr", re.I)),
+    ("other_symptom", re.compile(r"rash|itch|cough|bleed", re.I)),
+)
+SEVERE_WORDS = re.compile(r"severe|unbearable|very bad", re.I)
 
 
 class Fake:
@@ -155,6 +185,12 @@ class Fake:
         if "Return the JSON now" in user:  # Voice Triage answer value: the simulated model cannot tell
             return '{"value": "UNKNOWN"}'
         message = user.split("Message:", 1)[-1]
+        if "Return only JSON with three fields" in user:  # Voice Triage v1.2 tagger: fixed word rules
+            symptoms = [tag for tag, words in FAKE_TAGS if words.search(message)]
+            other = re.search(r"shopping|travel|wedding|hello|thank|will come|booked|appointment", message, re.I)
+            health = "YES" if symptoms or HEALTH_WORDS.search(message) else "NO" if other else "UNSURE"
+            return json.dumps({"health_related": health, "symptoms": symptoms,
+                               "severity_word": "SEVERE" if SEVERE_WORDS.search(message) else "NONE"})
         if "Answer yes or no" in user:
             return "yes" if HEALTH_WORDS.search(message) else "no"
         intent = "booked" if re.search(r"come|booked|आऊँगी|शनिवार", message, re.I) else "other"
@@ -209,9 +245,15 @@ def validate_draft(answer: str) -> dict | None:
 
 
 def understand(conn, *, language: str, audio: bytes | None = None, mime: str = "audio/wav",
-               text: str | None = None, clip_id: str | None = None) -> dict:
+               text: str | None = None, clip_id: str | None = None, tags: bool = False) -> dict:
     """Text in the patient's language, an English translation and the one yes/no flag.
-    Any failure on the way makes the flag 'yes' (the safe path)."""
+    Any failure on the way makes the flag 'yes' (the safe path).
+
+    tags=True (Voice Triage v1.2, for patients on the triage path): the model tags the message from fixed lists
+    instead of the yes/no question; the router reads the tags, and the flag is "no" only on the router's standard
+    reply route. Broken or missing tags count as health (the fixed 12 questions)."""
+    if tags:
+        return _understand_tags(conn, language=language, audio=audio, mime=mime, text=text, clip_id=clip_id)
     p, errors, attempts = _provider(conn), [], 0
     if audio is not None:
         transcript, n1 = _tries(conn, lambda: p.speech(audio, mime, language, "transcribe", clip_id), errors)
@@ -235,6 +277,37 @@ def understand(conn, *, language: str, audio: bytes | None = None, mime: str = "
             "unsure": flag is None, "attempts": attempts, "errors": errors,
             "model": f"{p.stt_model} + {p.llm_model}" + (" (simulated)" if isinstance(p, Fake) else ""),
             "prompt_version": FLAG_PROMPT_VERSION}
+
+
+def _understand_tags(conn, *, language, audio, mime, text, clip_id) -> dict:
+    from . import triage_router
+
+    p, errors, attempts = _provider(conn), [], 0
+    if audio is not None:
+        transcript, n1 = _tries(conn, lambda: p.speech(audio, mime, language, "transcribe", clip_id), errors)
+        translation, n2 = _tries(conn, lambda: p.speech(audio, mime, language, "translate", clip_id), errors)
+        attempts = max(n1, n2)
+    else:
+        transcript = text
+        translation, attempts = _tries(conn, lambda: p.translate(text, language), errors)
+    raw, failed = None, transcript is None or translation is None
+    if not failed:
+        answer, n = _tries(conn, lambda: p.chat(
+            "You tag a patient's message from fixed lists. You never give advice and never judge how serious it is.",
+            f"{triage_router.TAG_PROMPT}\n\nMessage: {transcript}\n(English translation: {translation})"), errors)
+        attempts = max(attempts, n)
+        raw = triage_router.parse_tags(answer) if answer is not None else None
+        if answer is None:
+            failed = True
+        elif triage_router.clean_tags(raw)["valid"] is False:
+            errors.append(f"tags unusable {answer[:60]!r}: the fixed 12 questions are asked")
+    r = triage_router.route(raw)
+    return {"transcript": transcript, "translation": translation,
+            "flag": "no" if r["route"] == "STANDARD_REPLY" else "yes", "failed": failed,
+            "unsure": not r["tags"]["valid"] or r["tags"]["health_related"] == "UNSURE", "attempts": attempts,
+            "errors": errors, "tags": raw, "clean_tags": r["tags"], "route": r["route"],
+            "model": f"{p.stt_model} + {p.llm_model}" + (" (simulated)" if isinstance(p, Fake) else ""),
+            "prompt_version": triage_router.TAG_PROMPT_VERSION}
 
 
 def draft(conn, *, transcript: str, translation: str) -> dict:

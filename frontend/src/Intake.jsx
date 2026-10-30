@@ -5,7 +5,7 @@ import { Placeholder, ScreenHead, useUI } from './ui.jsx';
 
 const TABS = [['docs', 'Documents'], ['appt', 'Appointment list'], ['reg', 'Follow-up register']];
 const REGISTER_COLUMNS = [['mrn', 'MRN (unique key, SYN-0000)'], ['full_name', 'Name'], ['phone', 'Phone (+91…)'],
-  ['caregiver_name', 'Caregiver name'], ['caregiver_phone', 'Caregiver phone'], ['preferred_language', 'Preferred language (Kannada, Hindi, Tamil, English)']];
+  ['caregiver_name', 'Caregiver name'], ['caregiver_phone', 'Caregiver phone'], ['preferred_language', 'Preferred language (Kannada, Hindi, Tamil, Telugu, English)']];
 const APPT_COLUMNS = [['mrn', 'MRN (must match a patient)'], ['appointment_date', 'Date (YYYY-MM-DD)'], ['department', 'Department']];
 
 function Upload({ source }) {

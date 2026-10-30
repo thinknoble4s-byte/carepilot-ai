@@ -7,21 +7,21 @@ import Indicators from './Indicators.jsx';
 import Intake from './Intake.jsx';
 import PatientPage from './PatientPage.jsx';
 import Timeline from './Timeline.jsx';
-import { ErDesk, TriageBoard } from './Triage.jsx';
+import { myView, TriageRoom, waitsOn } from './Triage.jsx';
 import Worklist from './Worklist.jsx';
 import { fmt, Modal, Scope, UI } from './ui.jsx';
 
 // Tabs per role, as in prototype v7.2: [id, label, count key].
 const TABS = {
-  coordinator: [['worklist', 'Workspace', 'workspace'], ['triage', 'Voice triage', 'triage'], ['journey', 'Patient journey'],
+  coordinator: [['worklist', 'Workspace', 'workspace'], ['triage', 'Triage Room', 'triage'], ['journey', 'Patient journey'],
     ['intake', 'Intake & verification', 'exceptions'], ['audit', 'Audit trail'], ['programme', 'Care Plan']],
-  oncologist: [['decide', 'Needs my decision', 'decisions'], ['triage', 'Voice triage', 'triage'], ['journey', 'Patient journey'],
+  oncologist: [['decide', 'Needs my decision', 'decisions'], ['triage', 'Triage Room', 'triage'], ['journey', 'Patient journey'],
     ['audit', 'Audit trail'], ['programme', 'Care Plan']],
   chief: [['programme', 'Performance Indicators']],
-  // Voice Triage: the ER Desk (duty nurse and ER doctor) sees the Red alerts only.
-  er_desk: [['erdesk', 'ER Desk', 'erdesk']],
+  // Voice Triage: the ER Desk (duty nurse and ER doctor) works in the Triage Room, as one of its role views.
+  er_desk: [['triage', 'Triage Room', 'triage']],
 };
-const HOME = { coordinator: 'worklist', oncologist: 'decide', chief: 'programme', er_desk: 'erdesk' };
+const HOME = { coordinator: 'worklist', oncologist: 'decide', chief: 'programme', er_desk: 'triage' };
 
 function readTheme() {
   try {
@@ -135,8 +135,9 @@ function ResetChoice({ onReset }) {
       </div>
       <div className="card-flat">
         <div className="card-title">Golden Path data</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>Savitri Patil (SYN-0011, the demo patient), Nirmala Reddy (SYN-0013)
-          and Lakshmi V. (SYN-0142, for Voice Triage: son Karthik, her 10 Oct and 19 Oct history), all Tamil; Priya and Meera. Everything switched on, including the test cycle: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Savitri Patil (SYN-0011, the demo patient, Hindi), Nirmala Reddy
+          (SYN-0013, Telugu) and Lakshmi V. (SYN-0142, Tamil; for Voice Triage: son Karthik, her 10 Oct and 19 Oct history); Priya and
+          Meera. Each patient's messages and triage call are in her own language (voice notes HI-04, TE-01, TA-01). Everything switched on, including the test cycle: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
           tasks for people. A health message goes to Voice Triage (the call, Red, Amber or Green; the ER Desk joins); HELP still
           opens a handover.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('step_a')}>Reset to Golden Path</button></div>
@@ -194,9 +195,8 @@ export default function App() {
       setDemoSettings(d);
       if (d.voice_triage?.enabled && role !== 'chief') {
         const open = await api('triage/episodes');
-        const busy = (e) => e.tier === 'TIER_1_RED' || (role !== 'er_desk' && (e.tier === 'TIER_2_AMBER' || e.followup_due
-          || (role === 'coordinator' && ['due', 'in_call'].includes(e.call_status))));
-        next[role === 'er_desk' ? 'erdesk' : 'triage'] = open.filter(busy).length;
+        const view = myView(role, userId, d.voice_triage);
+        next.triage = open.filter((e) => waitsOn(e, view, role)).length;
       }
       if (role === 'coordinator') {
         const w = await api('worklist');
@@ -208,7 +208,7 @@ export default function App() {
     } catch (e) {
       // Counts are a convenience; the screens show their own errors.
     }
-  }, [role]);
+  }, [role, userId]);
 
   const refresh = useCallback(() => {
     setVersion((v) => v + 1);
@@ -303,8 +303,7 @@ export default function App() {
   else if (current === 'worklist') body = <Worklist key={version} />;
   else if (current === 'plan') body = <PatientPage key={`${version}-${pid}`} mrn={pid} />;
   else if (current === 'decide') body = <Decisions key={version} />;
-  else if (current === 'triage') body = <TriageBoard key={version} />;
-  else if (current === 'erdesk') body = <ErDesk key={version} />;
+  else if (current === 'triage') body = <TriageRoom key={version} />;
   else if (current === 'journey') body = <Timeline key={`${version}-${pid}`} mrn={pid} />;
   else if (current === 'intake') body = <Intake key={version} />;
   else if (current === 'audit') body = <AuditTrail key={`${version}-${auditMrn}`} mrn={auditMrn} users={users} />;

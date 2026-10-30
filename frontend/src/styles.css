@@ -178,3 +178,51 @@ button.wa-tap:hover { background: #f5f6f6; }
 .vt-banner .btn { background: #fff; }
 .vt-rec { display: flex; flex-direction: column; gap: 4px; flex-basis: 100%; margin-top: 4px; }
 .vt-rec audio { width: 100%; max-width: 460px; height: 36px; }
+
+/* The Triage Room: one row per ticket; the open ticket below its row. */
+.vt-room-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; }
+.vt-room-bar .seg { flex-wrap: wrap; }
+.vt-room { overflow-x: auto; }
+.vt-rows .vt-row { cursor: pointer; }
+.vt-rows .vt-row:hover td, .vt-rows .vt-row.on td { background: var(--canvas); }
+.vt-rows .vt-row:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.vt-rows tr.vt-open > td { padding: 0 0 12px; }
+.vt-tid { font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+.vt-chipbig .pill { font-size: 14px; font-weight: 800; padding: 4px 12px; }
+.vt-due { font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+.vt-due.late { color: var(--bad); }
+.vt-due-what { font-weight: 400; color: var(--mist); white-space: normal; }
+.vt-ticket { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-top: 4px; background: var(--paper); }
+.vt-thead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); margin-bottom: 8px; }
+.vt-thead .vt-tid { font-size: 15px; }
+.vt-tgrid { margin: 8px 0; }
+.vt-proposed { font-size: 12.5px; padding: 6px 10px; border-radius: 6px; background: var(--brand-tint); margin: 6px 0; }
+.vt-proposed.late { background: var(--bad-tint); }
+.vt-sum { list-style: none; margin: 4px 0 10px; padding: 0; font-size: 13px; }
+.vt-sum li { padding: 3px 0; border-bottom: 1px solid var(--line-soft); }
+.vt-jump { border: 1px solid var(--line); background: var(--canvas); border-radius: 6px; cursor: pointer; font-size: 11.5px;
+  padding: 1px 6px; font-variant-numeric: tabular-nums; }
+.vt-jump:focus-visible { outline: 2px solid var(--brand); }
+.vt-tierchg { margin: 6px 0; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 6px; }
+.vt-next { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 6px 0 8px; }
+.vt-ncard { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; min-width: 0; }
+.vt-ncard.mine { border: 2px solid var(--brand); }
+.vt-ncard.done { background: var(--good-tint); }
+.vt-nrole { font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--slate); margin-bottom: 4px; }
+@media (max-width: 900px) { .vt-next { grid-template-columns: repeat(2, minmax(0, 1fr)); } .vt-tgrid { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .vt-next { grid-template-columns: 1fr; } }
+
+/* Voice Triage v1.2: what the AI heard, module tags, ticket states */
+.vt-plan { margin: 6px 0; padding: 6px 8px; border-radius: 8px; background: var(--surface-2, rgba(0,0,0,.03)); }
+.vt-chip { display: inline-block; margin: 0 4px 2px 0; padding: 1px 8px; border-radius: 999px; font-size: 12px;
+  background: var(--brand-soft, #e6effb); color: var(--brand, #1d4ed8); }
+.vt-chip.off { background: rgba(0,0,0,.06); color: inherit; }
+.tag.vt-mod { opacity: .8; }
+.tag.vt-mod.core { font-weight: 700; }
+.vt-state { display: inline-block; margin-top: 2px; padding: 1px 7px; border-radius: 6px; font-size: 11.5px; font-weight: 600;
+  background: rgba(0,0,0,.06); white-space: nowrap; }
+.vt-state.s-OPEN, .vt-state.s-REOPENED { background: #fde8e8; color: #9b1c1c; }
+.vt-state.s-ACKNOWLEDGED, .vt-state.s-OUTCOME_LOGGED { background: #fef3c7; color: #92400e; }
+.vt-state.s-CLOSURE_PROPOSED { background: #e0f2fe; color: #075985; }
+.vt-state.s-CLOSED, .vt-state.s-IN_DIGEST { background: #dcfce7; color: #166534; }

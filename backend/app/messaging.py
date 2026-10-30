@@ -106,7 +106,7 @@ def render(tmpl: dict, patient: dict, card: dict | None, extra: dict | None = No
     return f"{text}\n\n{tmpl['closing']}" if tmpl.get("closing") else text
 
 
-APPOINTMENT = {"English": "Appointment", "Hindi": "अपॉइंटमेंट", "Kannada": "ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್", "Tamil": "அப்பாயின்ட்மென்ட்"}
+APPOINTMENT = {"English": "Appointment", "Hindi": "अपॉइंटमेंट", "Kannada": "ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್", "Tamil": "அப்பாயின்ட்மென்ட்", "Telugu": "అపాయింట్‌మెంట్"}
 
 
 def what_booked(card: dict | None, lang: str) -> str:

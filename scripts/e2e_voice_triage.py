@@ -215,7 +215,8 @@ def steps(page, run: Run):
 
     def voice_note(name=LAKSHMI):
         pane = messages(name)
-        page.locator("#msgV").select_option("TA-01")
+        # Each Golden Path patient's own voice note: Savitri Hindi, Nirmala Telugu, Lakshmi Tamil.
+        page.locator("#msgV").select_option({"Savitri Patil": "HI-04", "Nirmala Reddy": "TE-01"}.get(name, "TA-01"))
         page.get_by_role("button", name="Send voice note").click()
         expect(pane.locator(".vt-ring")).to_contain_text("Incoming call", timeout=60_000)
         return pane
@@ -235,6 +236,7 @@ def steps(page, run: Run):
         pane.get_by_role("button", name=re.compile("^(Replay the call as|Play as)$")).click()
 
     YES, NO, DK = "Yes · ஆம்", "No · இல்லை", "Don't know · தெரியவில்லை"
+    NO_HI = "No · नहीं"  # Savitri's call is in Hindi
     state = {}
 
     # -- set-up and Scenario A
@@ -646,7 +648,7 @@ def steps(page, run: Run):
         tab("Voice triage")
         expect(page.locator(".card.a-blue").first).to_contain_text("Savitri Patil")
     run.case("TC-29", "Golden Path: a health message goes to Voice Triage", "Priya · coordinator (Golden Path)",
-             "Scope: New data set + Golden Path", "Savitri's voice note brings a triage call, not a handover", tc29)
+             "Scope: New data set + Golden Path", "Savitri's Hindi voice note (HI-04) brings a triage call, not a handover", tc29)
 
     def tc30():
         pane = messages("Savitri Patil")
@@ -657,11 +659,11 @@ def steps(page, run: Run):
         # Wait for Bulbul to start the opening line, then answer straight away, before the questions are spoken.
         page.wait_for_function("window.__playing >= 1", timeout=60_000)
         page.evaluate("window.__maxPlaying = window.__playing")
-        answer(pane, 1, NO)
+        answer(pane, 1, NO_HI)
         page.wait_for_timeout(500)
         assert page.evaluate("window.__playing") <= 1, "the old line kept playing after the answer"
         page.wait_for_function("window.__playing >= 1", timeout=60_000)  # the next question is spoken
-        answer(pane, 2, NO)
+        answer(pane, 2, NO_HI)
         page.wait_for_timeout(6000)
         most = page.evaluate("window.__maxPlaying")
         assert most <= 1, f"{most} voices played at the same time"

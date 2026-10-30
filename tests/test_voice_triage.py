@@ -1,5 +1,6 @@
-"""Voice Triage MVP-lite (CarePilot_Voice_Triage_MVP_Lite_v1.1): the rules, the call, the Red package and PDF, the
-Amber order, the Green coaching, the follow-up, closure and the Pre-OPD brief. Synthetic data only."""
+"""Voice Triage MVP-lite (CarePilot_Voice_Triage_MVP_Lite_v1.2): the router, the rules, the call, the Red package and
+PDF, the Amber order, the Green coaching, the follow-up, ticket states, closure and the Pre-OPD brief. Synthetic data
+only."""
 import json
 from datetime import date
 from pathlib import Path
@@ -8,6 +9,7 @@ import pytest
 
 from conftest import users_header
 
+from app import triage_router as TR
 from app import triage_rules as R
 
 ANITA, RAVI = users_header("u_anita"), users_header("u_ravi")
@@ -30,26 +32,38 @@ def answers(**kw) -> dict:
     return a
 
 
-def run_script(scenario: str) -> tuple[dict, dict]:
-    """The scripted Tamil answers through the parser, as the call does."""
-    a, script = R.blank(), R.SCENARIOS[scenario]
-    q = R.next_question(LAKSHMI, a, None)
+HERO = {"health_related": "YES", "symptoms": ["sleepiness", "nausea_vomiting", "headache", "arm_pain"],
+        "severity_word": "NONE"}  # the tags of the hero voice note (guide 6.1)
+SEVERE_ARM = {"health_related": "YES", "symptoms": ["arm_pain"], "severity_word": "SEVERE"}
+TIRED = {"health_related": "YES", "symptoms": ["tiredness"], "severity_word": "NONE"}
+SHOPPING = {"health_related": "NO", "symptoms": [], "severity_word": "NONE"}
+RASH = {"health_related": "YES", "symptoms": ["rash on the back"], "severity_word": "NONE"}
+
+
+def run_script(scenario: str, lang: str = "Tamil", tags=HERO) -> tuple[dict, dict]:
+    """The router's plan for the tags, then the scripted answers (Tamil unless said) through the parser, as the
+    call does."""
+    plan = TR.plan(LAKSHMI, tags)
+    ids = plan["question_ids"]
+    a, script = R.blank(), R.scenarios(lang)[scenario]
+    q = R.next_question(LAKSHMI, a, None, ids)
     while q is not None:
         said = script.get(q.id)
         value = R.check(q.kind, R.parse(q.kind, said))
         R.store(a, q, value)
         if R.red_codes(a):
             break
-        q = R.next_question(LAKSHMI, a, q.id)
-    return a, R.triage(a, LAKSHMI, TODAY)
+        q = R.next_question(LAKSHMI, a, q.id, ids)
+    return a, R.triage(a, LAKSHMI, TODAY, floors=plan["floors"], profile=plan["profile"])
 
 
-def test_amber_hero_scene_gives_the_guides_four_reasons():
+def test_amber_hero_scene_gives_the_guides_five_reasons():
     a, r = run_script("amber")
     assert r["tier"] == "TIER_2_AMBER" and r["action_code"] == "DOCTOR_CALLBACK_2H" and r["response_minutes"] == 120
-    assert r["reason_codes"] == ["AMBER_BANGLES_TIGHTER_THAN_BASELINE", "AMBER_HEADACHE_RISE_2_PLUS",
-                                 "AMBER_HEADACHE_WORSE_THAN_LAST_TIME", "AMBER_NAUSEA_DESPITE_MEALS"]
-    assert (r["protocol_profile"], r["protocol_status"]) == ("DEMO_LITE", "DRAFT_UNSIGNED")
+    assert sorted(r["reason_codes"]) == ["AMBER_BANGLES_TIGHTER_THAN_BASELINE", "AMBER_DROWSY_MOST_OF_TODAY",
+                                         "AMBER_HEADACHE_RISE_2_PLUS", "AMBER_HEADACHE_WORSE_THAN_LAST_TIME",
+                                         "AMBER_NAUSEA_DESPITE_MEALS"]
+    assert (r["protocol_profile"], r["protocol_status"]) == ("ROUTED", "DRAFT_UNSIGNED")
     why = R.why_lines(r, a, LAKSHMI)
     assert why[0] == "Left arm: no swelling and loose bangles on 10 October. Today: bangles tighter."
     assert why[1] == "Headache: 2 out of 10 on 19 October. Today: 5 out of 10."
@@ -66,10 +80,120 @@ def test_green_repeats_only_the_doctors_signed_sentence():
     assert LAKSHMI["advice"]["en"] not in R.closing(R.triage(a2, LAKSHMI, TODAY), LAKSHMI)[1]
 
 
-def test_red_stops_at_question_two():
+@pytest.mark.parametrize("lang", ["Hindi", "Telugu"])
+def test_hindi_and_telugu_answers_give_the_same_tiers_as_tamil(lang):
+    for scenario in R.SCENARIO_LABELS:
+        tamil, own = run_script(scenario), run_script(scenario, lang)
+        assert own[0] == tamil[0], (lang, scenario)
+        assert (own[1]["tier"], own[1]["reason_codes"]) == (tamil[1]["tier"], tamil[1]["reason_codes"]), scenario
+
+
+def test_the_call_speaks_the_patients_language():
+    for lang, word, month in (("Hindi", "नमस्ते", "26 अक्टूबर"), ("Telugu", "నమస్కారం", "అక్టోబర్ 26"),
+                              ("Tamil", "வணக்கம்", "அக்டோபர் 26"), ("English", "Hello", "26 October")):
+        h = {**LAKSHMI, "language": lang, "last_headache": {"date": "2026-10-26", "score": 3}}
+        assert R.messages(h)["open"][0].startswith(word) and month in R.question(h, "Q_HEAD_WORSE").ta, lang
+        assert all(q.ta for q in R.bank(h)), lang  # every question of the bank in her language
+    assert R.parse("yesno", "हाँ, थोड़ा सा") == R.YES and R.parse("yesno", "లేదు") == R.NO
+    assert R.parse("yesno", "पता नहीं") == R.UNKNOWN and R.parse("number", "ఐదు") == 5.0
+    assert R.parse("temperature", "थर्मामीटर नहीं है") == R.NO_THERMOMETER
+    assert R.parse_followup("కొంచెం బాగుంది") == "BETTER" and R.parse_followup("ज़्यादा खराब") == "WORSE"
+
+
+def test_red_stops_at_the_arm_question():
     a, r = run_script("red")
     assert (r["tier"], r["red_kind"], r["reason_codes"]) == ("TIER_1_RED", "CONFIRMED", ["RED_ARM_RED_OR_HOT"])
-    assert a["thermometer_used"] == R.NOT_ASKED and a["headache_present"] == R.NOT_ASKED
+    assert a["chest_pain"] == R.NO and a["thermometer_used"] == R.NOT_ASKED and a["headache_present"] == R.NOT_ASKED
+
+
+# ---- The router (guide Part 3 and the walk-throughs of Part 6)
+@pytest.mark.parametrize("tags,n,modules,floors", [
+    (HERO, 16, ["core", "history_arm", "headache", "nausea_vomiting", "sleepiness", "arm_pain"], []),
+    (SEVERE_ARM, 8, ["core", "history_arm", "arm_pain"], ["AMBER_PATIENT_SAYS_SEVERE"]),
+    (TIRED, 8, ["core", "history_arm", "tiredness"], []),
+    (RASH, 6, ["core", "history_arm", "other_symptom"], ["AMBER_OTHER_SYMPTOM_REPORTED"]),
+    ("garbage", 12, ["fallback"], []),
+    ({"health_related": "UNSURE", "symptoms": [], "severity_word": "NONE"}, 12, ["fallback"], []),
+])
+def test_the_router_builds_the_guides_calls(tags, n, modules, floors):
+    p = TR.plan(LAKSHMI, tags)
+    assert p["route"] == "TRIAGE" and len(p["question_ids"]) == n and p["modules"] == modules
+    assert p["floors"] == floors
+    assert p["question_ids"][:5] == TR.CORE  # the danger core is never skipped, and comes first
+
+
+def test_only_a_clearly_not_health_message_gets_the_standard_reply():
+    assert TR.route(SHOPPING)["route"] == "STANDARD_REPLY" and TR.plan(LAKSHMI, SHOPPING)["question_ids"] == []
+    # a symptom always wins; a severe word too; broken tags are treated as health
+    assert TR.route({**SHOPPING, "symptoms": ["arm_swelling_or_redness"]})["route"] == "TRIAGE"
+    assert TR.route({**SHOPPING, "severity_word": "SEVERE"})["route"] == "TRIAGE"
+    assert TR.route(None)["route"] == "TRIAGE" and TR.route({"health_related": "maybe"})["route"] == "TRIAGE"
+    assert TR.parse_tags('noise {"health_related": "NO", "symptoms": []} noise')["health_related"] == "NO"
+
+
+def test_every_mix_of_up_to_three_tags_keeps_the_core():
+    from itertools import combinations
+
+    for k in (1, 2, 3):
+        for mix in combinations(TR.SYMPTOM_TAGS, k):
+            p = TR.plan(LAKSHMI, {"health_related": "YES", "symptoms": list(mix), "severity_word": "NONE"})
+            assert p["question_ids"][:5] == TR.CORE and len(set(p["question_ids"])) == len(p["question_ids"]), mix
+
+
+def test_scenario_e_her_word_severe_makes_it_amber_and_f_tired_stays_green():
+    a, r = run_script("mild_arm", tags=SEVERE_ARM)
+    assert (r["tier"], r["reason_codes"]) == ("TIER_2_AMBER", ["AMBER_PATIENT_SAYS_SEVERE"])
+    assert a["arm_pain_score"] == 3 and a["headache_present"] == R.NOT_ASKED
+    assert R.why_lines(r, a, LAKSHMI) == ["She described her problem as severe in her own message."]
+    a, r = run_script("green", tags=TIRED)
+    assert (r["tier"], a["tired_days"], a["tired_getting_worse"]) == ("TIER_3_GREEN", 2, R.NO)
+
+
+def test_a_symptom_with_no_questions_gets_a_nurse_in_15_minutes():
+    a, r = run_script("green", tags=RASH)
+    assert (r["tier"], r["reason_codes"], r["action_code"]) == ("TIER_2_AMBER", ["AMBER_OTHER_SYMPTOM_REPORTED"],
+                                                                "NURSE_CALLBACK_15_MIN")
+    assert r["response_minutes"] == 15 and R.closing(r, LAKSHMI)[1].startswith("Thank you. A nurse will call you")
+
+
+@pytest.mark.parametrize("field,value,code", [
+    ("cannot_stay_awake", R.YES, "RED_CANNOT_STAY_AWAKE"), ("chest_pain", R.YES, "RED_CHEST_PAIN"),
+    ("can_keep_liquids_down", R.NO, "RED_CANNOT_KEEP_LIQUIDS"), ("blurred_vision", R.YES, "RED_BLURRED_VISION"),
+    ("unsteady_or_dizzy_walking", R.YES, "RED_UNSTEADY_OR_DIZZY"), ("shaking_chills", R.YES, "RED_SHAKING_CHILLS"),
+])
+def test_the_new_red_rules(field, value, code):
+    r = R.triage(answers(**{field: value}), LAKSHMI, TODAY)
+    assert (r["tier"], r["reason_codes"], r["red_kind"]) == ("TIER_1_RED", [code], "CONFIRMED")
+
+
+@pytest.mark.parametrize("kw,code", [
+    ({"arm_pain_score": 7.0}, "AMBER_ARM_PAIN_7_PLUS"), ({"arm_pain_sudden": R.YES}, "AMBER_ARM_PAIN_SUDDEN_ONSET"),
+    ({"tired_days": 7.0}, "AMBER_TIREDNESS_7_DAYS_PLUS"), ({"tired_getting_worse": R.YES}, "AMBER_TIREDNESS_GETTING_WORSE"),
+    ({"drowsy_most_of_today": R.YES}, "AMBER_DROWSY_MOST_OF_TODAY"), ({"arm_swollen": R.YES}, "AMBER_ARM_SWOLLEN"),
+    ({"skin_break_left_arm": R.YES}, "AMBER_SKIN_BREAK_LEFT_ARM"),
+    ({"thermometer_used": R.NO, "temperature_value": None, "feels_hot": R.YES}, "AMBER_FEELS_HOT_NO_THERMOMETER"),
+])
+def test_the_new_amber_rules(kw, code):
+    r = R.triage(answers(**kw), LAKSHMI, TODAY)
+    assert (r["tier"], r["reason_codes"]) == ("TIER_2_AMBER", [code])
+    assert not R.why_lines(r, R.blank() | answers(**kw), LAKSHMI)[0].startswith("AMBER_")  # a plain sentence
+
+
+def test_not_asked_is_not_no_and_fires_nothing():
+    r = R.triage({**R.blank(), "slurred_or_confused": R.NO, "cannot_stay_awake": R.NO, "chest_pain": R.NO,
+                  "arm_red_or_hot": R.NO, "thermometer_used": R.YES, "temperature_value": 98.4}, LAKSHMI, TODAY)
+    assert (r["tier"], r["reason_codes"]) == ("TIER_3_GREEN", [])
+    assert "Vomited" not in r.get("why", "") and "Vomited" not in R.facts_text(R.blank())
+
+
+def test_skips_follow_the_guide():
+    h, ids = LAKSHMI, TR.plan(LAKSHMI, HERO)["question_ids"]
+    a = {**R.blank(), "headache_present": R.NO}
+    assert R.skipped(R.question(h, "Q_HEAD_SCORE"), a) and R.skipped(R.question(h, "Q_HEAD_WORSE"), a)
+    a = {**R.blank(), "nausea_since_yesterday": R.NO, "vomiting_count": 0.0}
+    assert R.skipped(R.question(h, "Q_SUPP"), a) and R.skipped(R.question(h, "Q_LIQUIDS"), a)
+    a["vomiting_count"] = 1.0  # she vomited once: "keeps water down" is asked
+    assert not R.skipped(R.question(h, "Q_LIQUIDS"), a) and "Q_VOMIT" in ids
 
 
 @pytest.mark.parametrize("temp,tier", [(100.3, "TIER_3_GREEN"), (100.4, "TIER_1_RED"), (38.0, "TIER_1_RED"),
@@ -110,8 +234,8 @@ def test_parse_reads_tamil_and_english():
 # ---------------------------------------------------------------------------------------------------------------
 # The data set and the call
 # ---------------------------------------------------------------------------------------------------------------
-def voice_note(client, mrn=MRN, headers=ANITA) -> dict:
-    r = client.post(f"/simulator/{mrn}/reply", headers=headers, json={"clip_id": "TA-01"})
+def voice_note(client, mrn=MRN, headers=ANITA, clip="TA-01") -> dict:
+    r = client.post(f"/simulator/{mrn}/reply", headers=headers, json={"clip_id": clip})
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -166,25 +290,33 @@ def test_amber_call_question_by_question_then_the_doctors_physio_order(vt, clien
     voice_note(client)
     eid = episode(client)["episode_id"]
     s = client.post(f"/triage/episodes/{eid}/pickup", headers=ANITA).json()
-    assert s["current"]["id"] == "q1" and s["turns"][1]["template_id"] == "TPL_CALL_OPEN_LITE_V1"
+    assert s["current"]["id"] == "Q_SLURRED" and s["turns"][1]["template_id"] == "TPL_CALL_OPEN_LITE_V1"
     assert "லட்சுமி அம்மாவுக்காக" in s["turns"][1]["ta"]
+    # What the AI heard and the 16 questions the router built (guide 6.1)
+    assert s["plan"]["heard"] == ["headache", "nausea", "sleepy", "arm pain"] and len(s["table"]) == 16
+    assert s["plan"]["tagged"] is True and s["plan"]["profile"] == "ROUTED"
+    assert s["not_asked"] == ["dizziness and vision", "chills and feeling hot", "arm swelling and skin", "tiredness"]
     # An unclear answer is asked once more; then the on-screen buttons and Tamil words.
     s = client.post(f"/triage/episodes/{eid}/answer", headers=ANITA, json={"text": "ம்ம்"}).json()
-    assert s["current"]["id"] == "q1" and s["turns"][-1].get("repeat") is True
+    assert s["current"]["id"] == "Q_SLURRED" and s["turns"][-1].get("repeat") is True
     s = client.post(f"/triage/episodes/{eid}/answer", headers=ANITA, json={"value": "NO"}).json()
-    assert s["current"]["id"] == "q2"
+    assert s["current"]["id"] == "Q_AWAKE"
     s = play(client, "amber", eid)
     assert (s["tier"], s["call_status"]) == ("TIER_2_AMBER", "done")
-    q5b = next(q for q in s["table"] if q["id"] == "q5b")
-    assert q5b["history"] and "அக்டோபர் 19" in q5b["ta"] and q5b["value"] == "YES"
+    worse = next(q for q in s["table"] if q["id"] == "Q_HEAD_WORSE")
+    assert worse["history"] and "அக்டோபர் 19" in worse["ta"] and worse["value"] == "YES"
+    assert all(q["asked"] for q in s["table"])  # all 16 asked
     assert s["turns"][-2]["template_id"] == "TPL_CALL_AMBER_V1"
-    assert s["callback_due_at"][11:16] == "12:12" and s["followup_due_on"] == "2026-10-28"
-    assert len(s["result"]["why"]) == 4
+    # The follow-up call waits for the doctor's outcome (24 hours after it).
+    assert s["callback_due_at"][11:16] == "12:12" and s["followup_due_on"] is None
+    assert len(s["result"]["why"]) == 5 and s["state"] == "OPEN"
     # Only the doctor orders; a button creates the card and sends the approved booking message.
     assert client.post(f"/triage/episodes/{eid}/order", headers=ANITA, json={"order": "physio"}).status_code == 403
     r = client.post(f"/triage/episodes/{eid}/order", headers=ANANYA,
                     json={"order": "physio", "note": "pause Neurobion Forte for 5 days"})
     assert r.status_code == 200, r.text
+    assert r.json()["followup_due_on"] == "2026-10-28"
+    assert (r.json()["state"], r.json()["coord_ack_by"]) == ("OUTCOME_LOGGED", "u_ananya")  # acknowledged with it
     card = client.get(f"/patients/{MRN}/cards", headers=ANITA).json()
     card = card["cards"] if isinstance(card, dict) else card
     physio = [c for c in card if c["name"] == "Physiotherapy referral"]
@@ -198,7 +330,7 @@ def test_red_package_message_pdf_note_and_task(vt, client):
     voice_note(client)
     s = play(client, "red")
     assert (s["tier"], s["red_kind"], s["stopped_early"]) == ("TIER_1_RED", "CONFIRMED", True)
-    assert [q["id"] for q in s["table"] if q["asked"]] == ["q1", "q2"]
+    assert [q["id"] for q in s["table"] if q["asked"]] == ["Q_SLURRED", "Q_AWAKE", "Q_CHEST", "Q_ARM_RED"]
     msg = [m for m in sent() if m["template_id"] == "triage_red_caregiver"]
     assert len(msg) == 1 and msg[0]["recipient"] == "caregiver" and msg[0]["to_phone"] == "+919000100142"
     assert msg[0]["body_en"].startswith("This is CarePilot's automated assistant. Lakshmi Amma gave answers to our "
@@ -208,7 +340,8 @@ def test_red_package_message_pdf_note_and_task(vt, client):
     assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
     text = pdf.content.decode("latin-1")
     for must in ("EMERGENCY SUMMARY FOR THE TREATING DOCTOR", "SYNTHETIC DEMO", "Left arm reported as red or hot",
-                 "Asked and answered No: speech slurred or confusion", "Shelcal-HD", "Note from her treating oncologist",
+                 "Asked and answered No: speech slurred or confusion, very hard to stay awake, chest pain or",
+                 "Shelcal-HD", "Note from her treating oncologist",
                  "It does not diagnose or advise"):
         assert must in text, must
     for never in ("ambulance", "maps.", "risk score", "grade", "recommend"):
@@ -256,7 +389,7 @@ def test_no_answer_twice_is_red_with_her_voice_note_in_the_pdf(vt, client):
 
 def test_unconfirmed_red_waits_for_a_nurse_then_a_person_sends_the_package(vt, client):
     voice_note(client)
-    s = play(client, "unclear_arm")
+    s = play(client, "unclear_chest")
     eid = s["episode_id"]
     assert (s["tier"], s["red_kind"]) == ("TIER_1_RED", "UNCONFIRMED")
     assert s["result"]["reason_codes"] == ["RED_CANNOT_CONFIRM_SAFE"] and s["package_sent_at"] is None
@@ -296,17 +429,19 @@ def test_green_follow_up_better_closure_and_the_pre_opd_brief(vt, client):
     assert client.post(f"/triage/episodes/{eid}/followup", headers=ANITA, json={"answer": "BETTER"}).status_code == 409
     client.post("/clock/advance", headers=ANITA, json={"days": 1})
     s = client.post(f"/triage/episodes/{eid}/followup", headers=ANITA, json={"text": "நன்றாக இருக்கிறேன்"}).json()
-    assert s["followup"]["answer"] == "BETTER"
+    assert s["followup"]["answer"] == "BETTER" and s["state"] == "IN_DIGEST"
     assert client.post(f"/triage/episodes/{eid}/tier", headers=ANANYA,
                        json={"tier": "TIER_2_AMBER"}).status_code == 422
-    assert client.post(f"/triage/episodes/{eid}/confirm-closure", headers=ANANYA, json={}).json()["status"] == "closed"
+    # A Green ticket closes into the digest: the doctor's "Confirm closure" is refused, the coordinator acknowledges.
+    assert client.post(f"/triage/episodes/{eid}/confirm-closure", headers=ANANYA, json={}).status_code == 409
+    assert client.post(f"/triage/episodes/{eid}/acknowledge", headers=ANITA).json()["status"] == "closed"
     # Routine messages resume after closure; the brief shows the record and the episode, with sources.
     b = client.get(f"/triage/brief/{MRN}", headers=SEKHAR).json()
     kinds = [line["kind"] for line in b["lines"]]
     assert kinds[:2] == ["record", "record"] and "message" in kinds and "result" in kinds
     voice = next(line for line in b["lines"] if line["kind"] == "message")
     assert voice["sources"][0]["kind"] == "audio"
-    assert b["lines"][-1]["text"].startswith("Closed by Dr. Ananya")
+    assert b["lines"][-1]["text"].startswith("Closed by Anita")
 
 
 def test_play_as_on_a_finished_call_replays_the_same_voice_note(vt, client):
@@ -346,22 +481,27 @@ def test_golden_path_health_message_goes_to_voice_triage(monkeypatch, seeded, cl
         r = seed.reset(c, scenario="step_a")
     assert r["patients"] == 3 and r["users"] == 7
     priya = users_header("u_priya")
-    out = voice_note(client, "SYN-0011", priya)
+    out = voice_note(client, "SYN-0011", priya, clip="HI-04")
     assert out["triage_episode_id"] and out["handover_id"] is None
     eid = out["triage_episode_id"]
     s = client.post(f"/triage/episodes/{eid}/play", headers=priya, json={"scenario": "red"}).json()
-    assert s["tier"] == "TIER_1_RED" and "சாவித்ரி அம்மாவுக்காக" in s["turns"][1]["ta"]
+    # Savitri speaks Hindi: the call, the scripted answers and her son's Red message are in Hindi.
+    assert s["tier"] == "TIER_1_RED" and s["language"] == "Hindi" and "सावित्री जी के लिए" in s["turns"][1]["ta"]
     msg = [m for m in sent("SYN-0011") if m["template_id"] == "triage_red_caregiver"]
-    assert len(msg) == 1 and msg[0]["to_phone"] == "+919000100011"
-    q5b = R.question({**LAKSHMI, **{"last_headache": {"date": "2026-10-26", "score": 3}}}, "q5b")
-    assert "அக்டோபர் 26" in q5b.ta
+    assert len(msg) == 1 and msg[0]["to_phone"] == "+919000100011" and msg[0]["language"] == "Hindi"
+    assert "सावित्री जी ने हमारी कॉल में" in msg[0]["body"]
+    # Nirmala speaks Telugu.
+    out = voice_note(client, "SYN-0013", priya, clip="TE-01")
+    s = client.post(f"/triage/episodes/{out['triage_episode_id']}/play", headers=priya, json={"scenario": "green"}).json()
+    assert s["tier"] == "TIER_3_GREEN" and s["language"] == "Telugu" and "నిర్మల గారి కోసం" in s["turns"][1]["ta"]
+    assert any("షెల్‌కాల్-HD" in t["ta"] for t in s["turns"] if t["who"] == "agent")
     # Lakshmi V. is the third Golden Path patient: the guide's scenarios, with the Golden Path's doctors.
     out = voice_note(client, "SYN-0142", priya)
     assert out["triage_episode_id"] and out["handover_id"] is None
     s = client.post(f"/triage/episodes/{out['triage_episode_id']}/play", headers=priya, json={"scenario": "amber"}).json()
     assert s["tier"] == "TIER_2_AMBER" and set(s["result"]["reason_codes"]) == {
         "AMBER_BANGLES_TIGHTER_THAN_BASELINE", "AMBER_HEADACHE_RISE_2_PLUS", "AMBER_HEADACHE_WORSE_THAN_LAST_TIME",
-        "AMBER_NAUSEA_DESPITE_MEALS"}
+        "AMBER_NAUSEA_DESPITE_MEALS", "AMBER_DROWSY_MOST_OF_TODAY"}
     assert any("2026-10-10" in w or "10 Oct" in w for w in s["result"]["why"])
     assert "Dr. Kavita Menon" in json.dumps(s["history"]["advice"])
 
@@ -418,6 +558,11 @@ def test_call_recording_puts_the_call_back_together_and_is_audited(vt, client, m
     rows = client.get("/audit", headers=ANITA, params={"mrn": MRN, "limit": 400}).json()["entries"]
     opened = [x for x in rows if x["action"] == "triage_recording_opened"]
     assert opened and opened[0]["actor_name"] == "u_ananya"
+    # The ticket's summary lines jump to where she said each answer: her spoken answer to question 1 starts after
+    # the opening and the question (1 s each, 0.45 s pause after each).
+    s = episode(client, headers=ANANYA)
+    q1 = next(x for x in s["summary"] if x["text"].startswith("Speech slurred"))
+    assert s["rec_offsets"][str(q1["turn"])] == 2.9
     assert client.get(f"/triage/episodes/{eid}/recording", headers=NURSE).status_code == 200
     assert client.get(f"/triage/episodes/{eid}/recording", headers=users_header("u_suresh")).status_code == 403
     brief = client.get(f"/triage/brief/{MRN}", headers=SEKHAR).json()
@@ -434,3 +579,233 @@ def test_no_recording_when_she_never_answered_or_in_simulated_mode(vt, client):
     s = client.post(f"/triage/episodes/{eid}/play", headers=ANITA, json={"scenario": "amber"}).json()
     assert s["has_call"] is True  # a call took place, but simulated mode has no Bulbul audio and no voice answers
     assert client.get(f"/triage/episodes/{s['episode_id']}/recording", headers=ANANYA).status_code == 404
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# The Triage Room: tickets, who may change the tier, the Green digest, the Amber cover alert
+# ---------------------------------------------------------------------------------------------------------------
+COORD_ONLY_RAISE = "Only a doctor lowers the tier; coordinators and nurses can only raise it"
+
+
+def tier(client, eid, headers, to, reason="checked with her"):
+    return client.post(f"/triage/episodes/{eid}/tier", headers=headers, json={"tier": to, "reason": reason})
+
+
+def test_ticket_has_an_id_a_countdown_and_one_next_action_per_role(vt, client):
+    voice_note(client)
+    ep = episode(client)
+    assert ep["ticket_id"] == "CP-20261027-0001"
+    assert ep["due"]["what"] == "Automated call" and ep["due"]["at"][11:16] == "10:14"
+    s = play(client, "amber", ep["episode_id"])
+    assert s["tier_set_by"] == "Rules (ROUTED, protocol v1.2, DRAFT_UNSIGNED)"
+    assert "Only a doctor can lower it" in s["tier_rule"] and s["owner"] == "Dr. Ananya"
+    # The countdown shows the nearest deadline: the cover alert at 90 minutes, before the 2-hour callback.
+    assert [(d["what"], d["at"][11:16]) for d in s["deadlines"]] == [("Cover alert (Ravi)", "11:42"),
+                                                                     ("Doctor callback", "12:12")]
+    assert s["due"]["what"] == "Cover alert (Ravi)"
+    nxt = s["next"]
+    assert nxt["doctor"]["text"].startswith("Dr. Ananya: call her by 12:12") and nxt["nurse"]["text"] == "Nothing"
+    assert "the cover (Ravi) is alerted" in nxt["coordinator"]["text"]
+    assert "calls again 24 hours after the outcome" in nxt["ai"]["text"]
+    # The summary: one line per answer, each linked to the turn where she said it; then the record.
+    lines = s["summary"]
+    assert lines[0]["text"] == "Speech slurred or confused: no" and lines[0]["turn"] is not None
+    assert s["turns"][lines[0]["turn"]]["who"] == "patient" and s["turns"][lines[0]["turn"]]["id"] == "Q_SLURRED"
+    assert any(x["source"] == "hospital record" and x["turn"] is None for x in lines)
+    # Replaying makes a new ticket the same day.
+    s2 = play(client, "green", ep["episode_id"])
+    assert s2["ticket_id"] == "CP-20261027-0002"
+
+
+def test_anyone_raises_only_a_doctor_lowers_and_red_only_the_er_doctor(vt, client):
+    voice_note(client)
+    eid = play(client, "green")["episode_id"]
+    assert tier(client, eid, ANITA, "TIER_2_AMBER", "").status_code == 422
+    s = tier(client, eid, ANITA, "TIER_2_AMBER", "she sounded breathless").json()
+    assert s["tier"] == "TIER_2_AMBER" and s["tier_set_by"].startswith("Raised by Anita")
+    assert s["callback_due_at"][11:16] == "12:12" and s["followup_due_on"] is None
+    r = tier(client, eid, ANITA, "TIER_3_GREEN")
+    assert r.status_code == 409 and r.json()["detail"] == COORD_ONLY_RAISE
+    assert tier(client, eid, NURSE, "TIER_3_GREEN").status_code == 409
+    s = tier(client, eid, ANANYA, "TIER_3_GREEN", "spoke to her: fine").json()
+    assert s["tier"] == "TIER_3_GREEN" and s["followup_due_on"] == "2026-10-28"
+    # Raised to Red by hand: Red (unconfirmed), the nurse calls back in 15 minutes, no family message by itself.
+    s = tier(client, eid, NURSE, "TIER_1_RED", "arm now red on video call").json()
+    assert (s["tier"], s["red_kind"], s["nurse_asked"]) == ("TIER_1_RED", "UNCONFIRMED", True)
+    assert s["callback_due_at"][11:16] == "10:27" and s["package_sent_at"] is None
+    assert not [m for m in sent() if m["template_id"] == "triage_red_caregiver"]
+    assert s["next"]["nurse"]["text"].startswith("Acknowledge the alert; call her back by 10:27")
+    assert tier(client, eid, ANANYA, "TIER_2_AMBER").json()["detail"] == "Only the ER doctor lowers a Red case"
+    assert tier(client, eid, NURSE, "TIER_2_AMBER").status_code == 409
+    r = client.post(f"/triage/episodes/{eid}/nurse-callback", headers=NURSE, json={"note": "Arm red; going to ED"})
+    assert r.status_code == 200, r.text
+    s = client.post(f"/triage/episodes/{eid}/send-package", headers=ANITA).json()
+    assert s["package_sent_at"] and "Raised to Red by Nurse Deepa (duty nurse): arm now red" in s["doctor_note"]
+    s = tier(client, eid, ER_DOCTOR, "TIER_2_AMBER", "seen in ED: cellulitis ruled out").json()
+    assert (s["tier"], s["red_kind"]) == ("TIER_2_AMBER", None)
+    rows = client.get("/audit", headers=ANITA, params={"mrn": MRN, "limit": 400}).json()["entries"]
+    assert {"tier_raised", "tier_lowered"} <= {x["action"] for x in rows}
+
+
+def test_green_closes_into_the_digest_after_the_acknowledgement_and_a_better_follow_up(vt, client):
+    voice_note(client)
+    s = play(client, "green")
+    eid = s["episode_id"]
+    assert [(d["what"], d["at"]) for d in s["deadlines"]] == [("Follow-up call", "2026-10-28T09:00:00"),
+                                                              ("Acknowledge the digest", "2026-10-28T18:00:00")]
+    assert client.post(f"/triage/episodes/{eid}/digest-ack", headers=ANANYA).status_code == 403
+    s = client.post(f"/triage/episodes/{eid}/digest-ack", headers=ANITA).json()
+    assert s["digest_ack_by"] == "u_anita" and s["status"] == "open" and s["next"]["coordinator"]["done"]
+    assert client.post(f"/triage/episodes/{eid}/digest-ack", headers=RAVI).status_code == 409
+    client.post("/clock/advance", headers=ANITA, json={"days": 1})
+    s = client.post(f"/triage/episodes/{eid}/followup", headers=ANITA, json={"answer": "BETTER"}).json()
+    assert s["status"] == "closed" and s["closed_by"] == "u_anita"
+    assert s["close_note"].startswith("Closed into the Green digest")
+
+
+def test_amber_alerts_the_cover_when_nobody_acts_in_90_minutes(vt, client):
+    from conftest import scalar
+
+    voice_note(client)
+    eid = play(client, "amber")["episode_id"]
+    client.post("/clock/set", headers=ANITA, json={"date": "2026-10-27", "time": "11:41"})
+    assert episode(client)["cover_alerted_at"] is None
+    client.post("/clock/set", headers=ANITA, json={"date": "2026-10-27", "time": "11:42"})
+    s = episode(client)
+    assert s["cover_alerted_at"][11:16] == "11:42" and s["cover_task"]["owner_name"] == "Ravi"
+    assert "the cover (Ravi) was alerted at 11:42" in s["next"]["coordinator"]["text"]
+    episode(client)  # read again: still one alert
+    assert scalar("SELECT count(*) FROM coordinator_task WHERE task_type = 'triage_cover_alert'") == 1
+    s = client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "bloods"}).json()
+    assert s["next"]["coordinator"]["text"].startswith("Book the blood tests brought forward")
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# v1.2: the message route, the standard reply, ticket states, facts-only ticket text
+# ---------------------------------------------------------------------------------------------------------------
+def text_note(client, text, mrn=MRN) -> dict:
+    r = client.post(f"/simulator/{mrn}/reply", headers=ANITA, json={"text": text})
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def test_scene_2_shopping_gets_one_standard_reply_and_nothing_else(vt, client):
+    from conftest import scalar
+
+    r = text_note(client, "I want to go shopping tomorrow")
+    assert r["handling"] == ["ai_tags_not_health", "standard_reply:TPL_WA_NOT_HEALTH_V1"]
+    assert r.get("triage_episode_id") is None and r["proposal_id"] is None and r["handover_id"] is None
+    reply = [m for m in sent() if m["template_id"] == "triage_not_health"]
+    assert len(reply) == 1 and reply[0]["body_en"].startswith("Thank you for your message. This number is only for")
+    assert "உதவி மையத்தை" in reply[0]["body"]  # in her language (Tamil)
+    assert scalar("SELECT count(*) FROM triage_episode") == 0 and scalar("SELECT count(*) FROM coordinator_task") == 0
+    rows = client.get("/audit", headers=ANITA, params={"mrn": MRN, "limit": 50}).json()["entries"]
+    decision = next(x for x in rows if x["reason_code"] == "not_health_standard_reply")
+    assert decision["outcome"] == "standard_reply"
+    # "Shopping, but my arm is swollen": a symptom always wins
+    r = text_note(client, "I want to go shopping but my arm is swollen")
+    assert any(h.startswith("triage_call_due") for h in r["handling"])
+    ep = episode(client)
+    assert "arm_swelling_or_redness" in ep["plan"]["modules"] and len(ep["table"]) == 8
+
+
+def test_scene_7_severe_arm_pain_is_eight_questions_and_amber_by_her_word(vt, client):
+    text_note(client, "I have severe pain in my left arm")
+    ep = episode(client)
+    assert len(ep["table"]) == 8 and ep["plan"]["floors"] == ["AMBER_PATIENT_SAYS_SEVERE"]
+    assert ep["plan"]["heard"] == ["arm pain", "“severe”"]
+    s = play(client, "mild_arm", ep["episode_id"])
+    assert (s["tier"], s["result"]["reason_codes"]) == ("TIER_2_AMBER", ["AMBER_PATIENT_SAYS_SEVERE"])
+    assert s["result"]["why"] == ["She described her problem as severe in her own message."]
+
+
+def test_a_rash_gets_six_questions_and_a_nurse(vt, client):
+    text_note(client, "I have a rash on my back")
+    ep = episode(client)
+    assert len(ep["table"]) == 6 and ep["plan"]["floors"] == ["AMBER_OTHER_SYMPTOM_REPORTED"]
+    s = play(client, "green", ep["episode_id"])
+    assert (s["tier"], s["result"]["action_code"], s["nurse_asked"]) == ("TIER_2_AMBER", "NURSE_CALLBACK_15_MIN", True)
+    assert s["next"]["coordinator"]["text"].startswith("If the nurse cannot reach her in 2 attempts")
+    assert s["owner"] == "Nurse (ER Desk)"
+
+
+def test_amber_ticket_states_and_who_may_move_them(vt, client):
+    voice_note(client)
+    eid = play(client, "amber")["episode_id"]
+    assert episode(client)["state"] == "OPEN"
+    # Closure before the 24-hour call proposes it is refused
+    r = client.post(f"/triage/episodes/{eid}/confirm-closure", headers=ANANYA, json={"note": "fine"})
+    assert r.status_code == 409 and "proposes closure" in r.json()["detail"]
+    s = client.post(f"/triage/episodes/{eid}/acknowledge", headers=NURSE).json()  # the nurse may acknowledge Amber
+    assert (s["state"], s["coord_ack_by"]) == ("ACKNOWLEDGED", "u_er_nurse")
+    assert client.post(f"/triage/episodes/{eid}/acknowledge", headers=ANITA).status_code == 409  # already
+    s = client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "none"}).json()
+    assert s["state"] == "OUTCOME_LOGGED"
+    client.post("/clock/advance", headers=ANITA, json={"days": 1})
+    s = client.post(f"/triage/episodes/{eid}/followup", headers=ANITA, json={"answer": "BETTER"}).json()
+    assert s["state"] == "CLOSURE_PROPOSED" and s["proposed"].startswith("Proposed: close")
+    # The coordinator may confirm an Amber closure too; the agent never closes
+    s = client.post(f"/triage/episodes/{eid}/confirm-closure", headers=RAVI, json={"note": "better"}).json()
+    assert (s["state"], s["closed_by"]) == ("CLOSED", "u_ravi")
+    # Any staff reopens with a reason: Reopened until someone acknowledges again
+    assert client.post(f"/triage/episodes/{eid}/reopen", headers=NURSE, json={}).status_code == 422
+    s = client.post(f"/triage/episodes/{eid}/reopen", headers=NURSE, json={"note": "called again: worse"}).json()
+    assert (s["status"], s["state"]) == ("open", "REOPENED")
+
+
+def test_red_acknowledge_log_and_close(vt, client):
+    voice_note(client)
+    eid = play(client, "red")["episode_id"]
+    r = client.post(f"/triage/episodes/{eid}/acknowledge", headers=ANITA)
+    assert r.status_code == 409 and "nurse or the ER doctor" in r.json()["detail"]
+    assert client.post(f"/triage/episodes/{eid}/er-close", headers=ER_DOCTOR, json={"note": "x"}).json()["detail"] \
+        == "Acknowledge the alert first"
+    s = client.post(f"/triage/episodes/{eid}/acknowledge", headers=NURSE).json()
+    assert s["state"] == "ACKNOWLEDGED"
+    assert client.post(f"/triage/episodes/{eid}/er-close", headers=ER_DOCTOR, json={"note": "x"}).status_code == 409
+    s = client.post(f"/triage/episodes/{eid}/er-log", headers=ER_DOCTOR,
+                    json={"note": "Seen at City General ED; antibiotics started"}).json()
+    assert s["state"] == "OUTCOME_LOGGED" and s["next"]["doctor"]["text"].startswith("Logged by")
+    s = client.post(f"/triage/episodes/{eid}/er-close", headers=ER_DOCTOR, json={"note": "Admitted"}).json()
+    assert s["state"] == "CLOSED"
+
+
+def test_reopen_from_the_green_digest_makes_an_open_amber_ticket(vt, client):
+    voice_note(client)
+    eid = play(client, "green")["episode_id"]
+    assert episode(client)["state"] == "IN_DIGEST"
+    assert client.post(f"/triage/episodes/{eid}/reopen", headers=ANANYA, json={"note": "x"}).status_code == 409
+    s = client.post(f"/triage/episodes/{eid}/reopen", headers=ANITA, json={"note": "her son says she is worse"}).json()
+    assert (s["tier"], s["state"], s["status"]) == ("TIER_2_AMBER", "REOPENED", "open")
+    assert s["callback_due_at"][11:16] == "12:12"
+
+
+FORBIDDEN = ("diagnos", "cellulitis", "lymphoedema", "lymphedema", "infection", "likely", "probably", "grade",
+             "you should", "we recommend", "risk score")
+
+
+@pytest.mark.parametrize("scenario", ["amber", "green", "red", "unclear_chest", "nurse"])
+def test_tr21_no_sentence_on_the_ticket_is_an_assessment_or_advice(vt, client, scenario):
+    voice_note(client)
+    s = play(client, scenario)
+    shown = json.dumps([s["result"]["why"], s["summary"], s["next"], s["proposed"], s["tier_set_by"],
+                        s["doctor_note"], s["not_asked"]], ensure_ascii=False).lower()
+    for word in FORBIDDEN:
+        assert word not in shown, (scenario, word)
+
+
+@pytest.mark.parametrize("clip,road", [(c, r) for r, cs in {"severe": ("HI-05", "TE-02", "TA-02"), "tired": ("HI-06", "TE-03", "TA-03"),
+                                                                "shop": ("HI-07", "TE-04", "TA-04")}.items() for c in cs])
+def test_v12_voice_notes_take_their_road_in_every_language(clip, road):
+    from app import ai
+
+    native, en = ai.FAKE_CLIPS[clip]
+    assert (Path(__file__).parents[1] / "backend/app/seed_data/uc2a/audio" / f"{clip}.wav").stat().st_size > 10000
+    reply = ai.Fake().chat("", f"{TR.TAG_PROMPT}\n\nMessage: {native}\n(English translation: {en})")
+    p = TR.plan(LAKSHMI, TR.parse_tags(reply))
+    if road == "shop":
+        assert p["route"] == "STANDARD_REPLY"
+    elif road == "severe":
+        assert (len(p["question_ids"]), p["floors"]) == (8, ["AMBER_PATIENT_SAYS_SEVERE"])
+    else:
+        assert p["modules"][-1] == "tiredness" and p["floors"] == []

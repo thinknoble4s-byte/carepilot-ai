@@ -186,6 +186,30 @@
       "buttons": []
     },
     {
+      "template_id": "triage_not_health",
+      "language": "English",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Voice Triage v1.2 TPL_WA_NOT_HEALTH_V1: the one standard reply to a message that is clearly not about health. No call, no ticket, no task. It never answers what she asked. Tamil is the guide's draft; Hindi and Telugu are drafts. The helpdesk number is an open item. [SIGN-OFF]",
+      "text": "Thank you for your message. This number is only for health concerns after your treatment, so we have not acted on it. For anything else, please contact the hospital helpdesk. If you feel unwell in any way, send us a voice message or reply HELP.",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "triage_not_health",
+      "language": "Tamil",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Voice Triage v1.2 TPL_WA_NOT_HEALTH_V1: the one standard reply to a message that is clearly not about health. No call, no ticket, no task. It never answers what she asked. Tamil is the guide's draft; Hindi and Telugu are drafts. The helpdesk number is an open item. [SIGN-OFF]",
+      "text": "உங்கள் செய்திக்கு நன்றி. இந்த எண் சிகிச்சைக்குப் பிறகான உடல்நலக் கவலைகளுக்கு மட்டுமே. எனவே இதன் மீது நாங்கள் நடவடிக்கை எடுக்கவில்லை. மற்ற விஷயங்களுக்கு மருத்துவமனை உதவி மையத்தைத் தொடர்பு கொள்ளவும். உடல்நிலை சரியில்லை என்றால் எங்களுக்குக் குரல் செய்தி அனுப்பவும் அல்லது HELP என்று பதிலளிக்கவும்.",
+      "closing": null,
+      "buttons": []
+    },
+    {
       "template_id": "instruction_booking",
       "language": "English",
       "version": "1.0",
@@ -284,6 +308,9 @@
       "senior_oncologist": "u_sekhar",
       "er_doctor": "u_er_doctor",
       "coordinator": "u_anita",
+      "cover": "u_ravi",
+      "cover_alert_minutes": 90,
+      "digest_ack_hour": 18,
       "speaker": "kavitha",
       "tts_model": "bulbul:v3",
       "call_within_minutes": 2,

@@ -371,7 +371,7 @@ async def simulator_voice(mrn: str, file: UploadFile = File(...), from_role: str
                           in_reply_to: int | None = Form(None), event_id: str | None = Form(None),
                           language: str | None = Form(None), _user: dict = Depends(require_role(*COORDINATOR))):
     """A voice note recorded (or an audio file uploaded) in the simulator: stored in the database, then the
-    same path as a clip — Sarvam text, translation and the yes/no health flag. language: Hindi, Kannada,
+    same path as a clip — Sarvam text, translation and the yes/no health flag. language: Hindi, Kannada, Telugu,
     English or auto (omit for the patient's language)."""
     audio = await file.read()
     return in_tx(gateway.receive_reply, mrn, from_role=from_role, in_reply_to=in_reply_to, event_id=event_id or None,
@@ -968,7 +968,9 @@ def triage_ed_call(episode_id: int, body: EdCallIn, user: dict = Depends(require
 
 
 @app.post("/triage/episodes/{episode_id}/acknowledge")
-def triage_acknowledge(episode_id: int, user: dict = Depends(require_role("coordinator", "er_desk"))):
+def triage_acknowledge(episode_id: int, user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
+    """Green the coordinator (the digest); Amber the Doctor on Duty, the nurse or the coordinator; Red the nurse or
+    the ER doctor. A role that may not is refused with the reason."""
     return in_tx(triage.acknowledge, episode_id, user)
 
 
@@ -977,7 +979,9 @@ class TriageNoteIn(BaseModel):
 
 
 @app.post("/triage/episodes/{episode_id}/reopen")
-def triage_reopen(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role(*COORDINATOR))):
+def triage_reopen(episode_id: int, body: TriageNoteIn,
+                  user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
+    """Any staff reopens a closed ticket, with a reason; the coordinator reopens a Green digest line into Amber."""
     return in_tx(triage.reopen, episode_id, user, body.note)
 
 
@@ -998,8 +1002,16 @@ def triage_er_close(episode_id: int, body: TriageNoteIn, user: dict = Depends(re
     return in_tx(triage.er_close, episode_id, user, body.note)
 
 
+@app.post("/triage/episodes/{episode_id}/er-log")
+def triage_er_log(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role("er_desk"))):
+    """Red: "Log what was done" (the nurse or the ER doctor). The ER doctor then closes."""
+    return in_tx(triage.er_log, episode_id, user, body.note)
+
+
 @app.post("/triage/episodes/{episode_id}/confirm-closure")
-def triage_confirm_closure(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role("oncologist"))):
+def triage_confirm_closure(episode_id: int, body: TriageNoteIn,
+                           user: dict = Depends(require_role("oncologist", "coordinator"))):
+    """Amber: the Doctor on Duty or the coordinator confirms the closure the 24-hour call proposed."""
     return in_tx(triage.confirm_closure, episode_id, user, body.note)
 
 
@@ -1020,8 +1032,15 @@ class TierIn(BaseModel):
 
 
 @app.post("/triage/episodes/{episode_id}/tier")
-def triage_tier(episode_id: int, body: TierIn, user: dict = Depends(require_role("oncologist"))):
+def triage_tier(episode_id: int, body: TierIn, user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
+    """Anyone on the team may raise the tier; only a doctor lowers it, and Red only the ER doctor. Always a reason."""
     return in_tx(triage.change_tier, episode_id, user, body.tier, body.reason)
+
+
+@app.post("/triage/episodes/{episode_id}/digest-ack")
+def triage_digest_ack(episode_id: int, user: dict = Depends(require_role(*COORDINATOR))):
+    """Green: the coordinator acknowledges the digest line (within 1 working day)."""
+    return in_tx(triage.digest_ack, episode_id, user)
 
 
 @app.get("/triage/brief/{mrn}")

@@ -9,7 +9,9 @@ themselves: the AI layer (Sarvam) gives the text, an English translation and one
 (failure or doubt counts as yes). A plain function then picks one action:
   flag yes -> stop and hand over (health_flag_handover): fixed acknowledgement, handover, send block
   flag no  -> hold while a proposal waits for a coordinator (held_open_proposal)
-HELP (or ಸಹಾಯ / मदद) always reaches a person directly. In data sets with replies switched off
+Voice Triage v1.2 (patients on the triage path): the model tags the message instead; a health message goes to the
+triage call, and one that is clearly not about health gets one standard reply (no call, ticket or task).
+HELP (or ಸಹಾಯ / मदद / உதவி / సహాయం) always reaches a person directly. In data sets with replies switched off
 (Use Case 1) the reply is only saved.
 """
 from pathlib import Path
@@ -24,7 +26,7 @@ BUTTONS = ("booked", "help_book", "cant_come",
            "done_outside", "done_hospital", "not_done")  # Use Case 2T: the report check
 CLIP_DIR = Path(__file__).resolve().parent / "seed_data" / "uc2a" / "audio"
 MAX_AUDIO_BYTES = 5 * 1024 * 1024  # a recorded note of up to 30 seconds is about 1 MB as 16 kHz WAV
-SPOKEN = ("Hindi", "Kannada", "Tamil", "English", "auto")  # "auto": Sarvam detects the language
+SPOKEN = ("Hindi", "Kannada", "Tamil", "Telugu", "English", "auto")  # "auto": Sarvam detects the language
 
 
 def clips(conn) -> list[dict]:
@@ -189,7 +191,7 @@ def receive_document(conn, mrn: str, *, data: bytes, mime: str, file_name: str, 
         r = receive_reply(conn, mrn, from_role=from_role, text=note, event_id=f"{event_id}:note" if event_id else None)
         row = conn.execute("SELECT translation FROM inbound_message WHERE inbound_id = %s",
                            (r["inbound_id"],)).fetchone()
-        translation = row["translation"] if patient["preferred_language"] in ("Hindi", "Kannada", "Tamil") else None
+        translation = row["translation"] if patient["preferred_language"] in ("Hindi", "Kannada", "Tamil", "Telugu") else None
     now = clock.get_now(conn)
     blob = conn.execute("INSERT INTO audio_blob (mime, data) VALUES (%s, %s) RETURNING audio_id",
                         (mime, data)).fetchone()["audio_id"] if data else None
@@ -218,6 +220,8 @@ def _acknowledge(conn, mrn, recipient, handover_id, reason) -> dict:
 def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, understood=None) -> dict:
     patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
     iid = inbound["inbound_id"]
+    # Voice Triage v1.2: a patient on the triage path has her message tagged, and the router picks the route
+    triage_path = triage.enabled(conn) and triage.history(conn, mrn) is not None
     if understood is not None:
         # Demo seed only (Use Case 2c section 6): the flag and transcript come from the Use Case 2a run, no AI call.
         u = {"transcript": understood["transcript"], "translation": understood["translation"], "flag": understood["flag"],
@@ -229,9 +233,9 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
         clip = next((c for c in clips(conn) if c["id"] == inbound["clip_id"]), {})
         language = spoken or clip.get("language", patient["preferred_language"])
         u = ai.understand(conn, language=language, audio=bytes(audio["data"]),
-                          mime=audio["mime"], clip_id=inbound["clip_id"])
+                          mime=audio["mime"], clip_id=inbound["clip_id"], tags=triage_path)
     else:
-        u = ai.understand(conn, language=patient["preferred_language"], text=inbound["text"])
+        u = ai.understand(conn, language=patient["preferred_language"], text=inbound["text"], tags=triage_path)
     conn.execute(
         """
         UPDATE inbound_message SET transcript = %s, translation = %s, ai_flag = %s, ai_failed = %s, ai_attempts = %s,
@@ -246,10 +250,13 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
                  prompt_version=u["prompt_version"], outcome=f"flag={u['flag']}",
                  reason_code="ai_call_failed" if u["failed"] else ("ai_unsure" if u["unsure"] else None),
                  details={"transcript": u["transcript"], "translation": u["translation"], "attempts": u["attempts"],
-                          "failed": u["failed"], "errors": u["errors"]})
+                          "failed": u["failed"], "errors": u["errors"],
+                          **({"tags": u["clean_tags"], "route": u["route"]} if "route" in u else {})})
 
-    action, reason = choose_action(u["flag"])
     open_h = messaging.open_handover(conn, mrn)
+    if u.get("route") == "STANDARD_REPLY" and open_h is None and not messaging.open_triage(conn, mrn):
+        return _standard_reply(conn, mrn, iid, from_role, u)
+    action, reason = choose_action(u["flag"])
     facts = {"flag": u["flag"], "ai_failed": u["failed"], "ai_unsure": u["unsure"],
              "handover_already_open": open_h is not None}
     audit.append(conn, actor_type="agent", actor_name=AGENT, action="agent_decision", entity_type="inbound_message",
@@ -262,7 +269,7 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
     # triage episode instead of the Use Case 2c handover: the acknowledgement, then the automated call.
     if open_h is None and triage.enabled(conn) and (action == "handover" or messaging.open_triage(conn, mrn)):
         opened = triage.open_episode(conn, mrn, inbound=inbound, words=words, translation=translation,
-                                     from_role=from_role)
+                                     from_role=from_role, tags=u.get("tags"), tagged="route" in u)
         if opened is not None:
             ep, created = opened
             return {"handling": [f"ai_flag_{u['flag']}" + ("_failed" if u["failed"] else ""),
@@ -312,6 +319,21 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
                     if policy.settings(conn).get("hold_on_proposal", True) else "Proposal waiting for the coordinator")
     return {"handling": [f"ai_flag_{u['flag']}", "proposal_created:held_open_proposal"], "handover_id": None,
             "proposal_id": prop["proposal_id"]}
+
+
+def _standard_reply(conn, mrn: str, iid: int, from_role: str, u: dict) -> dict:
+    """Voice Triage v1.2 (Part 4.3): a message that is clearly not about health gets one fixed reply and nothing
+    else: no call, no ticket, no task. It never answers what she asked; it points her to the hospital helpdesk."""
+    msg = messaging.send_message(conn, mrn=mrn, template_id="triage_not_health", actor_type="agent", actor=AGENT,
+                                 reason_code="not_health_standard_reply", recipient=from_role)
+    audit.append(conn, actor_type="agent", actor_name=AGENT, action="agent_decision", entity_type="inbound_message",
+                 entity_id=str(iid), mrn=mrn, reason_code="not_health_standard_reply", task="reply_understanding",
+                 outcome="standard_reply", trigger_event=f"inbound_message:{iid}", template_id="TPL_WA_NOT_HEALTH_V1",
+                 decision_inputs={"tags": u["clean_tags"], "route": u["route"]},
+                 details={"action": "one standard reply; no call, no ticket, no task", "message_id": msg["message_id"],
+                          "status": msg["status"]})
+    return {"handling": ["ai_tags_not_health", "standard_reply:TPL_WA_NOT_HEALTH_V1"], "handover_id": None,
+            "proposal_id": None}
 
 
 def _apply_button(conn, mrn: str, button: str, target: dict | None, inbound_id: int) -> str:
