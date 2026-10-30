@@ -1,4 +1,5 @@
-"""The Golden Path demo data as shipped: only Savitri Patil and Nirmala Reddy, both Tamil, both consented."""
+"""The Golden Path demo data as shipped: Savitri Patil, Nirmala Reddy and Lakshmi V. (Voice Triage), all Tamil,
+all consented."""
 import pytest
 
 from conftest import PRIYA, morning, outbox
@@ -14,13 +15,13 @@ def demo_seed(monkeypatch, seeded):
 
 
 @pytest.mark.demo_template
-def test_two_tamil_patients_with_consent(demo_seed, client):
+def test_three_tamil_patients_with_consent(demo_seed, client):
     assert (demo_seed["patients"], demo_seed["consents"], demo_seed["agent_on"], demo_seed["open_exceptions"]) == \
-        (2, 2, 2, 0)
+        (3, 3, 3, 0)
     patients = {p["mrn"]: p for p in client.get("/patients", headers=PRIYA).json()}
-    assert set(patients) == {"SYN-0011", "SYN-0013"}
+    assert set(patients) == {"SYN-0011", "SYN-0013", "SYN-0142"}
     assert {p["preferred_language"] for p in patients.values()} == {"Tamil"}
-    assert {p["full_name"] for p in patients.values()} == {"Savitri Patil", "Nirmala Reddy"}
+    assert {p["full_name"] for p in patients.values()} == {"Savitri Patil", "Nirmala Reddy", "Lakshmi V."}
 
 
 @pytest.mark.demo_template

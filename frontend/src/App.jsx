@@ -135,8 +135,8 @@ function ResetChoice({ onReset }) {
       </div>
       <div className="card-flat">
         <div className="card-title">Golden Path data</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>Savitri Patil (SYN-0011, the demo patient) and Nirmala Reddy (SYN-0013),
-          both Tamil; Priya and Meera. Everything switched on, including the test cycle: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Savitri Patil (SYN-0011, the demo patient), Nirmala Reddy (SYN-0013)
+          and Lakshmi V. (SYN-0142, for Voice Triage: son Karthik, her 10 Oct and 19 Oct history), all Tamil; Priya and Meera. Everything switched on, including the test cycle: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
           tasks for people. A health message goes to Voice Triage (the call, Red, Amber or Green; the ER Desk joins); HELP still
           opens a handover.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('step_a')}>Reset to Golden Path</button></div>

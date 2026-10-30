@@ -153,5 +153,86 @@
       "Other medicines",
       "Blood group"
     ]
+  },
+  "SYN-0142": {
+    "_note": "SYNTHETIC. What the hospital record holds for the triage call and the emergency summary.",
+    "title": "Mrs. Lakshmi V.",
+    "name_en": "Lakshmi",
+    "name_ta": "லட்சுமி",
+    "age": 54,
+    "sex": "female",
+    "caregiver_relation": "son",
+    "team": {
+      "en": "the Hospital A care team",
+      "ta": "மருத்துவமனை A பராமரிப்புக் குழுவின்"
+    },
+    "arm_baseline": {
+      "date": "2026-10-10",
+      "status": "no swelling and loose bangles"
+    },
+    "last_headache": {
+      "date": "2026-10-19",
+      "score": 2
+    },
+    "advice": {
+      "id": "INST-2026-10-19-01",
+      "date": "2026-10-19",
+      "by": "Dr. Kavita Menon",
+      "en": "Dr. Kavita Menon advised on 19 October: take your Shelcal-HD and Neurobion Forte only after a full meal, never on an empty stomach.",
+      "ta": "அக்டோபர் 19 அன்று டாக்டர் கவிதா மேனன் அறிவுறுத்தியது: ஷெல்கால்-HD மற்றும் நியூரோபியான் ஃபோர்ட் மாத்திரைகளை முழு உணவுக்குப் பிறகு மட்டுமே எடுக்கவும்; வெறும் வயிற்றில் எடுக்க வேண்டாம்."
+    },
+    "events": [
+      {
+        "date": "2026-10-10",
+        "symptoms": [
+          "arm_stiffness"
+        ],
+        "reported": "Mild left arm stiffness (2 out of 10). Bangles loose. No swelling.",
+        "instruction": null,
+        "outcome": "Noted for the next visit."
+      },
+      {
+        "date": "2026-10-19",
+        "symptoms": [
+          "headache",
+          "nausea"
+        ],
+        "reported": "Nausea and a mild headache (2 out of 10).",
+        "instruction": "Dr. Kavita Menon: take Shelcal-HD and Neurobion Forte only after a full meal.",
+        "outcome": "Better the next day."
+      }
+    ],
+    "clinical": {
+      "diagnosis": "Left breast cancer (synthetic record)",
+      "treatment_done": [
+        "Left breast removal with node clearance, 1 October 2026"
+      ],
+      "active_treatment_completed": "Surgery, 1 October 2026",
+      "current_phase": "Recovery after surgery; follow-up with the oncology team",
+      "treating_hospital": "Hospital A (synthetic)",
+      "care_team_phone": "+91 00000 00000 (placeholder)",
+      "treating_oncologist": "Treating oncologist: Dr. Anand Rao"
+    },
+    "medicines": [
+      {
+        "name": "Shelcal-HD (calcium and vitamin D3)",
+        "schedule": "once a day, after a full meal"
+      },
+      {
+        "name": "Neurobion Forte (vitamin B complex)",
+        "schedule": "once a day, after a full meal"
+      }
+    ],
+    "signed_note": {
+      "text": "The left arm is at risk of swelling and infection after node clearance. Please keep this in mind when choosing a site for blood pressure, blood draws or injections.",
+      "signed_by": "Dr. Anand Rao (MOCK signature, pending sign-off)",
+      "date": "2026-10-02"
+    },
+    "not_recorded": [
+      "Allergies",
+      "Other conditions",
+      "Other medicines",
+      "Blood group"
+    ]
   }
 }

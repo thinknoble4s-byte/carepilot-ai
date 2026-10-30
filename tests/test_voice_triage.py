@@ -344,7 +344,7 @@ def test_golden_path_health_message_goes_to_voice_triage(monkeypatch, seeded, cl
     monkeypatch.setattr(seed, "step_a_settings", lambda: real)
     with db.connect() as c:
         r = seed.reset(c, scenario="step_a")
-    assert r["patients"] == 2 and r["users"] == 7
+    assert r["patients"] == 3 and r["users"] == 7
     priya = users_header("u_priya")
     out = voice_note(client, "SYN-0011", priya)
     assert out["triage_episode_id"] and out["handover_id"] is None
@@ -355,3 +355,12 @@ def test_golden_path_health_message_goes_to_voice_triage(monkeypatch, seeded, cl
     assert len(msg) == 1 and msg[0]["to_phone"] == "+919000100011"
     q5b = R.question({**LAKSHMI, **{"last_headache": {"date": "2026-10-26", "score": 3}}}, "q5b")
     assert "அக்டோபர் 26" in q5b.ta
+    # Lakshmi V. is the third Golden Path patient: the guide's scenarios, with the Golden Path's doctors.
+    out = voice_note(client, "SYN-0142", priya)
+    assert out["triage_episode_id"] and out["handover_id"] is None
+    s = client.post(f"/triage/episodes/{out['triage_episode_id']}/play", headers=priya, json={"scenario": "amber"}).json()
+    assert s["tier"] == "TIER_2_AMBER" and set(s["result"]["reason_codes"]) == {
+        "AMBER_BANGLES_TIGHTER_THAN_BASELINE", "AMBER_HEADACHE_RISE_2_PLUS", "AMBER_HEADACHE_WORSE_THAN_LAST_TIME",
+        "AMBER_NAUSEA_DESPITE_MEALS"}
+    assert any("2026-10-10" in w or "10 Oct" in w for w in s["result"]["why"])
+    assert "Dr. Kavita Menon" in json.dumps(s["history"]["advice"])
