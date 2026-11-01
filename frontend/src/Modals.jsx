@@ -355,11 +355,15 @@ function handledNote(m) {
   if (m.direction !== 'in' || !m.ai_flag) return null;
   const handling = String(m.handling || '');
   if (handling.includes('standard_reply')) return 'CarePilot: no health mention → standard reply sent (no call, no ticket, no task)';
-  const lead = m.ai_flag === 'yes' ? `CarePilot: health mention flagged${m.ai_failed ? ' (AI failed — safe path)' : ''}` : 'CarePilot: no health mention, but a ticket is open';
+  const lead = handling.includes('empty_message') ? 'CarePilot: empty message (no words), treated as a health message'
+    : m.ai_flag === 'yes' ? `CarePilot: health mention flagged${m.ai_failed ? ' (AI failed — safe path)' : ''}` : 'CarePilot: no health mention, but a ticket is open';
   if (m.ep_ticket) {
     if (handling.includes('episode_updated')) return `${lead} → added to the open triage ticket ${m.ep_ticket}`;
     if (!m.ep_tier) return `${lead} → triage ticket ${m.ep_ticket}: automated call within 2 minutes`;
     const nurse = m.ep_red_kind === 'UNCONFIRMED' || m.ep_action === 'NURSE_CALLBACK_15_MIN';
+    // Testing round 1 Nov (Worksheet2): nobody answered the calls after an empty message
+    if (m.ep_action === 'STAFF_CALL_15_MIN' && m.ep_tier === 'TIER_2_AMBER') return `${lead} → ${m.ep_ticket}: two calls not answered; hospital staff will call her within 15 minutes`;
+    if (m.ep_red_kind === 'NO_ANSWER') return `${lead} → ${m.ep_ticket} Red: she could not be reached; her family was sent the emergency message with the PDF`;
     if (m.ep_tier === 'TIER_3_GREEN') return `${lead} → ${m.ep_ticket} Green: no doctor's call needed; follow-up call tomorrow`;
     if (nurse) return `${lead} → ${m.ep_ticket} handed to a Hospital Care Coordinator; a hospital nurse will call within 15 minutes`;
     if (m.ep_tier === 'TIER_1_RED') return `${lead} → ${m.ep_ticket} Red: go to the nearest emergency department now; handed to a Hospital Care Coordinator, hospital staff will call within 10 minutes`;
@@ -450,6 +454,7 @@ export function WaPhone({ thread, patient, settings, english, coordinator, onTap
                       <div><b>{m.body || 'document'}</b><span>Held Unverified until a coordinator checks it</span></div></div>
                   )}
                   {m.body && m.kind !== 'document' && <div className="wa-text v31-kn">{m.body}</div>}
+                  {m.direction === 'in' && m.kind === 'empty' && <div className="wa-text wa-empty">(empty message)</div>}
                   {out && m.attachment_doc_id && (
                     <button type="button" className="wa-doc" style={{ cursor: 'pointer', border: 0, textAlign: 'left', width: '100%' }}
                       onClick={async () => window.open(await blobUrl(`triage/documents/${m.attachment_doc_id}`), '_blank', 'noopener')}>
@@ -644,6 +649,8 @@ function Messages({ patient }) {
               <button type="button" className="btn" disabled={!text.trim() || !lastSent}
                 onClick={() => reply({ button: 'booked', text, in_reply_to: lastSent.id })}>Tap “Booked” + send text</button>
               <button type="button" className="btn ghost" onClick={() => reply({ text: 'HELP' })}>Reply HELP</button>
+              <button type="button" className="btn ghost" title="Testing round 1 Nov: a message with nothing in it"
+                onClick={() => reply({ empty: true, in_reply_to: lastSent?.id })}>Send an empty message</button>
             </div>
             {actOnReplies && clips.length > 0 && (
               <>

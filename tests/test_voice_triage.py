@@ -967,3 +967,102 @@ def test_d12_the_patient_journey_shows_each_triage_episode_and_the_next_ticket_s
     text_note(client, "I have a headache again")
     prev = episode(client)["previous"]
     assert prev["episode_id"] == eid and prev["details"] == details
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Testing round 1 Nov (Worksheet2): an empty message. Two automated calls; if nobody answers, hospital staff call
+# her; reached, they close the ticket or escalate to the doctor; not reachable twice, the family gets the standard
+# message with the PDF.
+# ---------------------------------------------------------------------------------------------------------------
+def empty_note(client, body=None) -> dict:
+    r = client.post(f"/simulator/{MRN}/reply", headers=ANITA, json=body or {"empty": True})
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def unanswered(client) -> dict:
+    eid = episode(client)["episode_id"]
+    client.post(f"/triage/episodes/{eid}/no-answer", headers=ANITA)
+    return client.post(f"/triage/episodes/{eid}/no-answer", headers=ANITA).json()
+
+
+def reach(client, eid, outcome, next_=None, note=None, headers=ANITA):
+    return client.post(f"/triage/episodes/{eid}/reach-call", headers=headers,
+                       json={"outcome": outcome, "next": next_, "note": note})
+
+
+@pytest.mark.parametrize("body", [{"empty": True}, {"text": "..."}, {"text": "🙏"}])
+def test_an_empty_message_is_never_the_standard_reply_it_opens_a_ticket_with_the_fixed_12(vt, client, body):
+    r = empty_note(client, body)
+    assert r["handling"][0] == "empty_message" and r["triage_episode_id"]
+    ep = episode(client)
+    assert ep["empty_message"] and len(ep["plan"]["question_ids"]) == 12 and ep["call_status"] == "due"
+    assert [m["template_id"] for m in sent()][-1] == "triage_ack"
+
+
+def test_an_empty_message_needs_nothing_else_in_it(vt, client):
+    r = client.post(f"/simulator/{MRN}/reply", headers=ANITA, json={"empty": True, "text": "hello"})
+    assert r.status_code == 422
+
+
+def test_empty_message_and_no_answer_brings_a_staff_call_not_the_family_message(vt, client):
+    from conftest import scalar
+
+    empty_note(client)
+    s = unanswered(client)
+    assert (s["tier"], s["red_kind"], s["result"]["action_code"]) == ("TIER_2_AMBER", None, "STAFF_CALL_15_MIN")
+    assert s["reaching"] and s["callback_due_at"][11:16] == "10:32" and s["due"]["what"] == "Staff call: reach her"
+    assert "Call her by 10:32" in s["next"]["coordinator"]["text"] and s["next"]["doctor"]["text"] == "Nothing"
+    templates = [m["template_id"] for m in sent()]
+    assert "triage_red_caregiver" not in templates and templates[-1] == "triage_outcome_unreached"
+    assert "within 15 minutes" in sent()[-1]["body_en"] and "nearest hospital" in sent()[-1]["body_en"]
+    assert scalar("SELECT count(*) FROM coordinator_task WHERE task_type = 'reach_patient' AND status = 'open'") == 1
+    assert s["result"]["why"] == ["Her message had no words, and two automated calls were not answered, so hospital "
+                                  "staff call her."]
+
+
+def test_staff_reach_her_and_close_the_ticket(vt, client):
+    from conftest import scalar
+
+    empty_note(client)
+    eid = unanswered(client)["episode_id"]
+    assert reach(client, eid, "REACHED", "CLOSE").status_code == 422  # what she said is needed
+    s = reach(client, eid, "REACHED", "CLOSE", "Sent by mistake; she is well").json()
+    assert s["status"] == "closed" and s["close_note"] == "Staff call: Sent by mistake; she is well"
+    assert scalar("SELECT status FROM coordinator_task WHERE task_type = 'reach_patient'") == "done"
+    assert "triage_red_caregiver" not in [m["template_id"] for m in sent()]
+
+
+def test_staff_reach_her_and_escalate_to_the_doctor(vt, client):
+    empty_note(client)
+    eid = unanswered(client)["episode_id"]
+    s = reach(client, eid, "REACHED", "ESCALATE", "She has a fever since morning", headers=NURSE).json()
+    assert not s["reaching"] and s["status"] == "open" and s["tier"] == "TIER_2_AMBER"
+    assert s["callback_due_at"][11:16] == "12:17" and "call her by 12:17" in s["next"]["doctor"]["text"]
+    assert s["coord_ack_by"] == "u_er_nurse"  # logging the call acknowledges the ticket
+    s = client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "bloods"}).json()
+    assert s["doctor_order"]["order"] == "bloods"
+
+
+def test_not_reachable_twice_sends_her_family_the_standard_message_with_the_pdf(vt, client):
+    empty_note(client)
+    eid = unanswered(client)["episode_id"]
+    s = reach(client, eid, "NOT_REACHABLE").json()
+    assert s["reaching"] and s["callback_due_at"][11:16] == "10:32"  # again within 15 minutes of the call
+    assert "triage_red_caregiver" not in [m["template_id"] for m in sent()]
+    s = reach(client, eid, "NOT_REACHABLE").json()
+    assert (s["tier"], s["red_kind"], s["reaching"]) == ("TIER_1_RED", "NO_ANSWER", False)
+    assert s["result"]["reason_codes"] == ["RED_NOT_REACHED_AFTER_EMPTY_MESSAGE"]
+    msg = [m for m in sent() if m["template_id"] == "triage_red_caregiver"][0]
+    assert "a message with no words in it" in msg["body_en"] and msg["recipient"] == "caregiver"
+    text = client.get(f"/triage/documents/{msg['attachment_doc_id']}", headers=ANITA).content.decode("latin-1")
+    assert "Sent a message with no words" in text and "two calls by hospital staff were not answered" in text
+    assert s["task"]["status"] == "open"  # then the usual Red family call: has she reached an emergency department?
+
+
+def test_the_staff_call_is_only_for_an_empty_message_nobody_answered(vt, client):
+    voice_note(client)
+    s = unanswered(client)  # a health message: Red at once, as before
+    assert (s["tier"], s["red_kind"]) == ("TIER_1_RED", "NO_ANSWER")
+    assert reach(client, s["episode_id"], "NOT_REACHABLE").status_code == 409
+    assert reach(client, s["episode_id"], "NOT_REACHABLE", headers=ANANYA).status_code == 403

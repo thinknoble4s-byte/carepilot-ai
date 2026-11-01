@@ -362,6 +362,54 @@
       "buttons": []
     },
     {
+      "template_id": "triage_outcome_unreached",
+      "language": "English",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Testing round 1 Nov (Worksheet2): after an empty message and two unanswered automated calls, hospital staff call her within 15 minutes; with the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
+      "text": "We received a message from you with no words in it. We called you twice but could not reach you. A member of hospital staff will call you within 15 minutes. To be safe: if you are unwell and hospital staff or the care coordinator cannot reach you within this time, go to the nearest hospital before you get connected with your treating doctor.",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "triage_outcome_unreached",
+      "language": "Tamil",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Testing round 1 Nov (Worksheet2): after an empty message and two unanswered automated calls, hospital staff call her within 15 minutes; with the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
+      "text": "உங்களிடமிருந்து வார்த்தைகள் இல்லாத ஒரு செய்தி வந்தது. உங்களை இரண்டு முறை அழைத்தோம், ஆனால் தொடர்பு கொள்ள முடியவில்லை. மருத்துவமனை ஊழியர் ஒருவர் 15 நிமிடங்களுக்குள் உங்களை அழைப்பார். பாதுகாப்பிற்காக: உங்களுக்கு உடல்நிலை சரியில்லை என்றால், இந்த நேரத்திற்குள் மருத்துவமனை ஊழியர்களோ பராமரிப்பு ஒருங்கிணைப்பாளரோ உங்களைத் தொடர்பு கொள்ள முடியாவிட்டால், உங்கள் மருத்துவரைத் தொடர்பு கொள்வதற்கு முன் அருகிலுள்ள மருத்துவமனைக்குச் செல்லுங்கள்.",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "triage_outcome_unreached",
+      "language": "Telugu",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Testing round 1 Nov (Worksheet2): after an empty message and two unanswered automated calls, hospital staff call her within 15 minutes; with the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
+      "text": "మీ నుండి మాటలు లేని ఒక సందేశం వచ్చింది. మేము మీకు రెండు సార్లు ఫోన్ చేశాము, కానీ మిమ్మల్ని సంప్రదించలేకపోయాము. ఆసుపత్రి సిబ్బందిలో ఒకరు 15 నిమిషాల్లోపు మీకు ఫోన్ చేస్తారు. జాగ్రత్త కోసం: మీకు ఆరోగ్యం బాగోలేకపోతే, ఈ సమయంలోపు ఆసుపత్రి సిబ్బంది లేదా కేర్ కోఆర్డినేటర్ మిమ్మల్ని సంప్రదించలేకపోతే, మీ డాక్టర్‌తో మాట్లాడే ముందే దగ్గరలోని ఆసుపత్రికి వెళ్ళండి.",
+      "closing": null,
+      "buttons": []
+    },
+    {
+      "template_id": "triage_outcome_unreached",
+      "language": "Hindi",
+      "version": "1.0",
+      "approved_by": "MOCK approval: Dr. Sekhar (demo clinical lead), pending sign-off",
+      "effective_from": "2026-10-05",
+      "date_format": "%d/%m/%Y",
+      "note": "Testing round 1 Nov (Worksheet2): after an empty message and two unanswered automated calls, hospital staff call her within 15 minutes; with the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
+      "text": "हमें आपका एक संदेश मिला जिसमें कोई शब्द नहीं था। हमने आपको दो बार कॉल किया, पर आपसे बात नहीं हो सकी। अस्पताल का एक कर्मचारी 15 मिनट के अंदर आपको कॉल करेगा। सुरक्षा के लिए: अगर आपकी तबीयत ठीक नहीं है और अस्पताल के कर्मचारी या केयर कोऑर्डिनेटर इस समय में आपसे संपर्क नहीं कर पाते, तो अपने इलाज करने वाले डॉक्टर से बात होने से पहले नज़दीकी अस्पताल जाएँ।",
+      "closing": null,
+      "buttons": []
+    },
+    {
       "template_id": "triage_outcome_red",
       "language": "English",
       "version": "1.0",

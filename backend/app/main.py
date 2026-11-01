@@ -374,6 +374,7 @@ class ReplyIn(BaseModel):
     from_role: str = "patient"
     in_reply_to: int | None = None
     clip_id: str | None = None   # "Record voice note": attaches a pre-recorded clip (UC2a)
+    empty: bool = False          # Testing round 1 Nov (Worksheet2): a message with nothing in it
     event_id: str | None = None  # the same event sent twice creates nothing new (REQ-20)
 
 
@@ -381,7 +382,7 @@ class ReplyIn(BaseModel):
 def simulate_reply(mrn: str, body: ReplyIn, _user: dict = Depends(require_role(*COORDINATOR))):
     """The WhatsApp simulator: the demo operator plays the patient or caregiver."""
     return in_tx(gateway.receive_reply, mrn, from_role=body.from_role, button=body.button, text=body.text,
-                 in_reply_to=body.in_reply_to, clip_id=body.clip_id, event_id=body.event_id)
+                 in_reply_to=body.in_reply_to, clip_id=body.clip_id, event_id=body.event_id, empty=body.empty)
 
 
 @app.post("/simulator/{mrn}/voice", status_code=201)
@@ -994,6 +995,19 @@ class EdCallIn(BaseModel):
 @app.post("/triage/episodes/{episode_id}/ed-call")
 def triage_ed_call(episode_id: int, body: EdCallIn, user: dict = Depends(require_role(*COORDINATOR))):
     return in_tx(triage.ed_call, episode_id, user, body.outcome, body.hospital, body.note)
+
+
+class ReachCallIn(BaseModel):
+    outcome: str
+    next: str | None = None
+    note: str | None = None
+
+
+@app.post("/triage/episodes/{episode_id}/reach-call")
+def triage_reach_call(episode_id: int, body: ReachCallIn,
+                      user: dict = Depends(require_role("coordinator", "er_desk"))):
+    """Testing round 1 Nov (Worksheet2): staff call her after an empty message and two unanswered automated calls."""
+    return in_tx(triage.reach_call, episode_id, user, body.outcome, body.next, body.note)
 
 
 @app.post("/triage/episodes/{episode_id}/acknowledge")

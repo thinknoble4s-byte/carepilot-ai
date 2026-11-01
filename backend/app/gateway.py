@@ -41,8 +41,9 @@ def choose_action(flag: str) -> tuple[str, str]:
 def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | None = None, text: str | None = None,
                   in_reply_to: int | None = None, clip_id: str | None = None, event_id: str | None = None,
                   audio: bytes | None = None, mime: str | None = None, spoken: str | None = None,
-                  understood: dict | None = None) -> dict:
-    """A reply from the simulator. A tap together with text or a voice note is two events, handled in turn."""
+                  understood: dict | None = None, empty: bool = False) -> dict:
+    """A reply from the simulator. A tap together with text or a voice note is two events, handled in turn.
+    empty: the patient sent a message with nothing in it (Testing round 1 Nov, Worksheet2)."""
     content = bool((text or "").strip()) or clip_id is not None
     if button and content:
         first = _receive(conn, mrn, from_role=from_role, button=button, in_reply_to=in_reply_to,
@@ -53,11 +54,16 @@ def receive_reply(conn, mrn: str, *, from_role: str = "patient", button: str | N
                 "inbound_ids": [first["inbound_id"], second["inbound_id"]]}
     return _receive(conn, mrn, from_role=from_role, button=button, text=text, clip_id=clip_id,
                     in_reply_to=in_reply_to, event_id=event_id, audio=audio, mime=mime, spoken=spoken,
-                    understood=understood)
+                    understood=understood, empty=empty)
+
+
+def has_words(text: str | None) -> bool:
+    """A message with no letter or digit in any script (blank, dots, an emoji, a silent voice note) is empty."""
+    return any(ch.isalnum() for ch in text or "")
 
 
 def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_reply_to=None, event_id=None,
-             audio=None, mime=None, spoken=None, understood=None) -> dict:
+             audio=None, mime=None, spoken=None, understood=None, empty=False) -> dict:
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
     if from_role not in ("patient", "caregiver"):
@@ -76,7 +82,9 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
             raise Invalid("Only audio files can be sent as a voice note")
     if spoken is not None and spoken not in SPOKEN:
         raise Invalid("language must be one of: " + ", ".join(SPOKEN))
-    if button is None and text is None and clip_id is None and audio is None:
+    if empty and (button is not None or text is not None or clip_id is not None or audio is not None):
+        raise Invalid("An empty message has no button, text or voice note")
+    if not empty and button is None and text is None and clip_id is None and audio is None:
         raise Invalid("A reply needs a button, some text or a voice note")
 
     if event_id:  # REQ-20: a replayed event changes nothing
@@ -100,7 +108,7 @@ def _receive(conn, mrn, *, from_role, button=None, text=None, clip_id=None, in_r
             "SELECT * FROM outbox_message WHERE mrn = %s AND status = 'sent' AND card_id IS NOT NULL "
             "ORDER BY message_id DESC LIMIT 1", (mrn,)).fetchone()
 
-    audio_id, kind = None, "button" if button else "text"
+    audio_id, kind = None, "button" if button else "empty" if empty else "text"
     if clip_id is not None:
         clip = next((c for c in clips(conn) if c["id"] == clip_id), None)
         path = CLIP_DIR / f"{clip_id}.wav"
@@ -222,7 +230,14 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
     iid = inbound["inbound_id"]
     # Voice Triage v1.2: a patient on the triage path has her message tagged, and the router picks the route
     triage_path = triage.enabled(conn) and triage.history(conn, mrn) is not None
-    if understood is not None:
+    # Testing round 1 Nov (Worksheet2): a text with no words needs no AI. It is never the standard reply: we cannot
+    # tell what she meant, so it counts as health and we call her.
+    empty = understood is None and inbound["kind"] in ("text", "empty") and not has_words(inbound["text"])
+    if empty:
+        u = {"transcript": inbound["text"] or "", "translation": "", "flag": "yes", "failed": False, "unsure": True,
+             "attempts": 0, "model": "none (empty message, no AI call)", "prompt_version": None,
+             "errors": ["empty message: no words to read"]}
+    elif understood is not None:
         # Demo seed only (Use Case 2c section 6): the flag and transcript come from the Use Case 2a run, no AI call.
         u = {"transcript": understood["transcript"], "translation": understood["translation"], "flag": understood["flag"],
              "failed": False, "unsure": False, "attempts": 0, "model": "seed (no AI call)", "prompt_version": None,
@@ -236,6 +251,11 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
                           mime=audio["mime"], clip_id=inbound["clip_id"], tags=triage_path)
     else:
         u = ai.understand(conn, language=patient["preferred_language"], text=inbound["text"], tags=triage_path)
+    if inbound["kind"] == "voice" and not u["failed"] and not has_words(u["transcript"]):
+        # a silent voice note: Sarvam heard no words. Never the standard reply; we call her.
+        empty = True
+        u = {**u, "flag": "yes", "unsure": True, "errors": u["errors"] + ["empty voice note: no words heard"]}
+        u.pop("route", None)
     conn.execute(
         """
         UPDATE inbound_message SET transcript = %s, translation = %s, ai_flag = %s, ai_failed = %s, ai_attempts = %s,
@@ -248,7 +268,8 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
                  action="ai_understanding_seeded" if understood is not None else "ai_understanding",
                  entity_type="inbound_message", entity_id=str(iid), mrn=mrn, model=u["model"],
                  prompt_version=u["prompt_version"], outcome=f"flag={u['flag']}",
-                 reason_code="ai_call_failed" if u["failed"] else ("ai_unsure" if u["unsure"] else None),
+                 reason_code="empty_message" if empty else
+                 "ai_call_failed" if u["failed"] else ("ai_unsure" if u["unsure"] else None),
                  details={"transcript": u["transcript"], "translation": u["translation"], "attempts": u["attempts"],
                           "failed": u["failed"], "errors": u["errors"],
                           **({"tags": u["clean_tags"], "route": u["route"]} if "route" in u else {})})
@@ -268,11 +289,13 @@ def _understand_and_act(conn, mrn, inbound, source, from_role, spoken=None, unde
     # Voice Triage (where switched on): a health message, or any message while an episode is open, goes to the
     # triage episode instead of the Use Case 2c handover: the acknowledgement, then the automated call.
     if open_h is None and triage.enabled(conn) and (action == "handover" or messaging.open_triage(conn, mrn)):
-        opened = triage.open_episode(conn, mrn, inbound=inbound, words=words, translation=translation,
-                                     from_role=from_role, tags=u.get("tags"), tagged="route" in u)
+        opened = triage.open_episode(conn, mrn, inbound=inbound, words=words or None,
+                                     translation=translation or None, from_role=from_role, tags=u.get("tags"),
+                                     tagged="route" in u, empty=empty)
         if opened is not None:
             ep, created = opened
-            return {"handling": [f"ai_flag_{u['flag']}" + ("_failed" if u["failed"] else ""),
+            return {"handling": (["empty_message"] if empty else []) +
+                                [f"ai_flag_{u['flag']}" + ("_failed" if u["failed"] else ""),
                                  f"triage_{'call_due' if created else 'episode_updated'}:episode_{ep['episode_id']}"],
                     "handover_id": None, "proposal_id": None, "triage_episode_id": ep["episode_id"]}
 

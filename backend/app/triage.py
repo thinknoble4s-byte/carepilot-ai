@@ -59,6 +59,14 @@ REASON_LINES = {
                            "बात नहीं हो सकी।",
                   "Telugu": "{name_own} గారు తనకు ఆరోగ్యం బాగోలేదని మాకు సందేశం పంపారు. రెండు సార్లు ఫోన్ చేసినా ఆమెను "
                             "సంప్రదించలేకపోయాము."},
+    "EMPTY_NO_ANSWER": {"English": "{name} Amma sent us a message with no words in it. We called her twice, and our "
+                                   "staff called her twice, and could not reach her.",
+                        "Tamil": "{name_own} அம்மா எங்களுக்கு வார்த்தைகள் இல்லாத ஒரு செய்தி அனுப்பினார். நாங்கள் இரண்டு "
+                                 "முறையும், எங்கள் ஊழியர்கள் இரண்டு முறையும் அழைத்தும் அவரைத் தொடர்பு கொள்ள முடியவில்லை.",
+                        "Hindi": "{name_own} जी ने हमें एक संदेश भेजा जिसमें कोई शब्द नहीं था। हमने दो बार और हमारे "
+                                 "कर्मचारियों ने दो बार कॉल किया, पर उनसे बात नहीं हो सकी।",
+                        "Telugu": "{name_own} గారు మాకు మాటలు లేని ఒక సందేశం పంపారు. మేము రెండు సార్లు, మా సిబ్బంది రెండు "
+                                  "సార్లు ఫోన్ చేసినా ఆమెను సంప్రదించలేకపోయాము."},
     "UNCONFIRMED": {"English": "{name} Amma's answers could not be confirmed as safe.",
                     "Tamil": "{name_own} அம்மாவின் பதில்கள் அவர் பாதுகாப்பாக இருக்கிறார் என்பதை உறுதிப்படுத்த முடியவில்லை.",
                     "Hindi": "{name_own} जी के जवाबों से यह पक्का नहीं हो सका कि वे सुरक्षित हैं।",
@@ -66,7 +74,10 @@ REASON_LINES = {
 }
 ALERT_TYPE = {"CONFIRMED": "Warning signs in her answers",
               "NO_ANSWER": "Reported symptoms, then could not be reached",
-              "UNCONFIRMED": "Answers could not be confirmed as safe"}
+              "UNCONFIRMED": "Answers could not be confirmed as safe",
+              "EMPTY_NO_ANSWER": "Sent a message with no words, then could not be reached"}
+REACH_OUTCOMES = ("REACHED", "NOT_REACHABLE")
+REACH_NEXT = ("CLOSE", "ESCALATE")
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -145,10 +156,13 @@ def _audit(conn, ep: dict, action: str, *, actor_type="system", actor=RULES, **k
 # 1. The health message opens an episode
 # ---------------------------------------------------------------------------------------------------------------
 def open_episode(conn, mrn: str, *, inbound: dict, words: str | None, translation: str | None,
-                 from_role: str = "patient", tags=None, tagged: bool = False) -> tuple[dict, bool] | None:
+                 from_role: str = "patient", tags=None, tagged: bool = False,
+                 empty: bool = False) -> tuple[dict, bool] | None:
     """A health message with Voice Triage on: the acknowledgement, then a call due within 2 minutes, with the
     router's plan for it (tags: the model's tags; none, or broken, ask the fixed 12). None when the patient has no
-    triage history in the record (then the usual handover path runs)."""
+    triage history in the record (then the usual handover path runs). empty: her message had no words (Testing round
+    1 Nov, Worksheet2): the same call with the fixed 12, but if nobody answers, hospital staff call before the family
+    is told."""
     existing = messaging.open_triage(conn, mrn)
     if existing:
         ep = _update(conn, existing, patient_words="\n".join(x for x in (existing["patient_words"], words) if x),
@@ -161,9 +175,11 @@ def open_episode(conn, mrn: str, *, inbound: dict, words: str | None, translatio
     if h is None:
         return None
     plan = TR.plan(h, tags)
-    if not plan["question_ids"]:  # sent here although the tags say "not health" (the seed's flag): the fixed 12
+    if not plan["question_ids"] or empty:  # the seed's flag says health, or no words to tag: the fixed 12
         plan = TR.plan(h, None)
     plan["tagged"] = tagged
+    if empty:
+        plan.update(empty=True, reason="EMPTY_MESSAGE")
     cfg, now = config(conn), clock.get_now(conn)
     ack = messaging.send_message(conn, mrn=mrn, template_id="triage_ack", actor_type="agent", actor=AGENT,
                                  reason_code="health_flag_voice_triage", recipient=from_role)
@@ -179,9 +195,11 @@ def open_episode(conn, mrn: str, *, inbound: dict, words: str | None, translatio
     conn.execute("UPDATE outbox_message SET triage_episode_id = %s WHERE message_id = %s",
                  (ep["episode_id"], ack["message_id"]))
     _link_message(conn, ep, inbound)
-    _audit(conn, ep, "triage_opened", actor_type="agent", actor=AGENT, reason_code="health_flag_voice_triage",
+    _audit(conn, ep, "triage_opened", actor_type="agent", actor=AGENT,
+           reason_code="empty_message_voice_triage" if empty else "health_flag_voice_triage",
            trigger_event=f"inbound_message:{inbound['inbound_id']}", outcome="call_due",
-           decision_inputs={"health_flag": "yes", "voice_triage": True, "tags": plan["tags"]},
+           decision_inputs={"health_flag": "unknown (empty message)" if empty else "yes", "voice_triage": True,
+                            "tags": plan["tags"]},
            details={"call_due_at": _hhmm(ep["call_due_at"]), "routine_messages": "held while the episode is open",
                     "questions": len(plan["question_ids"]), "modules": plan["modules"], "floors": plan["floors"],
                     "profile": plan["profile"]})
@@ -193,6 +211,17 @@ def _link_message(conn, ep: dict, inbound: dict) -> None:
     """Her message belongs to this episode: the ticket lists it, and the chat clears it once the episode closes."""
     conn.execute("UPDATE inbound_message SET triage_episode_id = %s WHERE inbound_id = %s",
                  (ep["episode_id"], inbound["inbound_id"]))
+
+
+def _empty(ep: dict) -> bool:
+    """Her message had no words (Testing round 1 Nov, Worksheet2)."""
+    return bool((ep["plan"] or {}).get("empty"))
+
+
+def _reaching(ep: dict) -> bool:
+    """Empty message, two unanswered calls: hospital staff are trying to reach her and have not yet."""
+    return ep["tier"] == "TIER_2_AMBER" and (ep["result"] or {}).get("action_code") == "STAFF_CALL_15_MIN" and \
+        not any(c["outcome"] == "REACHED" for c in ep["reach_calls"])
 
 
 def _plan(ep: dict, h: dict) -> dict:
@@ -395,7 +424,7 @@ def _finish(conn, ep: dict, *, nurse=False, fault=False, no_answer=False) -> dic
                     and not (q.kind == "temperature" and answers["thermometer_used"] != R.NOT_ASKED):
                 R.store(answers, q, R.UNKNOWN)
     result = R.triage(answers, h, now.date(), nurse=nurse, fault=fault or ep["fault"], no_answer=no_answer,
-                      floors=plan["floors"], profile=plan["profile"] or "ROUTED")
+                      floors=plan["floors"], profile=plan["profile"] or "ROUTED", empty=_empty(ep))
     result.update(stopped_after_danger_sign=ep["stopped_early"], why=R.why_lines(result, answers, h))
     turns = list(ep["turns"])
     if not no_answer:
@@ -419,12 +448,14 @@ def _finish(conn, ep: dict, *, nurse=False, fault=False, no_answer=False) -> dic
 # Testing round 31 Oct (defects 10 and 11): after the call the patient gets the outcome on WhatsApp too: who has her
 # case, when hospital staff will call, and the guardrail (if nobody calls in time, go to the nearest hospital).
 OUTCOME_TEMPLATES = {"TIER_1_RED": "triage_outcome_red", "TIER_2_AMBER": "triage_outcome_amber",
-                     "NURSE": "triage_outcome_nurse"}
+                     "NURSE": "triage_outcome_nurse", "UNREACHED": "triage_outcome_unreached"}
 
 
 def outcome_template(result: dict) -> str | None:
     """The WhatsApp outcome for this result: none for Green (the follow-up call is tomorrow) or when she never
-    answered (the Red family message goes out instead)."""
+    answered (the Red family message goes out instead). After an empty message nobody answered: staff will call."""
+    if result["action_code"] == "STAFF_CALL_15_MIN":
+        return OUTCOME_TEMPLATES["UNREACHED"]
     if result["tier"] == "TIER_3_GREEN" or result.get("red_kind") == "NO_ANSWER":
         return None
     if result.get("red_kind") == "UNCONFIRMED" or result["action_code"] == "NURSE_CALLBACK_15_MIN":
@@ -455,6 +486,21 @@ def _act(conn, ep: dict, result: dict) -> None:
             _update(conn, ep, callback_due_at=due)
             set_next_action(conn, ep["mrn"], f"Red (unconfirmed): nurse to call back by {_hhmm(due)}; "
                                              "no family message sent")
+    elif tier == "TIER_2_AMBER" and result["action_code"] == "STAFF_CALL_15_MIN":
+        due = now + timedelta(minutes=cfg["nurse_minutes"])
+        _update(conn, ep, callback_due_at=due)
+        task = tasks.create_task(
+            conn, mrn=ep["mrn"], task_type="reach_patient", owner_name=_name(cfg["coordinator"]) or None,
+            actor_type="system", actor="system", dedupe_key=f"triage:{ep['episode_id']}:reach_patient",
+            reason=(f"Call her by {_hhmm(due)}: her message had no words and two automated calls were not answered. "
+                    "Find out how she is. Reached: close the ticket, or escalate to the Doctor on Duty. Not reachable "
+                    "in 2 calls: her family gets the standard message with the PDF."))
+        conn.execute("UPDATE coordinator_task SET due_at_demo = %s, due_date = %s, triage_episode_id = %s "
+                     "WHERE task_id = %s", (due, now.date(), ep["episode_id"], task["task_id"]))
+        _audit(conn, ep, "staff_call_task_created", outcome=result["action_code"],
+               details={"to": [_name(cfg["coordinator"]), "ER Desk"], "call_due": _hhmm(due),
+                        "task_id": task["task_id"], "family_message": "only if staff cannot reach her in 2 calls"})
+        set_next_action(conn, ep["mrn"], f"Empty message, calls not answered: staff to call her by {_hhmm(due)}")
     elif tier == "TIER_2_AMBER":
         minutes = cfg["nurse_minutes"] if result["action_code"] == "NURSE_CALLBACK_15_MIN" else cfg["amber_callback_minutes"]
         due = now + timedelta(minutes=minutes)
@@ -494,8 +540,9 @@ def send_package(conn, episode_id: int, user: dict | None) -> dict:
         "INSERT INTO triage_document (episode_id, file_name, mime, data, created_at) "
         "VALUES (%s, 'emergency_summary.pdf', 'application/pdf', %s, %s) RETURNING doc_id",
         (ep["episode_id"], pdf, now)).fetchone()
+    line_kind = "EMPTY_NO_ANSWER" if kind == "NO_ANSWER" and _empty(ep) else kind
     reason = {lang: line.format(name=h["name_en"], name_own=R.native(h, "name", lang))
-              for lang, line in REASON_LINES[kind].items()}
+              for lang, line in REASON_LINES[line_kind].items()}
     msg = messaging.send_message(conn, mrn=ep["mrn"], template_id="triage_red_caregiver", actor_type=actor_type,
                                  actor=actor, reason_code=f"red_{kind.lower()}", recipient="caregiver",
                                  extra={"reason": reason})
@@ -512,7 +559,8 @@ def send_package(conn, episode_id: int, user: dict | None) -> dict:
     mins = cfg["confirm_within_minutes"]
     note = (f"RED alert: {h.get('title', patient['full_name'])} ({ep['mrn']}). Why: {why}. {told} Not yet known: whether "
             "she has reached an emergency department, and which one. The coordinator has been asked to confirm within "
-            f"{mins} minutes. Alert type: {kind}. Source: call audio and the PDF are linked on this card.")
+            f"{mins} minutes. Alert type: {kind}{' (empty message)' if line_kind != kind else ''}. Source: call audio "
+            "and the PDF are linked on this card.")
     caller = patient["caregiver_name"] or "the family"
     first = h["name_en"]
     task = tasks.create_task(
@@ -561,10 +609,14 @@ def summary_lines(ep: dict, h: dict, patient: dict, sent_at: str) -> list[tuple[
                      "this patient, possibly at a different hospital. Facts come from the treating hospital's record "
                      "and the patient's own answers."),
            ("head", "1. Why she is being brought in"),
-           ("body", f"Alert type: {ALERT_TYPE[kind]}"),
+           ("body", f"Alert type: {ALERT_TYPE['EMPTY_NO_ANSWER' if kind == 'NO_ANSWER' and _empty(ep) else kind]}"),
            *(("body", f"- {R.RED_PLAIN[c]}") for c in result["reason_codes"] if c in R.RED_PLAIN),
            ("head", "2. What she reported today")]
-    if kind == "NO_ANSWER":
+    if kind == "NO_ANSWER" and _empty(ep):
+        out.append(("body", "Her WhatsApp message had no words in it."))
+        out.append(("body", "Two automated calls (5 minutes apart) and two calls by hospital staff were not answered. "
+                            "No answers were recorded."))
+    elif kind == "NO_ANSWER":
         if ep["translation"]:
             out.append(("body", f'Her voice message (machine translation): "{ep["translation"]}"'))
         out.append(("body", "Two automated calls were not answered (5 minutes apart). No answers were recorded."))
@@ -809,6 +861,76 @@ def ed_call(conn, episode_id: int, user: dict, outcome: str, hospital: str | Non
            details={"hospital": (hospital or "").strip() or None, "note": note, "attempt": len(calls),
                     "doctor_on_duty_told": tell_doctor,
                     "external_care_episode": bool(hospital) and outcome == "REACHED"})
+    return state(conn, episode_id)
+
+
+def reach_call(conn, episode_id: int, user: dict, outcome: str, next_step: str | None = None,
+               note: str | None = None) -> dict:
+    """Testing round 1 Nov (Worksheet2): the coordinator or the ER Desk calls her after an empty message and two
+    unanswered automated calls. Reached: close the ticket with what she said, or escalate to the Doctor on Duty (the
+    Amber doctor callback). Not reachable twice: Red (no answer), and the family gets the standard message with the
+    PDF."""
+    ep = _load(conn, episode_id)
+    _open(ep)
+    if not _reaching(ep):
+        raise Conflict("There is no staff call to log for this ticket")
+    if outcome not in REACH_OUTCOMES:
+        raise Invalid("outcome must be one of: " + ", ".join(REACH_OUTCOMES))
+    note = (note or "").strip()
+    if outcome == "REACHED":
+        if next_step not in REACH_NEXT:
+            raise Invalid("After reaching her, choose CLOSE or ESCALATE")
+        if not note:
+            raise Invalid("Write what she said on the call")
+    elif next_step:
+        raise Invalid("Close or escalate only after reaching her")
+    cfg, now = config(conn), clock.get_now(conn)
+    task = conn.execute("SELECT * FROM coordinator_task WHERE triage_episode_id = %s AND task_type = 'reach_patient' "
+                        "AND status = 'open' FOR UPDATE", (episode_id,)).fetchone()
+    calls = list(ep["reach_calls"]) + [{"at": now.isoformat(timespec="minutes"), "by": user["user_id"],
+                                        "role": user["role"], "outcome": outcome, "next": next_step,
+                                        "note": note or None}]
+    ep = _auto_ack(conn, _update(conn, ep, reach_calls=calls), user)
+    misses = sum(1 for c in calls if c["outcome"] == "NOT_REACHABLE")
+    _audit(conn, ep, "staff_call_logged", actor_type="person", actor=user["user_id"], outcome=outcome,
+           details={"attempt": len(calls), "next": next_step, "note": note or None, "role": user["role"]})
+
+    def done(line):
+        if task:
+            tasks.complete_task(conn, task["task_id"], user["user_id"], line)
+
+    if outcome == "REACHED" and next_step == "CLOSE":
+        done("Reached her; ticket closed")
+        return _close(conn, ep, user, f"Staff call: {note}", "closed_after_staff_call")
+    if outcome == "REACHED":
+        done("Reached her; escalated to the Doctor on Duty")
+        due = now + timedelta(minutes=cfg["amber_callback_minutes"])
+        ep = _update(conn, ep, callback_due_at=due)
+        doc = _name(cfg["doctor_on_duty"]) or "Doctor on duty"
+        _audit(conn, ep, "sbar_card_created", outcome="ESCALATED_AFTER_STAFF_CALL",
+               details={"to": [doc, _name(cfg["coordinator"])], "callback_due": _hhmm(due), "note": note})
+        set_next_action(conn, ep["mrn"], f"Amber (escalated after the staff call): {doc} to call back by {_hhmm(due)}")
+        return state(conn, episode_id)
+    if misses < 2:
+        again = now + timedelta(minutes=cfg["not_yet_again_minutes"])
+        _update(conn, ep, callback_due_at=again)
+        if task:
+            conn.execute("UPDATE coordinator_task SET due_at_demo = %s WHERE task_id = %s", (again, task["task_id"]))
+        set_next_action(conn, ep["mrn"], f"Staff call: not reachable; call her again by {_hhmm(again)}")
+        return state(conn, episode_id)
+    done("Not reachable in 2 staff calls; her family was sent the standard message with the PDF")
+    h, plan = history(conn, ep["mrn"]), _plan(ep, history(conn, ep["mrn"]))
+    result = R.triage(ep["answers"], h, now.date(), no_answer=True, empty=True, staff_unreached=True,
+                      floors=plan["floors"], profile=plan["profile"] or "ROUTED")
+    result.update(stopped_after_danger_sign=False, why=R.why_lines(result, ep["answers"], h))
+    ep = _update(conn, ep, tier=result["tier"], red_kind=result["red_kind"], result=result, result_at=now,
+                 callback_due_at=None)
+    _audit(conn, ep, "triage_result", reason_code=result["tier"], outcome=result["action_code"],
+           rule=",".join(result["reason_codes"]), policy_version=f"{result['protocol_profile']} v1.2 (DRAFT_UNSIGNED)",
+           decision_inputs={"empty_message": True, "automated_calls_unanswered": ep["attempts"],
+                            "staff_calls": calls},
+           details={"why": result["why"], "red_kind": result["red_kind"]})
+    _act(conn, ep, result)
     return state(conn, episode_id)
 
 
@@ -1118,6 +1240,8 @@ def _deadlines(ep: dict, task: dict | None, cover_task: dict | None, cfg: dict) 
             add(ep["callback_due_at"], "Nurse callback", "nurse")
         if task and task["status"] == "open":
             add(task["due_at_demo"], "Call the family", "coordinator")
+    elif tier == "TIER_2_AMBER" and _reaching(ep):
+        add(ep["callback_due_at"], "Staff call: reach her", "coordinator")
     elif tier == "TIER_2_AMBER":
         if _nurse_asked(ep):
             if not ep["nurse_callback"]:
@@ -1177,12 +1301,25 @@ def _next_actions(ep: dict, task: dict | None, cfg: dict) -> dict:
                                       True)
         elif not ep["package_sent_at"]:
             out["coordinator"] = card("Nothing until the package is sent", True)
+    elif tier == "TIER_2_AMBER" and _reaching(ep):
+        missed = sum(1 for c in ep["reach_calls"] if c["outcome"] == "NOT_REACHABLE")
+        out["ai"] = card("Her message had no words and two automated calls were not answered. Told her on WhatsApp "
+                         "that hospital staff will call within 15 minutes; no family message yet", True)
+        out["coordinator"] = card(f"Call her by {_hhmm(ep['callback_due_at'])}" +
+                                  (" (second try; the first was not reachable)" if missed else "") +
+                                  ". Reached: close the ticket, or escalate to the doctor. Not reachable twice: her "
+                                  "family gets the standard message with the PDF", due=ep["callback_due_at"])
+        out["nurse"] = card("Or the ER Desk makes the call and logs it")
     elif tier == "TIER_2_AMBER":
         nurse_case = _nurse_asked(ep)
         other = "AMBER_OTHER_SYMPTOM_REPORTED" in (ep["result"] or {}).get("reason_codes", [])
         out["ai"] = card(("Told her a nurse will call within 15 minutes" if nurse_case else
                           "Told her a doctor will call within 2 hours") + "; calls again 24 hours after the outcome" +
                          (f". {followup}" if followup else ""), bool(fu))
+        reached = next((c for c in ep["reach_calls"] if c["outcome"] == "REACHED"), None)
+        if reached:
+            out["ai"] = card(f"Empty message, calls not answered; {_name(reached['by'])} reached her and escalated to "
+                             "the doctor" + (f". {followup}" if followup else ""), bool(fu))
         if nurse_case:
             out["nurse"] = card(f"Called back ({_name(ep['nurse_callback']['by'])}): “{ep['nurse_callback']['note']}”",
                                 True) if ep["nurse_callback"] else card(
@@ -1304,6 +1441,8 @@ def _owner(ep: dict, task: dict | None, cfg: dict) -> str | None:
             return _name(cfg["coordinator"])
         return _name(cfg["er_doctor"])
     if ep["tier"] == "TIER_2_AMBER":
+        if _reaching(ep):
+            return f"{_name(cfg['coordinator'])} or the ER Desk"
         if _nurse_asked(ep) and not ep["nurse_callback"]:
             return "Nurse (ER Desk)"
         if not ep["doctor_order"] and not ep["nurse_callback"]:
@@ -1349,6 +1488,7 @@ def _summary(conn, ep: dict, now: datetime) -> dict:
         "nurse_asked": _nurse_asked(ep), "state": ticket_state(ep), "state_label": STATE_LABELS[ticket_state(ep)],
         "er_log": ep["er_log"], "reopened_at": ep["reopened_at"], "owner": _owner(ep, task, cfg),
         "plan": _plan_view(ep),
+        "reach_calls": ep["reach_calls"], "reaching": _reaching(ep), "empty_message": _empty(ep),
         "now": now,
     }
 

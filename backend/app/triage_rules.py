@@ -457,7 +457,8 @@ def messages(h: dict) -> dict[str, tuple[str, str]]:
 
 TEMPLATE_IDS = {"red": "TPL_CALL_RED_V1", "red_unconfirmed": "TPL_CALL_RED_UNCONFIRMED_V1",
                 "nurse": "TPL_CALL_NURSE_V1", "nurse_other": "TPL_CALL_NURSE_V1", "amber": "TPL_CALL_AMBER_V1",
-                "green": "TPL_CALL_GREEN_V1", "no_answer": "TPL_CALL_CAREGIVER_V1"}
+                "green": "TPL_CALL_GREEN_V1", "no_answer": "TPL_CALL_CAREGIVER_V1",
+                "unreached": "TPL_WA_UNREACHED_V1"}
 
 
 def closing(result: dict, h: dict) -> tuple[str, str]:
@@ -501,6 +502,8 @@ RED_PLAIN = {
     "RED_HEADACHE_SEVERE_7_PLUS": "Headache reported as 7 out of 10 or more",
     "RED_CANNOT_CONFIRM_SAFE": "Some answers could not be confirmed as safe",
     "RED_NO_ANSWER_2X": "She reported feeling unwell, then two calls were not answered",
+    "RED_NOT_REACHED_AFTER_EMPTY_MESSAGE": "She sent an empty message, then two automated calls and two staff calls "
+                                           "were not answered",
     "RED_SYSTEM_FAULT": "The system could not read the answers",
 }
 
@@ -561,11 +564,24 @@ def _recurring(h: dict, today: date, symptom: str) -> bool:
 
 
 def triage(a: dict, h: dict, today: date, *, nurse: bool = False, fault: bool = False,
-           no_answer: bool = False, floors=(), profile: str = "ROUTED") -> dict:
+           no_answer: bool = False, floors=(), profile: str = "ROUTED", empty: bool = False,
+           staff_unreached: bool = False) -> dict:
     """floors: reason codes the router set from her own message ("severe", a symptom with no questions). They can
-    only raise the tier, never lower it."""
+    only raise the tier, never lower it.
+
+    empty (Testing round 1 Nov, Worksheet2): her message had no words. Two unanswered automated calls then make a
+    staff call within 15 minutes (Amber), not Red at once: she never said she was unwell. staff_unreached: the staff
+    could not reach her either in two calls, so it is Red (no answer) and the family gets the standard message."""
     base = {**PROTOCOL, "protocol_profile": profile, "repeat_advice": False, "repeat_instruction_id": None,
             "floors": list(floors)}
+    if no_answer and empty and not staff_unreached:
+        return {**base, "tier": "TIER_2_AMBER", "reason_codes": ["AMBER_EMPTY_MESSAGE_NOT_REACHED"],
+                "confirmed_danger": False, "red_kind": None, "action_code": "STAFF_CALL_15_MIN",
+                "message": None, "patient_template_id": TEMPLATE_IDS["unreached"], "response_minutes": 15}
+    if no_answer and staff_unreached:
+        return {**base, "tier": "TIER_1_RED", "reason_codes": ["RED_NOT_REACHED_AFTER_EMPTY_MESSAGE"],
+                "confirmed_danger": False, "red_kind": "NO_ANSWER", "action_code": "ALERT_NURSE_AND_CALL_CAREGIVER",
+                "message": None, "patient_template_id": TEMPLATE_IDS["no_answer"], "response_minutes": 0}
     if no_answer:
         return {**base, "tier": "TIER_1_RED", "reason_codes": ["RED_NO_ANSWER_2X"], "confirmed_danger": False,
                 "red_kind": "NO_ANSWER", "action_code": "ALERT_NURSE_AND_CALL_CAREGIVER", "message": None,
@@ -690,6 +706,8 @@ def why_lines(result: dict, a: dict, h: dict) -> list[str]:
         "AMBER_OTHER_SYMPTOM_REPORTED": "She mentioned a problem we have no questions for, so a nurse calls.",
         "AMBER_CANNOT_CONFIRM": "Some answers could not be confirmed.",
         "AMBER_NURSE_REQUESTED": "She pressed 0 to speak to a nurse.",
+        "AMBER_EMPTY_MESSAGE_NOT_REACHED": "Her message had no words, and two automated calls were not answered, "
+                                           "so hospital staff call her.",
     }
     out = []
     for code in result["reason_codes"]:

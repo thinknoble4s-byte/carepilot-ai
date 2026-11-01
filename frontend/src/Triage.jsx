@@ -570,6 +570,37 @@ function EdCallForm({ ep }) {
   );
 }
 
+// Testing round 1 Nov (Worksheet2): the staff call after an empty message and two unanswered automated calls.
+const REACH = [['REACHED:CLOSE', 'Reached her: close the ticket'], ['REACHED:ESCALATE', 'Reached her: escalate to the doctor'],
+  ['NOT_REACHABLE:', 'Not reachable']];
+
+function ReachCallForm({ ep }) {
+  const [choice, setChoice] = useState('');
+  const [note, setNote] = useState('');
+  const [run, error, busy] = useRun();
+  const [outcome, next] = choice.split(':');
+  const reached = outcome === 'REACHED';
+  const tries = (ep.reach_calls || []).filter((c) => c.outcome === 'NOT_REACHABLE').length;
+  return (
+    <>
+      <div className="btn-row">
+        <select className="v3-in" style={{ width: 'auto' }} value={choice} onChange={(e) => setChoice(e.target.value)}>
+          <option value="">Log the staff call…</option>
+          {REACH.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <input className="v3-in" style={{ flex: 1, minWidth: 160 }} value={note} onChange={(e) => setNote(e.target.value)}
+          placeholder={reached ? 'What she said (needed)' : 'Note (optional)'} />
+        <button type="button" className="btn sm primary" disabled={busy || !choice || (reached && !note.trim())}
+          onClick={() => run(() => post(`triage/episodes/${ep.episode_id}/reach-call`, { outcome, next: next || null, note }),
+            reached ? (next === 'CLOSE' ? 'Reached her: ticket closed' : 'Reached her: escalated to the Doctor on Duty')
+              : tries ? 'Not reachable twice: her family was sent the standard message with the PDF' : 'Not reachable: call her again')}>Log</button>
+      </div>
+      {tries > 0 && <div className="small-note">The first staff call was not reachable. If this one is not reachable either, her family gets the standard message with the PDF.</div>}
+      {error && <div className="error">{error}</div>}
+    </>
+  );
+}
+
 function NoteAction({ label, path, ep, placeholder, done, tone = '' }) {
   const [note, setNote] = useState('');
   const [run, error, busy] = useRun();
@@ -739,6 +770,7 @@ function NextCard({ k, label, ep, cfg, selected, view }) {
   if (open && k === 'nurse' && role === 'er_desk') {
     actions = (
       <>
+        {ep.reaching && <ReachCallForm ep={ep} />}
         {red && !ep.er_ack_by && <div className="btn-row"><Simple label="Acknowledge the alert" path="acknowledge" ep={ep} done="Acknowledged" /></div>}
         {ep.tier === 'TIER_2_AMBER' && <div className="btn-row"><Ack ep={ep} /></div>}
         {ep.nurse_asked && !ep.nurse_callback && <NoteAction label="Record nurse callback" path="nurse-callback" ep={ep} placeholder="What the nurse found on the call" done="Nurse callback recorded" />}
@@ -756,6 +788,8 @@ function NextCard({ k, label, ep, cfg, selected, view }) {
             done="Emergency package sent: family message with the PDF, doctor note, coordinator task" /></div>}
         </>
       );
+    } else if (open && ep.tier === 'TIER_2_AMBER' && ep.reaching) {
+      actions = <ReachCallForm ep={ep} />;
     } else if (open && ep.tier === 'TIER_2_AMBER') {
       actions = (
         <>
