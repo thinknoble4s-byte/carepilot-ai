@@ -1,13 +1,13 @@
 {
   "version": "1.1",
-  "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+  "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
   "default_coordinator": "Priya Nair",
   "default_doctor": "u_anand",
   "covers": {
     "Priya Nair": "Meera Joseph",
     "Meera Joseph": "Priya Nair",
-    "Dr. Anand Rao": "Dr. Kavita Menon",
-    "Dr. Kavita Menon": "Dr. Anand Rao"
+    "Dr. Sekhar": "Dr. Kavita Menon",
+    "Dr. Kavita Menon": "Dr. Sekhar"
   },
   "working_days": {
     "coordinator_review": 1,

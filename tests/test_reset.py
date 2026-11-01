@@ -6,8 +6,8 @@ from conftest import ANAND, PRIYA
 
 SEED_STATE = {
     "clock": date(2026, 11, 2), "users": 5,
-    "config_versions": 89,  # thresholds, plan template, autonomy, deadlines, settings, routing, 11 templates x 5 languages,
-    # 7 triage templates x 4 (the v1.2 standard reply, the three call outcomes and the unreached one included)
+    "config_versions": 93,  # thresholds, plan template, autonomy, deadlines, settings, routing, 11 templates x 5 languages,
+    # 8 triage templates x 4 (the v1.2 standard reply, the three call outcomes, the unreached one and the doctor's text)
     "patients": 25, "appointments": 10,
     "open_exceptions": 8, "import_batches": 2, "consents": 24, "agent_on": 23, "tasks": 1,
     "care_plans": 0, "order_cards": 0,

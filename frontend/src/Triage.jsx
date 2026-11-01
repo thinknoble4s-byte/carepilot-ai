@@ -11,7 +11,8 @@ import { fmt, Pill, ScreenHead, useUI, VoiceClip } from './ui.jsx';
 const TIER = { TIER_1_RED: ['Red', 'bad'], TIER_2_AMBER: ['Amber', 'warn'], TIER_3_GREEN: ['Green', 'good'] };
 const KIND = { CONFIRMED: 'CONFIRMED', NO_ANSWER: 'NO ANSWER', UNCONFIRMED: 'UNCONFIRMED' };
 const ED = [['REACHED', 'Reached (with hospital name)'], ['NOT_YET', 'Not yet'], ['REFUSED', 'Refused'], ['NOT_REACHABLE', 'Not reachable']];
-const ORDER = { physio: 'Physiotherapy referral', bloods: 'Bring forward blood tests', none: 'No order needed' };
+const ORDER = { physio: 'Physiotherapy referral', bloods: 'Bring forward blood tests', medication: 'Medication order',
+  visit: 'Advise visit', none: 'No order needed' };
 const hm = (ts) => (ts ? String(ts).slice(11, 16) : '');
 const when = (ts) => (ts ? `${fmt(String(ts).slice(0, 10))} ${hm(ts)}` : '');
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'number' && Number.isInteger(v) ? String(v) : String(v).replaceAll('_', ' '));
@@ -380,6 +381,9 @@ export function CallPane({ patient, onChange }) {
             <div className="btn-row">
               {['BETTER', 'SAME', 'WORSE'].map((a) => <button key={a} type="button" className="btn sm" disabled={busy}
                 onClick={() => act('followup', { answer: a }, `Follow-up: ${a.toLowerCase()}`)}>{a.charAt(0) + a.slice(1).toLowerCase()}</button>)}
+              {ep.tier === 'TIER_2_AMBER' && !(ep.open_tasks || []).includes('followup_no_answer') && (
+                <button type="button" className="btn sm ghost" disabled={busy}
+                  onClick={() => act('followup', { answer: 'NO_ANSWER' }, 'Follow-up not answered: the coordinator calls her')}>No answer</button>)}
             </div>
           </div>
         ) : <div className="small-note">Follow-up call due on {fmt(ep.followup_due_on)} (advance the demo clock 1 day).</div>
@@ -402,8 +406,8 @@ function Outcome({ ep }) {
     );
   }
   if (ep.tier === 'TIER_2_AMBER') {
-    return <div className="small-note vt-out">SBAR card to the Doctor on Duty and the coordinator · callback by <b>{hm(ep.callback_due_at)}</b>
-      {ep.doctor_order ? ` · doctor's order: ${ORDER[ep.doctor_order.order]}` : ''}.</div>;
+    return <div className="small-note vt-out">SBAR card to the duty doctor · callback by <b>{hm(ep.callback_due_at)}</b>
+      {(ep.orders || []).length ? ` · doctor's orders: ${ep.orders.map((o) => ORDER[o.order]).join(', ')}` : ''}.</div>;
   }
   return <div className="small-note vt-out">Green: a digest line for the coordinator, no alert{ep.result?.repeat_advice ? '; the doctor’s own signed sentence was repeated (she reported nausea)' : ''}. Follow-up call on {fmt(ep.followup_due_on)}.</div>;
 }
@@ -627,19 +631,19 @@ function Simple({ label, path, ep, done, tone = '', disabled, title }) {
   );
 }
 
-// Confirm closure (Amber): the Doctor on Duty or the coordinator, only once the 24-hour call proposed it.
+// Confirm closure (Amber): the doctor, only once the 24-hour call proposed it.
 function ConfirmClosure({ ep }) {
-  if (ep.tier !== 'TIER_2_AMBER' || !(ep.doctor_order || ep.nurse_callback)) return null;
+  if (ep.tier !== 'TIER_2_AMBER' || ep.doctor_outcome?.close !== 'FOLLOWUP') return null;
   if (ep.state !== 'CLOSURE_PROPOSED') {
     return <div className="btn-row"><button type="button" className="btn sm" disabled
-      title="An Amber ticket is closed only after the 24-hour call proposes closure">Confirm closure</button>
+      title="Closed only after the 24-hour call proposes closure">Confirm closure</button>
       <span className="small-note">after the 24-hour call says “better” (now: {ep.state_label})</span></div>;
   }
   return <NoteAction label="Confirm closure" path="confirm-closure" ep={ep} tone="primary"
     placeholder={ep.followup ? `Closing note (follow-up: ${ep.followup.answer.toLowerCase()})` : 'Closing note'} done="Closure confirmed; routine follow-up resumes" />;
 }
 
-// Acknowledge: the Amber card (Doctor on Duty, nurse or coordinator).
+// Acknowledge: the Amber card (the duty doctor, Amber workflow v2).
 function Ack({ ep }) {
   const ui = useUI();
   if (ep.tier !== 'TIER_2_AMBER' || ep.status !== 'open') return null;
@@ -647,22 +651,96 @@ function Ack({ ep }) {
   return <Simple label="Acknowledge" path="acknowledge" ep={ep} done="Acknowledged" />;
 }
 
+// Amber workflow v2: the duty doctor logs each call, then the orders (several allowed), then the outcome.
+function CallLog({ ep }) {
+  const ui = useUI();
+  const calls = ep.doctor_calls || [];
+  const att = ep.attender_calls || [];
+  if (!calls.length && !att.length) return null;
+  return (
+    <ul className="small-note vt-calls">
+      {calls.map((c, i) => <li key={`d${i}`}>{hm(c.at)} · {ui.name(c.by)} called her: <b>{c.outcome === 'PICKED_UP' ? 'picked up' : 'no answer'}</b>{c.note ? ` — “${c.note}”` : ''}</li>)}
+      {att.map((c, i) => <li key={`a${i}`}>{hm(c.at)} · {ui.name(c.by)} called her attender: <b>{c.outcome === 'REACHED' ? 'reached' : 'not reachable'}</b>{c.note ? ` — “${c.note}”` : ''}</li>)}
+    </ul>
+  );
+}
+
 function DoctorActions({ ep }) {
   const [note, setNote] = useState('');
+  const [med, setMed] = useState('');
+  const [outcome, setOutcome] = useState('');
   const [run, error, busy] = useRun();
+  if (ep.tier !== 'TIER_2_AMBER' || ep.reaching) return null;
+  const misses = (ep.doctor_calls || []).filter((c) => c.outcome === 'NO_ANSWER').length;
+  const orders = ep.orders || [];
+  const none = orders.some((o) => o.order === 'none');
+  const id = ep.episode_id;
   return (
     <>
-      {ep.tier === 'TIER_2_AMBER' && !ep.doctor_order && !ep.nurse_asked && (
+      <CallLog ep={ep} />
+      {!ep.reached && misses < 2 && (
         <div className="btn-row">
-          <input className="v3-in" style={{ flex: 1, minWidth: 160 }} placeholder="Outcome of your call (optional), e.g. pause Neurobion Forte for 5 days" value={note} onChange={(e) => setNote(e.target.value)} />
-          {Object.entries(ORDER).map(([k, l]) => (
-            <button key={k} type="button" className={`btn sm ${k === 'none' ? '' : 'primary'}`} disabled={busy}
-              onClick={() => run(() => post(`triage/episodes/${ep.episode_id}/order`, { order: k, note }), k === 'none' ? 'No order needed — recorded' : `${l}: order card created, booking message sent`)}>{l}</button>
-          ))}
+          <input className="v3-in" style={{ flex: 1, minWidth: 160 }} placeholder="Call note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button type="button" className="btn sm primary" disabled={busy}
+            onClick={() => run(() => post(`triage/episodes/${id}/doctor-call`, { outcome: 'PICKED_UP', note }), 'Call logged: she picked up')}>She picked up</button>
+          <button type="button" className="btn sm" disabled={busy}
+            onClick={() => run(() => post(`triage/episodes/${id}/doctor-call`, { outcome: 'NO_ANSWER', note }),
+              misses ? 'Second call not answered: the coordinator calls her attender' : 'No answer: try again in 10 minutes')}>
+            No answer{misses ? ' (2nd try)' : ''}</button>
         </div>
       )}
-      {ep.doctor_order && <div className="small-note">Order: <b>{ORDER[ep.doctor_order.order]}</b>{ep.doctor_order.note ? ` — “${ep.doctor_order.note}”` : ''}</div>}
+      {!ep.reached && misses >= 2 && <div className="small-note">Two calls not answered: the coordinator is calling her attender. If she is still not reached by {hm(ep.callback_due_at)}, the ticket goes to Red (unconfirmed).</div>}
+      {ep.reached && !ep.doctor_outcome && (
+        <>
+          {!none && (
+            <div className="btn-row">
+              {Object.entries(ORDER).filter(([k]) => k !== 'medication' && !orders.some((o) => o.order === k) && !(k === 'none' && orders.length)).map(([k, l]) => (
+                <button key={k} type="button" className={`btn sm ${k === 'none' ? '' : 'primary'}`} disabled={busy}
+                  onClick={() => run(() => post(`triage/episodes/${id}/order`, { order: k }), k === 'none' ? 'No order needed — recorded' : `${l}: order card created, booking message sent, coordinator to book`)}>{l}</button>
+              ))}
+            </div>
+          )}
+          {!none && (
+            <div className="btn-row">
+              <input className="v3-in" style={{ flex: 1, minWidth: 160 }} placeholder="Medication order, sent to her word for word (e.g. Pause Neurobion Forte for 5 days)" value={med} onChange={(e) => setMed(e.target.value)} />
+              <button type="button" className="btn sm primary" disabled={busy || !med.trim()}
+                onClick={() => run(async () => { const r = await post(`triage/episodes/${id}/order`, { order: 'medication', note: med }); setMed(''); return r; }, 'Medication order sent to her word for word')}>Medication order</button>
+            </div>
+          )}
+          {orders.length > 0 && <div className="small-note">Ordered: {orders.map((o) => ORDER[o.order] + (o.text ? ` (“${o.text}”)` : '')).join(' · ')}</div>}
+          {orders.length > 0 && (
+            <div className="btn-row">
+              <input className="v3-in" style={{ flex: 1, minWidth: 160 }} placeholder="One-line outcome (needed)" value={outcome} onChange={(e) => setOutcome(e.target.value)} />
+              <button type="button" className="btn sm primary" disabled={busy || !outcome.trim()}
+                onClick={() => run(() => post(`triage/episodes/${id}/outcome`, { note: outcome, close: 'NOW' }), 'Outcome logged; ticket closed')}>Close now</button>
+              <button type="button" className="btn sm" disabled={busy || !outcome.trim()}
+                onClick={() => run(() => post(`triage/episodes/${id}/outcome`, { note: outcome, close: 'FOLLOWUP' }), 'Outcome logged; the 24-hour follow-up call is set')}>Close after 24-hour follow-up</button>
+            </div>
+          )}
+        </>
+      )}
+      {ep.doctor_outcome && <div className="small-note">Outcome: “{ep.doctor_outcome.note}” · {ep.doctor_outcome.close === 'NOW' ? 'closed now' : 'close after the 24-hour follow-up'}</div>}
       <ConfirmClosure ep={ep} />
+      {error && <div className="error">{error}</div>}
+    </>
+  );
+}
+
+// Amber workflow v2: the coordinator calls her attender after the doctor's two unanswered calls.
+function AttenderForm({ ep }) {
+  const [note, setNote] = useState('');
+  const [run, error, busy] = useRun();
+  const id = ep.episode_id;
+  return (
+    <>
+      <div className="btn-row">
+        <input className="v3-in" style={{ flex: 1, minWidth: 160 }} value={note} onChange={(e) => setNote(e.target.value)}
+          placeholder={`What ${ep.caregiver_name || 'the attender'} said (needed when reached)`} />
+        <button type="button" className="btn sm primary" disabled={busy || !note.trim()}
+          onClick={() => run(() => post(`triage/episodes/${id}/attender-call`, { outcome: 'REACHED', note }), 'Attender reached: the doctor records the orders and the outcome')}>Reached</button>
+        <button type="button" className="btn sm" disabled={busy}
+          onClick={() => run(() => post(`triage/episodes/${id}/attender-call`, { outcome: 'NOT_REACHABLE', note }), 'Attender not reachable: Red (unconfirmed) at the end of the 2 hours if she is still not reached')}>Not reachable</button>
+      </div>
       {error && <div className="error">{error}</div>}
     </>
   );
@@ -754,6 +832,10 @@ function NextCard({ k, label, ep, cfg, selected, view }) {
   }
   if (open && k === 'doctor') {
     if (role === 'oncologist' && ep.tier === 'TIER_2_AMBER') actions = <><div className="btn-row"><Ack ep={ep} /></div><DoctorActions ep={ep} /></>;
+    if (role === 'oncologist' && red && ep.red_kind === 'UNCONFIRMED' && !ep.package_sent_at) {
+      actions = <div className="btn-row"><Simple label="Send emergency package" path="send-package" ep={ep} tone="warn"
+        done="Emergency package sent: family message with the PDF, doctor note, coordinator task" /></div>;
+    }
     if (red && role === 'er_desk') {
       const logged = ['OUTCOME_LOGGED', 'CLOSURE_PROPOSED'].includes(ep.state);
       actions = (
@@ -772,7 +854,6 @@ function NextCard({ k, label, ep, cfg, selected, view }) {
       <>
         {ep.reaching && <ReachCallForm ep={ep} />}
         {red && !ep.er_ack_by && <div className="btn-row"><Simple label="Acknowledge the alert" path="acknowledge" ep={ep} done="Acknowledged" /></div>}
-        {ep.tier === 'TIER_2_AMBER' && <div className="btn-row"><Ack ep={ep} /></div>}
         {ep.nurse_asked && !ep.nurse_callback && <NoteAction label="Record nurse callback" path="nurse-callback" ep={ep} placeholder="What the nurse found on the call" done="Nurse callback recorded" />}
         {red && ep.red_kind === 'UNCONFIRMED' && !ep.package_sent_at && <div className="btn-row"><Simple label="Send emergency package" path="send-package" ep={ep} tone="warn"
           done="Emergency package sent: family message with the PDF, doctor note, coordinator task" /></div>}
@@ -793,11 +874,9 @@ function NextCard({ k, label, ep, cfg, selected, view }) {
     } else if (open && ep.tier === 'TIER_2_AMBER') {
       actions = (
         <>
-          <div className="btn-row">
-            <Ack ep={ep} />
-            {ep.doctor_order?.card_id && <button type="button" className="btn sm" onClick={() => ui.nav('plan', ep.mrn)}>Open her plan to book</button>}
-          </div>
-          <ConfirmClosure ep={ep} />
+          {(ep.open_tasks || []).includes('call_attender') && <AttenderForm ep={ep} />}
+          <CallLog ep={ep} />
+          {(ep.orders || []).some((o) => o.card_id) && <div className="btn-row"><button type="button" className="btn sm" onClick={() => ui.nav('plan', ep.mrn)}>Open her plan to book</button></div>}
         </>
       );
     } else if (open && ep.tier === 'TIER_3_GREEN' && !ep.digest_ack_by) {
@@ -905,7 +984,8 @@ function Ticket({ id, view, cfg }) {
       <Previous ep={ep} />
       {ep.status === 'closed' && <div className="small-note">Closed by {ui.name(ep.closed_by)} {when(ep.closed_at)}: “{ep.close_note}”</div>}
       {ep.proposed && <div className="vt-proposed">AI proposes (a person decides): {ep.proposed.replace(/^Proposed: /, '')}</div>}
-      {ep.cover_alerted_at && ep.status === 'open' && <div className="vt-proposed late">Nobody acted on this Amber ticket in {cfg?.cover_alert_minutes || 90} minutes: the cover ({ep.cover_task?.owner_name}) was alerted at {hm(ep.cover_alerted_at)}.</div>}
+      {ep.overdue && <div className="vt-proposed late">OVERDUE: no doctor's call in 2 hours. The backup doctor and the Senior Oncologist were alerted at {hm(ep.overdue_at)}; the coordinator was asked to make sure one of them calls her.</div>}
+      {ep.reminded_at && !ep.overdue && ep.status === 'open' && ep.tier === 'TIER_2_AMBER' && !ep.doctor_outcome && <div className="vt-proposed">Not acknowledged in 90 minutes: the duty doctor was reminded at {hm(ep.reminded_at)}.</div>}
       <div className="grid-2 vt-tgrid">
         <div>
           <div className="card-title">Conversation</div>

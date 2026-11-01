@@ -57,7 +57,7 @@
       "current_phase": "Follow-up after treatment, with the oncology team",
       "treating_hospital": "Hospital A (synthetic)",
       "care_team_phone": "+91 00000 00000 (placeholder)",
-      "treating_oncologist": "Treating oncologist: Dr. Anand Rao"
+      "treating_oncologist": "Treating oncologist: Dr. Sekhar"
     },
     "medicines": [
       {
@@ -71,7 +71,7 @@
     ],
     "signed_note": {
       "text": "The left arm is at risk of swelling and infection after node clearance. Please keep this in mind when choosing a site for blood pressure, blood draws or injections.",
-      "signed_by": "Dr. Anand Rao (MOCK signature, pending sign-off)",
+      "signed_by": "Dr. Sekhar (MOCK signature, pending sign-off)",
       "date": "2026-10-15"
     },
     "not_recorded": [
@@ -129,7 +129,7 @@
       "current_phase": "Follow-up after treatment, with the oncology team",
       "treating_hospital": "Hospital A (synthetic)",
       "care_team_phone": "+91 00000 00000 (placeholder)",
-      "treating_oncologist": "Treating oncologist: Dr. Anand Rao"
+      "treating_oncologist": "Treating oncologist: Dr. Sekhar"
     },
     "medicines": [
       {
@@ -143,7 +143,7 @@
     ],
     "signed_note": {
       "text": "The left arm is at risk of swelling and infection after node clearance. Please keep this in mind when choosing a site for blood pressure, blood draws or injections.",
-      "signed_by": "Dr. Anand Rao (MOCK signature, pending sign-off)",
+      "signed_by": "Dr. Sekhar (MOCK signature, pending sign-off)",
       "date": "2026-10-15"
     },
     "not_recorded": [
@@ -211,7 +211,7 @@
       "current_phase": "Recovery after surgery; follow-up with the oncology team",
       "treating_hospital": "Hospital A (synthetic)",
       "care_team_phone": "+91 00000 00000 (placeholder)",
-      "treating_oncologist": "Treating oncologist: Dr. Anand Rao"
+      "treating_oncologist": "Treating oncologist: Dr. Sekhar"
     },
     "medicines": [
       {
@@ -225,7 +225,7 @@
     ],
     "signed_note": {
       "text": "The left arm is at risk of swelling and infection after node clearance. Please keep this in mind when choosing a site for blood pressure, blood draws or injections.",
-      "signed_by": "Dr. Anand Rao (MOCK signature, pending sign-off)",
+      "signed_by": "Dr. Sekhar (MOCK signature, pending sign-off)",
       "date": "2026-10-02"
     },
     "not_recorded": [

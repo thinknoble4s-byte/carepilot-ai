@@ -976,7 +976,7 @@ def triage_document(doc_id: int, _user: dict = Depends(require_role(*TRIAGE_VIEW
 
 
 class FollowupIn(BaseModel):
-    answer: str | None = None  # BETTER, SAME or WORSE (on-screen button)
+    answer: str | None = None  # BETTER, SAME or WORSE (on-screen button); NO_ANSWER: nobody picked up
     text: str | None = None
 
 
@@ -1012,8 +1012,8 @@ def triage_reach_call(episode_id: int, body: ReachCallIn,
 
 @app.post("/triage/episodes/{episode_id}/acknowledge")
 def triage_acknowledge(episode_id: int, user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
-    """Green the coordinator (the digest); Amber the Doctor on Duty, the nurse or the coordinator; Red the nurse or
-    the ER doctor. A role that may not is refused with the reason."""
+    """Green the coordinator (the digest); Amber the duty doctor; Red the nurse or the ER doctor. A role that may
+    not is refused with the reason."""
     return in_tx(triage.acknowledge, episode_id, user)
 
 
@@ -1029,8 +1029,10 @@ def triage_reopen(episode_id: int, body: TriageNoteIn,
 
 
 @app.post("/triage/episodes/{episode_id}/send-package")
-def triage_send_package(episode_id: int, user: dict = Depends(require_role("coordinator", "er_desk"))):
-    """Red (unconfirmed) only: a person sends the emergency package after the nurse could not confirm."""
+def triage_send_package(episode_id: int,
+                        user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
+    """Red (unconfirmed) only: a person sends the emergency package after the nurse could not confirm, or after
+    nobody reached her in the Amber 2 hours (the duty doctor or the coordinator)."""
     return in_tx(triage.send_package, episode_id, user)
 
 
@@ -1053,8 +1055,8 @@ def triage_er_log(episode_id: int, body: TriageNoteIn, user: dict = Depends(requ
 
 @app.post("/triage/episodes/{episode_id}/confirm-closure")
 def triage_confirm_closure(episode_id: int, body: TriageNoteIn,
-                           user: dict = Depends(require_role("oncologist", "coordinator"))):
-    """Amber: the Doctor on Duty or the coordinator confirms the closure the 24-hour call proposed."""
+                           user: dict = Depends(require_role("oncologist"))):
+    """Amber: the doctor confirms the closure the 24-hour call proposed (Amber workflow v2)."""
     return in_tx(triage.confirm_closure, episode_id, user, body.note)
 
 
@@ -1065,8 +1067,37 @@ class OrderIn(BaseModel):
 
 @app.post("/triage/episodes/{episode_id}/order")
 def triage_order(episode_id: int, body: OrderIn, user: dict = Depends(require_role("oncologist"))):
-    """Physiotherapy referral, Bring forward blood tests or No order needed (the doctor decides the care)."""
+    """Physiotherapy referral, Bring forward blood tests, Advise visit, Medication order (the note is sent to her
+    word for word) or No order needed. Several may be recorded (the doctor decides the care)."""
     return in_tx(triage.doctor_order, episode_id, user, body.order, body.note)
+
+
+class CallLogIn(BaseModel):
+    outcome: str
+    note: str | None = None
+
+
+@app.post("/triage/episodes/{episode_id}/doctor-call")
+def triage_doctor_call(episode_id: int, body: CallLogIn, user: dict = Depends(require_role("oncologist"))):
+    """Amber workflow v2: the duty doctor logs each call to her, PICKED_UP or NO_ANSWER."""
+    return in_tx(triage.doctor_call, episode_id, user, body.outcome, body.note)
+
+
+@app.post("/triage/episodes/{episode_id}/attender-call")
+def triage_attender_call(episode_id: int, body: CallLogIn, user: dict = Depends(require_role("coordinator"))):
+    """Amber workflow v2: after the doctor's two unanswered calls the coordinator calls her attender."""
+    return in_tx(triage.attender_call, episode_id, user, body.outcome, body.note)
+
+
+class OutcomeIn(BaseModel):
+    note: str | None = None
+    close: str
+
+
+@app.post("/triage/episodes/{episode_id}/outcome")
+def triage_outcome(episode_id: int, body: OutcomeIn, user: dict = Depends(require_role("oncologist"))):
+    """Amber workflow v2: the doctor's one-line outcome, then close now or after the 24-hour follow-up call."""
+    return in_tx(triage.doctor_outcome, episode_id, user, body.note, body.close)
 
 
 class TierIn(BaseModel):

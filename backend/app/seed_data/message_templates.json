@@ -2,7 +2,7 @@
   {
     "template_id": "booking_reminder",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [
       {
@@ -51,7 +51,7 @@
   {
     "template_id": "missed_item_reminder",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [
       {
@@ -100,7 +100,7 @@
   {
     "template_id": "handover_ack",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "The fixed acknowledgement. The only automated message allowed while a handover is open.",
     "buttons": [],
     "text": {
@@ -115,7 +115,7 @@
   {
     "template_id": "instruction_booking",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Sent when a doctor's instruction creates a new order card. Kannada, Hindi and Tamil are drafts.",
     "buttons": [
       {
@@ -155,7 +155,7 @@
   {
     "template_id": "test_booking_reminder",
     "version": "1.2",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [
       {
@@ -193,48 +193,48 @@
       }
     ],
     "text": {
-      "English": "Namaste {first_name}. Dr. Anand Rao has advised your {item}, due on {due}. We have no booking for it yet. Please book it and reply with a button below. Reply HELP to reach a person. — Hospital A (automated assistant)",
-      "Hindi": "नमस्ते {first_name} जी। डॉ. आनंद राव ने आपकी {item} की सलाह दी है, जिसकी तारीख {due} है। इसकी बुकिंग अभी तक नहीं हुई है। कृपया इसे बुक करें और नीचे दिए बटन से जवाब दें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
-      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಆನಂದ್ ರಾವ್ ಅವರು ನಿಮಗೆ {item} ಸೂಚಿಸಿದ್ದಾರೆ, ದಿನಾಂಕ {due}. ಇದಕ್ಕೆ ಇನ್ನೂ ಬುಕಿಂಗ್ ಆಗಿಲ್ಲ. ದಯವಿಟ್ಟು ಬುಕ್ ಮಾಡಿ ಮತ್ತು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
-      "Tamil": "வணக்கம் {first_name}. டாக்டர் ஆனந்த் ராவ் உங்களுக்கு {item} பரிந்துரைத்துள்ளார்; அதன் தேதி {due}. இதற்கு இன்னும் முன்பதிவு செய்யப்படவில்லை. தயவுசெய்து முன்பதிவு செய்து, கீழே உள்ள பொத்தான் மூலம் பதில் அளியுங்கள். ஒருவருடன் பேச உதவி என்று எழுதுங்கள். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
-      "Telugu": "నమస్తే {first_name} గారు. డా. ఆనంద్ రావు మీకు {item} సూచించారు; దాని తేదీ {due}. దీనికి ఇంకా బుకింగ్ జరగలేదు. దయచేసి బుక్ చేసుకుని, కింది బటన్‌తో జవాబు ఇవ్వండి. ఒక వ్యక్తితో మాట్లాడటానికి సహాయం అని రాయండి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
+      "English": "Namaste {first_name}. Dr. Sekhar has advised your {item}, due on {due}. We have no booking for it yet. Please book it and reply with a button below. Reply HELP to reach a person. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। डॉ. शेखर ने आपकी {item} की सलाह दी है, जिसकी तारीख {due} है। इसकी बुकिंग अभी तक नहीं हुई है। कृपया इसे बुक करें और नीचे दिए बटन से जवाब दें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಶೇಖರ್ ಅವರು ನಿಮಗೆ {item} ಸೂಚಿಸಿದ್ದಾರೆ, ದಿನಾಂಕ {due}. ಇದಕ್ಕೆ ಇನ್ನೂ ಬುಕಿಂಗ್ ಆಗಿಲ್ಲ. ದಯವಿಟ್ಟು ಬುಕ್ ಮಾಡಿ ಮತ್ತು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
+      "Tamil": "வணக்கம் {first_name}. டாக்டர் சேகர் உங்களுக்கு {item} பரிந்துரைத்துள்ளார்; அதன் தேதி {due}. இதற்கு இன்னும் முன்பதிவு செய்யப்படவில்லை. தயவுசெய்து முன்பதிவு செய்து, கீழே உள்ள பொத்தான் மூலம் பதில் அளியுங்கள். ஒருவருடன் பேச உதவி என்று எழுதுங்கள். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
+      "Telugu": "నమస్తే {first_name} గారు. డా. శేఖర్ మీకు {item} సూచించారు; దాని తేదీ {due}. దీనికి ఇంకా బుకింగ్ జరగలేదు. దయచేసి బుక్ చేసుకుని, కింది బటన్‌తో జవాబు ఇవ్వండి. ఒక వ్యక్తితో మాట్లాడటానికి సహాయం అని రాయండి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
     },
     "effective_from": "2026-10-18"
   },
   {
     "template_id": "report_continue_booked",
     "version": "1.2",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [],
     "text": {
-      "English": "Namaste {first_name}. Dr. Anand Rao has reviewed your {item} report. No change to your plan is needed. Please continue with your next planned visit on {next_visit_date}. — Hospital A (automated assistant)",
-      "Hindi": "नमस्ते {first_name} जी। डॉ. आनंद राव ने आपकी {item} की रिपोर्ट देख ली है। आपकी योजना में कोई बदलाव नहीं है। कृपया {next_visit_date} को अपनी अगली तय विज़िट पर आएँ। — अस्पताल A (स्वचालित सहायक)",
-      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಆನಂದ್ ರಾವ್ ಅವರು ನಿಮ್ಮ {item} ವರದಿಯನ್ನು ನೋಡಿದ್ದಾರೆ. ನಿಮ್ಮ ಯೋಜನೆಯಲ್ಲಿ ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ. ದಯವಿಟ್ಟು {next_visit_date} ರಂದು ನಿಮ್ಮ ಮುಂದಿನ ನಿಗದಿತ ಭೇಟಿಗೆ ಬನ್ನಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
-      "Tamil": "வணக்கம் {first_name}. டாக்டர் ஆனந்த் ராவ் உங்கள் {item} அறிக்கையைப் பார்த்துவிட்டார். உங்கள் திட்டத்தில் எந்த மாற்றமும் தேவையில்லை. {next_visit_date} அன்று உங்கள் அடுத்த திட்டமிட்ட வருகைக்கு வாருங்கள். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
-      "Telugu": "నమస్తే {first_name} గారు. డా. ఆనంద్ రావు మీ {item} రిపోర్ట్ చూశారు. మీ ప్రణాళికలో ఎలాంటి మార్పు అవసరం లేదు. {next_visit_date} న మీ తదుపరి నిర్ణీత సందర్శనకు రండి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
+      "English": "Namaste {first_name}. Dr. Sekhar has reviewed your {item} report. No change to your plan is needed. Please continue with your next planned visit on {next_visit_date}. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। डॉ. शेखर ने आपकी {item} की रिपोर्ट देख ली है। आपकी योजना में कोई बदलाव नहीं है। कृपया {next_visit_date} को अपनी अगली तय विज़िट पर आएँ। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಶೇಖರ್ ಅವರು ನಿಮ್ಮ {item} ವರದಿಯನ್ನು ನೋಡಿದ್ದಾರೆ. ನಿಮ್ಮ ಯೋಜನೆಯಲ್ಲಿ ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ. ದಯವಿಟ್ಟು {next_visit_date} ರಂದು ನಿಮ್ಮ ಮುಂದಿನ ನಿಗದಿತ ಭೇಟಿಗೆ ಬನ್ನಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
+      "Tamil": "வணக்கம் {first_name}. டாக்டர் சேகர் உங்கள் {item} அறிக்கையைப் பார்த்துவிட்டார். உங்கள் திட்டத்தில் எந்த மாற்றமும் தேவையில்லை. {next_visit_date} அன்று உங்கள் அடுத்த திட்டமிட்ட வருகைக்கு வாருங்கள். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
+      "Telugu": "నమస్తే {first_name} గారు. డా. శేఖర్ మీ {item} రిపోర్ట్ చూశారు. మీ ప్రణాళికలో ఎలాంటి మార్పు అవసరం లేదు. {next_visit_date} న మీ తదుపరి నిర్ణీత సందర్శనకు రండి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
     },
     "effective_from": "2026-10-18"
   },
   {
     "template_id": "report_continue_due",
     "version": "1.2",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [],
     "text": {
-      "English": "Namaste {first_name}. Dr. Anand Rao has reviewed your {item} report. No change to your plan is needed. Please continue with your next visit, due by {due_date}. — Hospital A (automated assistant)",
-      "Hindi": "नमस्ते {first_name} जी। डॉ. आनंद राव ने आपकी {item} की रिपोर्ट देख ली है। आपकी योजना में कोई बदलाव नहीं है। आपकी अगली विज़िट {due_date} तक होनी है। — अस्पताल A (स्वचालित सहायक)",
-      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಆನಂದ್ ರಾವ್ ಅವರು ನಿಮ್ಮ {item} ವರದಿಯನ್ನು ನೋಡಿದ್ದಾರೆ. ನಿಮ್ಮ ಯೋಜನೆಯಲ್ಲಿ ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ. ನಿಮ್ಮ ಮುಂದಿನ ಭೇಟಿ {due_date} ಒಳಗೆ ಆಗಬೇಕು. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
-      "Tamil": "வணக்கம் {first_name}. டாக்டர் ஆனந்த் ராவ் உங்கள் {item} அறிக்கையைப் பார்த்துவிட்டார். உங்கள் திட்டத்தில் எந்த மாற்றமும் தேவையில்லை. உங்கள் அடுத்த வருகை {due_date} க்குள் நடைபெற வேண்டும். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
-      "Telugu": "నమస్తే {first_name} గారు. డా. ఆనంద్ రావు మీ {item} రిపోర్ట్ చూశారు. మీ ప్రణాళికలో ఎలాంటి మార్పు అవసరం లేదు. మీ తదుపరి సందర్శన {due_date} లోపు జరగాలి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
+      "English": "Namaste {first_name}. Dr. Sekhar has reviewed your {item} report. No change to your plan is needed. Please continue with your next visit, due by {due_date}. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। डॉ. शेखर ने आपकी {item} की रिपोर्ट देख ली है। आपकी योजना में कोई बदलाव नहीं है। आपकी अगली विज़िट {due_date} तक होनी है। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಶೇಖರ್ ಅವರು ನಿಮ್ಮ {item} ವರದಿಯನ್ನು ನೋಡಿದ್ದಾರೆ. ನಿಮ್ಮ ಯೋಜನೆಯಲ್ಲಿ ಯಾವುದೇ ಬದಲಾವಣೆ ಇಲ್ಲ. ನಿಮ್ಮ ಮುಂದಿನ ಭೇಟಿ {due_date} ಒಳಗೆ ಆಗಬೇಕು. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
+      "Tamil": "வணக்கம் {first_name}. டாக்டர் சேகர் உங்கள் {item} அறிக்கையைப் பார்த்துவிட்டார். உங்கள் திட்டத்தில் எந்த மாற்றமும் தேவையில்லை. உங்கள் அடுத்த வருகை {due_date} க்குள் நடைபெற வேண்டும். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
+      "Telugu": "నమస్తే {first_name} గారు. డా. శేఖర్ మీ {item} రిపోర్ట్ చూశారు. మీ ప్రణాళికలో ఎలాంటి మార్పు అవసరం లేదు. మీ తదుపరి సందర్శన {due_date} లోపు జరగాలి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
     },
     "effective_from": "2026-10-18"
   },
   {
     "template_id": "test_report_check",
     "version": "1.3",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [
       {
@@ -263,18 +263,18 @@
       }
     ],
     "text": {
-      "English": "Namaste {first_name}. We have not yet received the report of your {item}, advised by Dr. Anand Rao. Please reply with a button below. If you did the test at another lab, please send a clear photo or PDF of the complete report here on WhatsApp. Reply HELP to reach a person. — Hospital A (automated assistant)",
-      "Hindi": "नमस्ते {first_name} जी। डॉ. आनंद राव द्वारा सलाह दी गई आपकी {item} की रिपोर्ट हमें अभी तक नहीं मिली है। कृपया नीचे दिए बटन से जवाब दें। अगर आपने जाँच किसी दूसरी लैब में करवाई है, तो पूरी रिपोर्ट की साफ़ फ़ोटो या PDF यहीं WhatsApp पर भेजें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
-      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಆನಂದ್ ರಾವ್ ಅವರು ಸೂಚಿಸಿದ ನಿಮ್ಮ {item} ವರದಿ ನಮಗೆ ಇನ್ನೂ ಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. ನೀವು ಪರೀಕ್ಷೆಯನ್ನು ಬೇರೆ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದ್ದರೆ, ಪೂರ್ಣ ವರದಿಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಥವಾ PDF ಅನ್ನು ಇಲ್ಲೇ WhatsApp ನಲ್ಲಿ ಕಳುಹಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
-      "Tamil": "வணக்கம் {first_name}. டாக்டர் ஆனந்த் ராவ் பரிந்துரைத்த உங்கள் {item} அறிக்கை இன்னும் எங்களுக்குக் கிடைக்கவில்லை. தயவுசெய்து கீழே உள்ள பொத்தான் மூலம் பதில் அளியுங்கள். நீங்கள் வேறு ஆய்வகத்தில் பரிசோதனை செய்திருந்தால், முழு அறிக்கையின் தெளிவான புகைப்படம் அல்லது PDF-ஐ இங்கேயே WhatsApp-இல் அனுப்புங்கள். ஒருவருடன் பேச உதவி என்று எழுதுங்கள். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
-      "Telugu": "నమస్తే {first_name} గారు. డా. ఆనంద్ రావు సూచించిన మీ {item} రిపోర్ట్ మాకు ఇంకా అందలేదు. దయచేసి కింది బటన్‌తో జవాబు ఇవ్వండి. మీరు వేరే ల్యాబ్‌లో పరీక్ష చేయించుకుంటే, పూర్తి రిపోర్ట్ యొక్క స్పష్టమైన ఫోటో లేదా PDF ను ఇక్కడే WhatsApp లో పంపండి. ఒక వ్యక్తితో మాట్లాడటానికి సహాయం అని రాయండి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
+      "English": "Namaste {first_name}. We have not yet received the report of your {item}, advised by Dr. Sekhar. Please reply with a button below. If you did the test at another lab, please send a clear photo or PDF of the complete report here on WhatsApp. Reply HELP to reach a person. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। डॉ. शेखर द्वारा सलाह दी गई आपकी {item} की रिपोर्ट हमें अभी तक नहीं मिली है। कृपया नीचे दिए बटन से जवाब दें। अगर आपने जाँच किसी दूसरी लैब में करवाई है, तो पूरी रिपोर्ट की साफ़ फ़ोटो या PDF यहीं WhatsApp पर भेजें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ಡಾ. ಶೇಖರ್ ಅವರು ಸೂಚಿಸಿದ ನಿಮ್ಮ {item} ವರದಿ ನಮಗೆ ಇನ್ನೂ ಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ಕೆಳಗಿನ ಬಟನ್‌ನಿಂದ ಉತ್ತರಿಸಿ. ನೀವು ಪರೀಕ್ಷೆಯನ್ನು ಬೇರೆ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದ್ದರೆ, ಪೂರ್ಣ ವರದಿಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಥವಾ PDF ಅನ್ನು ಇಲ್ಲೇ WhatsApp ನಲ್ಲಿ ಕಳುಹಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
+      "Tamil": "வணக்கம் {first_name}. டாக்டர் சேகர் பரிந்துரைத்த உங்கள் {item} அறிக்கை இன்னும் எங்களுக்குக் கிடைக்கவில்லை. தயவுசெய்து கீழே உள்ள பொத்தான் மூலம் பதில் அளியுங்கள். நீங்கள் வேறு ஆய்வகத்தில் பரிசோதனை செய்திருந்தால், முழு அறிக்கையின் தெளிவான புகைப்படம் அல்லது PDF-ஐ இங்கேயே WhatsApp-இல் அனுப்புங்கள். ஒருவருடன் பேச உதவி என்று எழுதுங்கள். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
+      "Telugu": "నమస్తే {first_name} గారు. డా. శేఖర్ సూచించిన మీ {item} రిపోర్ట్ మాకు ఇంకా అందలేదు. దయచేసి కింది బటన్‌తో జవాబు ఇవ్వండి. మీరు వేరే ల్యాబ్‌లో పరీక్ష చేయించుకుంటే, పూర్తి రిపోర్ట్ యొక్క స్పష్టమైన ఫోటో లేదా PDF ను ఇక్కడే WhatsApp లో పంపండి. ఒక వ్యక్తితో మాట్లాడటానికి సహాయం అని రాయండి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
     },
     "effective_from": "2026-10-24"
   },
   {
     "template_id": "report_upload_request",
     "version": "1.3",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [],
     "text": {
@@ -289,7 +289,7 @@
   {
     "template_id": "report_upload_nudge",
     "version": "1.3",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [],
     "text": {
@@ -304,7 +304,7 @@
   {
     "template_id": "report_wrong_report",
     "version": "1.3",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
     "note": "Use Case 2T v1.4 (v1.3 messages): proposed text, pending clinician sign-off. Kannada, Hindi and Tamil are drafts, to be checked by a native speaker.",
     "buttons": [],
     "text": {
@@ -319,7 +319,7 @@
   {
     "template_id": "triage_ack",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead), pending sign-off",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
     "note": "Voice Triage: the fixed acknowledgement after a health message; the automated call follows within 2 minutes. Tamil is a draft (native speaker to check).",
     "buttons": [],
     "text": {
@@ -333,7 +333,7 @@
   {
     "template_id": "triage_red_caregiver",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead), pending sign-off",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
     "note": "Voice Triage TPL_WA_RED_CAREGIVER_V1: one approved template with one of three fixed reason lines (CONFIRMED, NO ANSWER, UNCONFIRMED); the emergency summary PDF is attached. Names no hospital, no map, no ambulance link. Tamil is a draft. [SIGN-OFF]",
     "buttons": [],
     "text": {
@@ -347,7 +347,7 @@
   {
     "template_id": "triage_not_health",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead), pending sign-off",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
     "note": "Voice Triage v1.2 TPL_WA_NOT_HEALTH_V1: the one standard reply to a message that is clearly not about health. No call, no ticket, no task. It never answers what she asked. Tamil is the guide's draft; Hindi and Telugu are drafts. The helpdesk number is an open item. [SIGN-OFF]",
     "buttons": [],
     "text": {
@@ -360,22 +360,36 @@
   },
   {
     "template_id": "triage_outcome_amber",
-    "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead), pending sign-off",
-    "note": "Testing round 31 Oct (defects 10, 11): the WhatsApp outcome after an Amber call: handed to a Hospital Care Coordinator, hospital staff call within 2 hours, and the guardrail (no call in time: go to the nearest hospital). Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
+    "version": "2.0",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
+    "note": "Amber workflow v2 (1 Nov): the duty doctor calls within 2 hours, with the emergency line (chest pain, trouble breathing, confusion, cannot stay awake: go to the nearest emergency centre now). Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
     "buttons": [],
     "text": {
-      "English": "Thank you for answering our questions. Your case has been handed to a Hospital Care Coordinator. Hospital staff will call you within 2 hours. Please do not stop or change any tablet on your own. To be safe: if hospital staff or the care coordinator cannot reach you within this time, go to the nearest hospital before you get connected with your treating doctor.",
-      "Tamil": "எங்கள் கேள்விகளுக்குப் பதிலளித்ததற்கு நன்றி. உங்கள் விவரங்கள் மருத்துவமனை பராமரிப்பு ஒருங்கிணைப்பாளரிடம் ஒப்படைக்கப்பட்டுள்ளன. மருத்துவமனை ஊழியர்கள் 2 மணி நேரத்திற்குள் உங்களை அழைப்பார்கள். எந்த மாத்திரையையும் நீங்களாக நிறுத்தவோ மாற்றவோ வேண்டாம். பாதுகாப்பிற்காக: இந்த நேரத்திற்குள் மருத்துவமனை ஊழியர்களோ பராமரிப்பு ஒருங்கிணைப்பாளரோ உங்களைத் தொடர்பு கொள்ள முடியாவிட்டால், உங்கள் சிகிச்சை மருத்துவருடன் தொடர்பு கிடைக்கும் முன்பே அருகிலுள்ள மருத்துவமனைக்குச் செல்லுங்கள்.",
-      "Telugu": "మా ప్రశ్నలకు జవాబులు ఇచ్చినందుకు ధన్యవాదాలు. మీ కేసును ఆసుపత్రి కేర్ కోఆర్డినేటర్‌కు అప్పగించాము. ఆసుపత్రి సిబ్బంది 2 గంటల్లో మీకు ఫోన్ చేస్తారు. దయచేసి ఏ మాత్రనూ మీ అంతట మీరు ఆపవద్దు లేదా మార్చవద్దు. జాగ్రత్త కోసం: ఈ సమయంలోగా ఆసుపత్రి సిబ్బంది లేదా కేర్ కోఆర్డినేటర్ మిమ్మల్ని సంప్రదించలేకపోతే, మీ చికిత్స చేసే డాక్టర్‌తో మాట్లాడే ముందే దగ్గరలోని ఆసుపత్రికి వెళ్లండి.",
-      "Hindi": "हमारे सवालों के जवाब देने के लिए धन्यवाद। आपका मामला अस्पताल की केयर कोऑर्डिनेटर को सौंप दिया गया है। अस्पताल के कर्मचारी 2 घंटे के अंदर आपको कॉल करेंगे। कृपया कोई भी गोली अपने आप बंद या बदलिए मत। सुरक्षा के लिए: अगर अस्पताल के कर्मचारी या केयर कोऑर्डिनेटर इस समय के अंदर आपसे संपर्क न कर पाएँ, तो अपने इलाज करने वाले डॉक्टर से बात होने से पहले ही नज़दीकी अस्पताल चले जाइए।"
+      "English": "A doctor will call you within 2 hours. If you feel worse, or have chest pain, trouble breathing, confusion, or cannot stay awake, do not wait. Go to the nearest emergency centre now.",
+      "Tamil": "ஒரு மருத்துவர் 2 மணி நேரத்திற்குள் உங்களை அழைப்பார். உடல்நிலை மோசமானால், அல்லது நெஞ்சு வலி, மூச்சு விடுவதில் சிரமம், குழப்பம் இருந்தால், அல்லது விழித்திருக்க முடியவில்லை என்றால், காத்திருக்க வேண்டாம். இப்போதே அருகிலுள்ள அவசர சிகிச்சை மையத்திற்குச் செல்லுங்கள்.",
+      "Telugu": "ఒక డాక్టర్ 2 గంటల్లో మీకు ఫోన్ చేస్తారు. ఆరోగ్యం ఇంకా బాగోలేకపోతే, లేదా ఛాతీ నొప్పి, ఊపిరి తీసుకోవడంలో ఇబ్బంది, అయోమయం ఉంటే, లేదా మెలకువగా ఉండలేకపోతే, ఆగకండి. ఇప్పుడే దగ్గరలోని అత్యవసర చికిత్స కేంద్రానికి వెళ్ళండి.",
+      "Hindi": "एक डॉक्टर 2 घंटे के अंदर आपको कॉल करेंगे। अगर तबीयत ज़्यादा बिगड़े, या सीने में दर्द हो, साँस लेने में तकलीफ़ हो, उलझन हो, या आप जागे नहीं रह पा रहे हों, तो इंतज़ार मत कीजिए। अभी नज़दीकी इमरजेंसी केंद्र जाइए।"
+    },
+    "effective_from": "2026-10-05"
+  },
+  {
+    "template_id": "triage_doctor_text",
+    "version": "1.0",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
+    "note": "Amber workflow v2 (1 Nov): the duty doctor's medication order, sent to the patient word for word after the call. Only the heading is fixed; {order_text} is the doctor's own words and is never translated or rewritten by the AI. Tamil, Hindi and Telugu headings are drafts. [SIGN-OFF]",
+    "buttons": [],
+    "text": {
+      "English": "Message from {doctor}, after your call today:\n\n{order_text}",
+      "Tamil": "இன்றைய அழைப்புக்குப் பிறகு {doctor} அவர்களிடமிருந்து செய்தி:\n\n{order_text}",
+      "Telugu": "ఈ రోజు ఫోన్ తర్వాత {doctor} గారి సందేశం:\n\n{order_text}",
+      "Hindi": "आज की कॉल के बाद {doctor} का संदेश:\n\n{order_text}"
     },
     "effective_from": "2026-10-05"
   },
   {
     "template_id": "triage_outcome_nurse",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead), pending sign-off",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
     "note": "Testing round 31 Oct (defects 10, 11): the WhatsApp outcome when a nurse calls back (Red unconfirmed, or a symptom no question covers): within 15 minutes, with the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
     "buttons": [],
     "text": {
@@ -389,7 +403,7 @@
   {
     "template_id": "triage_outcome_unreached",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead), pending sign-off",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
     "note": "Testing round 1 Nov (Worksheet2): after an empty message and two unanswered automated calls, hospital staff call her within 15 minutes; with the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
     "buttons": [],
     "text": {
@@ -403,7 +417,7 @@
   {
     "template_id": "triage_outcome_red",
     "version": "1.0",
-    "approved_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead), pending sign-off",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
     "note": "Testing round 31 Oct (defects 10, 11): the WhatsApp outcome after a Red call: go to the nearest emergency department now; hospital staff call within 10 minutes; the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
     "buttons": [],
     "text": {

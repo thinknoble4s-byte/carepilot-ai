@@ -347,7 +347,7 @@ def next_question(h: dict, answers: dict, after: str | None, ids=None) -> Questi
 MESSAGE_TEXT = {
     "English": {
         "open": "Hello. This is CarePilot's automated assistant, calling for {name} Amma from {team}. I will ask a few "
-                "short questions. Please answer yes or no, or say a number. To talk to a nurse at any time, press 0.",
+                "short questions. Please answer yes or no, or say a number. To ask for a doctor to call you back at any time, press 0.",
         "repeat": "Sorry, I did not hear that clearly. Please say it again.",
         "red": "Thank you. Your answers include a warning sign. Please go to the nearest emergency department now. "
                "Do not wait. We are telling your family and our care team.",
@@ -371,7 +371,7 @@ MESSAGE_TEXT = {
     "Tamil": {
         "open": "வணக்கம். இது கேர்பைலட்டின் தானியங்கி உதவியாளர். {team} சார்பில் {name} அம்மாவுக்காக அழைக்கிறேன். சில "
                 "குறுகிய கேள்விகள் கேட்பேன். ஆம் அல்லது இல்லை என்று, அல்லது ஒரு எண்ணைச் சொல்லுங்கள். எந்த நேரத்திலும் "
-                "செவிலியரிடம் பேச 0 அழுத்தவும்.",
+                "மருத்துவர் உங்களைத் திரும்ப அழைக்க 0 அழுத்தவும்.",
         "repeat": "மன்னிக்கவும், எனக்குச் சரியாகக் கேட்கவில்லை. மீண்டும் சொல்லுங்கள்.",
         "red": "நன்றி. உங்கள் பதில்களில் எச்சரிக்கை அறிகுறி உள்ளது. உடனே அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்குச் செல்லுங்கள். "
                "காத்திருக்க வேண்டாம். உங்கள் குடும்பத்தினருக்கும் எங்கள் பராமரிப்புக் குழுவுக்கும் தெரிவிக்கிறோம்.",
@@ -395,8 +395,8 @@ MESSAGE_TEXT = {
     },
     "Hindi": {
         "open": "नमस्ते। यह केयरपायलट का स्वचालित सहायक है। मैं {team} की ओर से {name} जी के लिए कॉल कर रही हूँ। मैं कुछ "
-                "छोटे सवाल पूछूँगी। कृपया हाँ या नहीं में, या एक नंबर बोलकर जवाब दीजिए। किसी भी समय नर्स से बात करने के "
-                "लिए 0 दबाइए।",
+                "छोटे सवाल पूछूँगी। कृपया हाँ या नहीं में, या एक नंबर बोलकर जवाब दीजिए। किसी भी समय डॉक्टर से वापस कॉल "
+                "करवाने के लिए 0 दबाइए।",
         "repeat": "माफ़ कीजिए, मुझे ठीक से सुनाई नहीं दिया। कृपया फिर से बताइए।",
         "red": "धन्यवाद। आपके जवाबों में एक खतरे का संकेत है। कृपया अभी नज़दीकी आपातकालीन विभाग में जाइए। इंतज़ार मत "
                "कीजिए। हम आपके परिवार और हमारी देखभाल टीम को बता रहे हैं।",
@@ -418,8 +418,8 @@ MESSAGE_TEXT = {
     },
     "Telugu": {
         "open": "నమస్కారం. ఇది కేర్‌పైలట్ ఆటోమేటెడ్ సహాయకుడు. {team} తరఫున {name} గారి కోసం ఫోన్ చేస్తున్నాను. కొన్ని "
-                "చిన్న ప్రశ్నలు అడుగుతాను. అవును లేదా కాదు అని, లేదా ఒక సంఖ్య చెప్పండి. ఎప్పుడైనా నర్స్‌తో మాట్లాడటానికి 0 "
-                "నొక్కండి.",
+                "చిన్న ప్రశ్నలు అడుగుతాను. అవును లేదా కాదు అని, లేదా ఒక సంఖ్య చెప్పండి. ఎప్పుడైనా డాక్టర్ మీకు తిరిగి ఫోన్ "
+                "చేయాలంటే 0 నొక్కండి.",
         "repeat": "క్షమించండి, నాకు సరిగ్గా వినిపించలేదు. దయచేసి మళ్ళీ చెప్పండి.",
         "red": "ధన్యవాదాలు. మీ జవాబుల్లో ఒక ప్రమాద సంకేతం ఉంది. దయచేసి ఇప్పుడే దగ్గరలోని అత్యవసర విభాగానికి వెళ్లండి. "
                "ఆలస్యం చేయవద్దు. మీ కుటుంబానికి మరియు మా సంరక్షణ బృందానికి తెలియజేస్తున్నాము.",
@@ -646,12 +646,11 @@ def triage(a: dict, h: dict, today: date, *, nurse: bool = False, fault: bool = 
         ambers.append("AMBER_NURSE_REQUESTED")
     ambers += [f for f in FLOORS if f in floors]
     if ambers:
-        # She pressed 0, or the only reason is a symptom we have no questions for: a nurse calls within 15 minutes
-        message = "nurse" if nurse else "nurse_other" if ambers == ["AMBER_OTHER_SYMPTOM_REPORTED"] else "amber"
-        to_nurse = message != "amber"
+        # Amber workflow v2 (1 Nov): every Amber reason, pressing 0 and a symptom we have no questions for included,
+        # goes to the duty doctor with a 2-hour callback. The nurse is not in the Amber path.
         return {**base, "tier": "TIER_2_AMBER", "reason_codes": ambers, "confirmed_danger": False,
-                "action_code": "NURSE_CALLBACK_15_MIN" if to_nurse else "DOCTOR_CALLBACK_2H", "message": message,
-                "patient_template_id": TEMPLATE_IDS[message], "response_minutes": 15 if to_nurse else 120}
+                "action_code": "DOCTOR_CALLBACK_2H", "message": "amber",
+                "patient_template_id": TEMPLATE_IDS["amber"], "response_minutes": 120}
     repeat = g("nausea_since_yesterday") == YES
     return {**base, "tier": "TIER_3_GREEN", "reason_codes": [], "confirmed_danger": False,
             "action_code": "GREEN_COACH_AND_FOLLOWUP_24H", "message": "green",
@@ -703,9 +702,10 @@ def why_lines(result: dict, a: dict, h: dict) -> list[str]:
         "AMBER_ARM_PAIN_SUDDEN_ONSET": "She says the arm pain started suddenly.",
         "AMBER_TIREDNESS_GETTING_WORSE": "She says the tiredness is worse than last week.",
         "AMBER_PATIENT_SAYS_SEVERE": "She described her problem as severe in her own message.",
-        "AMBER_OTHER_SYMPTOM_REPORTED": "She mentioned a problem we have no questions for, so a nurse calls.",
+        "AMBER_OTHER_SYMPTOM_REPORTED": "She mentioned a problem we have no questions for, so the duty doctor "
+                                        "calls her.",
         "AMBER_CANNOT_CONFIRM": "Some answers could not be confirmed.",
-        "AMBER_NURSE_REQUESTED": "She pressed 0 to speak to a nurse.",
+        "AMBER_NURSE_REQUESTED": "She pressed 0 to ask for a doctor to call her back.",
         "AMBER_EMPTY_MESSAGE_NOT_REACHED": "Her message had no words, and two automated calls were not answered, "
                                            "so hospital staff call her.",
     }
@@ -793,4 +793,4 @@ SCENARIOS = scenarios("Tamil")
 SCENARIO_LABELS = {"amber": "Amber (the hero scene)", "green": "Green (calm answers)",
                    "red": "Red (arm red and burning)", "mild_arm": "Mild answers, arm pain 3",
                    "fever": "Red (temperature 101.2)", "unclear_chest": "Red, unconfirmed (\"I don't know\" twice)",
-                   "no_thermometer": "Amber (no thermometer, with a headache)", "nurse": "She presses 0 (nurse)"}
+                   "no_thermometer": "Amber (no thermometer, with a headache)", "nurse": "She presses 0 (doctor call-back)"}

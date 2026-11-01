@@ -3,7 +3,7 @@
   "threshold": 95,
   "mode": "live",
   "clinical_lead": "u_anand",
-  "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+  "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
   "weights": {
     "name": 30,
     "mrn": 25,
@@ -25,5 +25,5 @@
       "hemogram"
     ]
   },
-  "note": "Owner's decision 25 Oct 2026: Live. An outside report passes only when the name, the MRN and the test all match, it is clear (every hard check passes) and the score is 95 or more; it is then verified by the system with no person confirming it. Anything else goes to the coordinator (or, for the wrong kind of report or an unreadable file, back to the patient). Only the clinical lead (Dr. Anand Rao) changes the threshold, the weights or the mode. Golden Path patients have no age or sex, so age/sex carries no weight."
+  "note": "Owner's decision 25 Oct 2026: Live. An outside report passes only when the name, the MRN and the test all match, it is clear (every hard check passes) and the score is 95 or more; it is then verified by the system with no person confirming it. Anything else goes to the coordinator (or, for the wrong kind of report or an unreadable file, back to the patient). Only the clinical lead (Dr. Sekhar) changes the threshold, the weights or the mode. Golden Path patients have no age or sex, so age/sex carries no weight."
 }

@@ -41,9 +41,15 @@ AGENT = "CarePilot triage agent"
 RULES = "Triage rules (v1.2, draft)"
 TIERS = {"TIER_1_RED": "Red", "TIER_2_AMBER": "Amber", "TIER_3_GREEN": "Green"}
 ORDERS = {"physio": ("Physiotherapy referral", "visit", "Physiotherapy", "PHYSIO", 7),
+          "visit": ("Review visit (advised by the doctor)", "visit", "Oncology OPD", "DRVISIT", 7),
+          "medication": None,  # her own words, sent to the patient word for word
           "bloods": ("Blood tests (brought forward)", "test", "Laboratory", "BLOODFWD", 3),
           "none": None}
-ORDER_LABELS = {"physio": "Physiotherapy referral", "bloods": "Blood tests brought forward", "none": "No order needed"}
+ORDER_LABELS = {"physio": "Physiotherapy referral", "bloods": "Blood tests brought forward", "visit": "Advise visit",
+                "medication": "Medication order", "none": "No order needed"}
+DOCTOR_CALL_OUTCOMES = ("PICKED_UP", "NO_ANSWER")
+ATTENDER_OUTCOMES = ("REACHED", "NOT_REACHABLE")
+CLOSE_CHOICES = ("NOW", "FOLLOWUP")
 ED_OUTCOMES = ("REACHED", "NOT_YET", "REFUSED", "NOT_REACHABLE")
 FOLLOWUP_ANSWERS = ("BETTER", "SAME", "WORSE")
 REASON_LINES = {
@@ -91,6 +97,8 @@ def config(conn) -> dict:
             "retry_minutes": t.get("retry_minutes", 5), "confirm_within_minutes": t.get("confirm_within_minutes", 30),
             "not_yet_again_minutes": t.get("not_yet_again_minutes", 15), "nurse_minutes": t.get("nurse_minutes", 15),
             "amber_callback_minutes": t.get("amber_callback_minutes", 120), "cover": t.get("cover"),
+            "doctor_reminder_minutes": t.get("doctor_reminder_minutes", 90),
+            "doctor_retry_minutes": t.get("doctor_retry_minutes", 10), "backup_doctor": t.get("backup_doctor"),
             "cover_alert_minutes": t.get("cover_alert_minutes", 90), "digest_ack_hour": t.get("digest_ack_hour", 18)}
 
 
@@ -222,6 +230,26 @@ def _reaching(ep: dict) -> bool:
     """Empty message, two unanswered calls: hospital staff are trying to reach her and have not yet."""
     return ep["tier"] == "TIER_2_AMBER" and (ep["result"] or {}).get("action_code") == "STAFF_CALL_15_MIN" and \
         not any(c["outcome"] == "REACHED" for c in ep["reach_calls"])
+
+
+def _orders(ep: dict) -> list[dict]:
+    """The doctor's orders in this Amber round (a list; an episode from before v2 holds one order)."""
+    o = ep["doctor_order"]
+    return [] if not o else o if isinstance(o, list) else [o]
+
+
+def _misses(ep: dict) -> int:
+    return sum(1 for c in ep["doctor_calls"] if c["outcome"] == "NO_ANSWER")
+
+
+def _reached(ep: dict) -> bool:
+    """The duty doctor reached her, or the coordinator reached her attender."""
+    return any(c["outcome"] == "PICKED_UP" for c in ep["doctor_calls"]) or \
+        any(c["outcome"] == "REACHED" for c in ep["attender_calls"])
+
+
+def _sla_start(ep: dict) -> datetime | None:
+    return ep["sla_start"] or ep["result_at"]
 
 
 def _plan(ep: dict, h: dict) -> dict:
@@ -502,14 +530,14 @@ def _act(conn, ep: dict, result: dict) -> None:
                         "task_id": task["task_id"], "family_message": "only if staff cannot reach her in 2 calls"})
         set_next_action(conn, ep["mrn"], f"Empty message, calls not answered: staff to call her by {_hhmm(due)}")
     elif tier == "TIER_2_AMBER":
-        minutes = cfg["nurse_minutes"] if result["action_code"] == "NURSE_CALLBACK_15_MIN" else cfg["amber_callback_minutes"]
-        due = now + timedelta(minutes=minutes)
-        _update(conn, ep, callback_due_at=due)  # the follow-up call is set 24 hours after the doctor's outcome
+        # Amber workflow v2: every Amber goes to the duty doctor, who has 2 hours to call her
+        due = now + timedelta(minutes=cfg["amber_callback_minutes"])
+        _update(conn, ep, callback_due_at=due, sla_start=now)
+        doc = _name(cfg["doctor_on_duty"]) or "Doctor on duty"
         _audit(conn, ep, "sbar_card_created", outcome=result["action_code"],
-               details={"to": [_name(cfg["doctor_on_duty"]), _name(cfg["coordinator"])],
-                        "callback_due": _hhmm(due)})
-        who = "Nurse" if minutes == cfg["nurse_minutes"] else f"{_name(cfg['doctor_on_duty']) or 'Doctor on duty'}"
-        set_next_action(conn, ep["mrn"], f"Amber: {who} to call back by {_hhmm(due)}")
+               details={"to": [doc], "callback_due": _hhmm(due),
+                        "reminder_at": _hhmm(now + timedelta(minutes=cfg["doctor_reminder_minutes"]))})
+        set_next_action(conn, ep["mrn"], f"Amber: {doc} to call back by {_hhmm(due)}")
     else:
         _update(conn, ep, followup_due_on=now.date() + timedelta(days=1))
         _audit(conn, ep, "green_digest_line", outcome="GREEN_COACH_AND_FOLLOWUP_24H",
@@ -715,9 +743,9 @@ STATES = ("IN_DIGEST", "OPEN", "ACKNOWLEDGED", "OUTCOME_LOGGED", "CLOSURE_PROPOS
 STATE_LABELS = {"IN_DIGEST": "In digest", "OPEN": "Open", "ACKNOWLEDGED": "Acknowledged",
                 "OUTCOME_LOGGED": "Outcome logged", "CLOSURE_PROPOSED": "Closure proposed", "CLOSED": "Closed",
                 "REOPENED": "Reopened"}
-# who may acknowledge, by tier: Green the coordinator (the digest); Amber the doctor, the nurse or the coordinator;
+# who may acknowledge, by tier: Green the coordinator (the digest); Amber the duty doctor (Amber workflow v2);
 # Red the nurse or the ER doctor (both sign in at the ER Desk)
-WHO_MAY_ACK = {"TIER_3_GREEN": ("coordinator",), "TIER_2_AMBER": ("oncologist", "er_desk", "coordinator"),
+WHO_MAY_ACK = {"TIER_3_GREEN": ("coordinator",), "TIER_2_AMBER": ("oncologist",),
                "TIER_1_RED": ("er_desk",)}
 ACK_FIELD = {"TIER_3_GREEN": "digest_ack_by", "TIER_2_AMBER": "coord_ack_by", "TIER_1_RED": "er_ack_by"}
 
@@ -725,7 +753,7 @@ ACK_FIELD = {"TIER_3_GREEN": "digest_ack_by", "TIER_2_AMBER": "coord_ack_by", "T
 def _outcome_logged(ep: dict) -> bool:
     if ep["tier"] == "TIER_1_RED":
         return bool(ep["er_log"] or ep["nurse_callback"] or ep["ed_outcome"])
-    return bool(ep["doctor_order"] or ep["nurse_callback"])
+    return bool(ep["doctor_outcome"])
 
 
 def ticket_state(ep: dict) -> str:
@@ -772,7 +800,7 @@ def acknowledge(conn, episode_id: int, user: dict) -> dict:
         raise Conflict("The call has no result yet")
     if user["role"] not in WHO_MAY_ACK[tier]:
         raise Conflict({"TIER_3_GREEN": "Only the coordinator acknowledges the Green digest",
-                        "TIER_2_AMBER": "The Doctor on Duty, the nurse or the coordinator acknowledges an Amber ticket",
+                        "TIER_2_AMBER": "The duty doctor acknowledges an Amber ticket",
                         "TIER_1_RED": "Only the nurse or the ER doctor acknowledges a Red alert"}[tier])
     if tier == "TIER_3_GREEN":
         return digest_ack(conn, episode_id, user)
@@ -801,9 +829,8 @@ def er_log(conn, episode_id: int, user: dict, note: str | None) -> dict:
 
 
 def _nurse_asked(ep: dict) -> bool:
-    """She pressed 0, or Red (unconfirmed): by the rules or raised to Red by hand."""
-    return (ep["result"] or {}).get("action_code") == "NURSE_CALLBACK_15_MIN" or \
-        (ep["tier"] == "TIER_1_RED" and ep["red_kind"] == "UNCONFIRMED")
+    """Red (unconfirmed): by the rules or raised to Red by hand. The nurse is not in the Amber path (v2)."""
+    return ep["tier"] == "TIER_1_RED" and ep["red_kind"] == "UNCONFIRMED"
 
 
 def nurse_callback(conn, episode_id: int, user: dict, note: str | None) -> dict:
@@ -905,7 +932,7 @@ def reach_call(conn, episode_id: int, user: dict, outcome: str, next_step: str |
     if outcome == "REACHED":
         done("Reached her; escalated to the Doctor on Duty")
         due = now + timedelta(minutes=cfg["amber_callback_minutes"])
-        ep = _update(conn, ep, callback_due_at=due)
+        ep = _update(conn, ep, callback_due_at=due, sla_start=now)
         doc = _name(cfg["doctor_on_duty"]) or "Doctor on duty"
         _audit(conn, ep, "sbar_card_created", outcome="ESCALATED_AFTER_STAFF_CALL",
                details={"to": [doc, _name(cfg["coordinator"])], "callback_due": _hhmm(due), "note": note})
@@ -951,19 +978,21 @@ def er_close(conn, episode_id: int, user: dict, note: str | None) -> dict:
 
 
 def confirm_closure(conn, episode_id: int, user: dict, note: str | None) -> dict:
-    """Amber: the Doctor on Duty or the coordinator confirms closure, only after the 24-hour call proposed it
-    (outcome logged and the follow-up says better). The agent never closes."""
+    """Amber: the doctor confirms closure after the 24-hour call proposed it (outcome logged with "close after the
+    follow-up", and the follow-up says better). The agent never closes."""
     ep = _load(conn, episode_id)
     _open(ep)
     if ep["tier"] == "TIER_1_RED":
         raise Conflict("Only the ER doctor closes a Red case")
     if ep["tier"] == "TIER_3_GREEN":
         raise Conflict("A Green ticket closes into the digest: the coordinator acknowledges it")
+    if user["role"] != "oncologist":
+        raise Conflict("The doctor confirms closure of an Amber ticket")
     if ticket_state(ep) != "CLOSURE_PROPOSED":
-        raise Conflict("An Amber ticket is closed only after the 24-hour call proposes closure "
+        raise Conflict("An Amber ticket waiting for its follow-up call is closed only after the call says better "
                        f"(now: {STATE_LABELS[ticket_state(ep)]})")
     return _close(conn, ep, user, note or ("Follow-up: " + ep["followup"]["answer"].lower() if ep["followup"] else None),
-                  "closure_confirmed_by_doctor" if user["role"] == "oncologist" else "closure_confirmed_by_coordinator")
+                  "closure_confirmed_by_doctor")
 
 
 def _close(conn, ep: dict, user: dict, note: str | None, action: str) -> dict:
@@ -1003,20 +1032,112 @@ def reopen(conn, episode_id: int, user: dict, reason: str | None) -> dict:
     _audit(conn, ep, "triage_reopened", actor_type="person", actor=user["user_id"], outcome="REOPENED",
            details={"reason": reason.strip()})
     set_next_action(conn, ep["mrn"], "Triage episode reopened: " + reason.strip())
+    if ep["tier"] == "TIER_2_AMBER":  # Amber workflow v2: a new 2-hour round for the duty doctor
+        _new_amber_round(conn, ep, "Reopened: " + reason.strip(), tell=False)
+    return state(conn, episode_id)
+
+
+def doctor_call(conn, episode_id: int, user: dict, outcome: str, note: str | None = None) -> dict:
+    """Amber workflow v2: the duty doctor (or the backup) logs each call to her. Two attempts, 10 minutes apart; after
+    the second unanswered one the coordinator calls her attender."""
+    ep = _load(conn, episode_id)
+    _open(ep)
+    if ep["tier"] != "TIER_2_AMBER" or _reaching(ep):
+        raise Conflict("The doctor's call is logged on an Amber ticket")
+    if outcome not in DOCTOR_CALL_OUTCOMES:
+        raise Invalid("outcome must be one of: " + ", ".join(DOCTOR_CALL_OUTCOMES))
+    if _reached(ep):
+        raise Conflict("She has been reached: record the orders and the outcome")
+    if outcome == "NO_ANSWER" and _misses(ep) >= 2:
+        raise Conflict("Two attempts are logged: the coordinator is calling her attender")
+    ep = _auto_ack(conn, ep, user)
+    cfg, now = config(conn), clock.get_now(conn)
+    calls = list(ep["doctor_calls"]) + [{"at": now.isoformat(timespec="minutes"), "by": user["user_id"],
+                                         "outcome": outcome, "note": (note or "").strip() or None}]
+    ep = _update(conn, ep, doctor_calls=calls)
+    _audit(conn, ep, "doctor_call_attempt", actor_type="person", actor=user["user_id"], outcome=outcome,
+           details={"attempt": len(calls), "note": (note or "").strip() or None,
+                    "within_callback": bool(ep["callback_due_at"] and now <= ep["callback_due_at"])})
+    overdue = conn.execute("SELECT task_id FROM coordinator_task WHERE triage_episode_id = %s AND task_type = "
+                           "'triage_overdue' AND status = 'open'", (episode_id,)).fetchone()
+    if overdue:  # the escalation is answered: a doctor is calling her
+        tasks.complete_task(conn, overdue["task_id"], user["user_id"], f"{_name(user['user_id'])} called her")
+    who = _name(user["user_id"])
+    if outcome == "PICKED_UP":
+        set_next_action(conn, ep["mrn"], f"Amber: {who} reached her; orders and outcome next")
+    elif _misses(ep) == 1:
+        again = now + timedelta(minutes=cfg["doctor_retry_minutes"])
+        set_next_action(conn, ep["mrn"], f"Amber: no answer; {who} tries again by {_hhmm(again)}")
+    else:
+        p = _patient(conn, ep["mrn"])
+        attender = p["caregiver_name"] or "her attender"
+        task = tasks.create_task(
+            conn, mrn=ep["mrn"], task_type="call_attender", owner_name=_name(cfg["coordinator"]) or None,
+            actor_type="system", actor="system", dedupe_key=f"triage:{ep['episode_id']}:call_attender",
+            reason=(f"{who} could not reach her in 2 calls. Call {attender} before {_hhmm(ep['callback_due_at'])} and "
+                    "record REACHED (with what they said) or NOT REACHABLE. If she is still not reached by then, the "
+                    "ticket goes to Red (unconfirmed)."))
+        conn.execute("UPDATE coordinator_task SET due_at_demo = %s, due_date = %s, triage_episode_id = %s "
+                     "WHERE task_id = %s", (ep["callback_due_at"], now.date(), ep["episode_id"], task["task_id"]))
+        _audit(conn, ep, "attender_call_task_created", outcome="call_attender",
+               details={"task_id": task["task_id"], "attender": attender})
+        set_next_action(conn, ep["mrn"], f"Amber: doctor's 2 calls not answered; coordinator to call {attender}")
+    return state(conn, episode_id)
+
+
+def attender_call(conn, episode_id: int, user: dict, outcome: str, note: str | None = None) -> dict:
+    """Amber workflow v2: the coordinator calls her attender after the doctor's two unanswered calls."""
+    ep = _load(conn, episode_id)
+    _open(ep)
+    task = conn.execute("SELECT * FROM coordinator_task WHERE triage_episode_id = %s AND task_type = 'call_attender' "
+                        "AND status = 'open' FOR UPDATE", (episode_id,)).fetchone()
+    if task is None:
+        raise Conflict("There is no 'call the attender' task for this ticket")
+    if outcome not in ATTENDER_OUTCOMES:
+        raise Invalid("outcome must be one of: " + ", ".join(ATTENDER_OUTCOMES))
+    note = (note or "").strip()
+    if outcome == "REACHED" and not note:
+        raise Invalid("Write what the attender said")
+    now = clock.get_now(conn)
+    calls = list(ep["attender_calls"]) + [{"at": now.isoformat(timespec="minutes"), "by": user["user_id"],
+                                           "outcome": outcome, "note": note or None}]
+    ep = _update(conn, ep, attender_calls=calls)
+    line = "Attender reached" if outcome == "REACHED" else "Attender not reachable"
+    tasks.complete_task(conn, task["task_id"], user["user_id"], line + (f": {note}" if note else ""))
+    _audit(conn, ep, "attender_call_logged", actor_type="person", actor=user["user_id"], outcome=outcome,
+           details={"note": note or None})
+    doc = _name(config(conn)["doctor_on_duty"]) or "the duty doctor"
+    set_next_action(conn, ep["mrn"], f"Amber: attender reached; {doc} to record the orders and the outcome"
+                    if outcome == "REACHED" else
+                    f"Amber: attender not reachable; Red (unconfirmed) at {_hhmm(ep['callback_due_at'])} if she is "
+                    "still not reached")
     return state(conn, episode_id)
 
 
 def doctor_order(conn, episode_id: int, user: dict, order: str, note: str | None = None) -> dict:
-    """The Doctor on Duty, after the callback: Physiotherapy referral, Bring forward blood tests or No order needed.
-    A button creates an order card (owner, due date) and sends the approved booking message."""
+    """The duty doctor, once she (or her attender) is reached: Physiotherapy referral, Bring forward blood tests or
+    Advise visit (each an order card, the approved booking message and a booking task for the coordinator), a
+    Medication order (the doctor's own words, sent to the patient word for word; the AI writes nothing), or No order
+    needed. Several orders may be recorded; the outcome then ends the round."""
     ep = _load(conn, episode_id)
     _open(ep)
     if order not in ORDERS:
-        raise Invalid("order must be physio, bloods or none")
+        raise Invalid("order must be one of: " + ", ".join(ORDERS))
     if ep["tier"] != "TIER_2_AMBER":
         raise Conflict("Orders are recorded on an Amber card")
-    if ep["doctor_order"]:
-        raise Conflict("An order is already recorded for this episode")
+    if _reaching(ep):
+        raise Conflict("Hospital staff have not reached her yet")
+    if not _reached(ep):
+        raise Conflict("Log a call that reached her (or her attender) before an order")
+    if ep["doctor_outcome"]:
+        raise Conflict("The outcome is logged: no more orders in this round")
+    orders, text = _orders(ep), (note or "").strip()
+    if any(o["order"] == "none" for o in orders) or (order == "none" and orders):
+        raise Conflict("“No order needed” cannot go with other orders")
+    if order != "medication" and any(o["order"] == order for o in orders):
+        raise Conflict(f"{ORDER_LABELS[order]} is already ordered")
+    if order == "medication" and not text:
+        raise Invalid("Type the medication order: it is sent to her word for word")
     ep = _auto_ack(conn, ep, user)
     now, card = clock.get_now(conn), None
     if ORDERS[order]:
@@ -1041,20 +1162,58 @@ def doctor_order(conn, episode_id: int, user: dict, order: str, note: str | None
                               "triage_episode_id": episode_id})
         tasks.create_task(conn, mrn=ep["mrn"], task_type="booking_from_instruction", owner_name=card["owner_name"],
                           card_id=card["card_id"], actor_type="system", actor="system",
-                          reason=f"Book the {name} by {card['due_date'].strftime('%d/%m/%Y')} (Doctor on Duty's order)")
+                          reason=f"Book the {name} by {card['due_date'].strftime('%d/%m/%Y')} (duty doctor's order)")
         msg = messaging.send_message(conn, mrn=ep["mrn"], template_id="instruction_booking", actor_type="agent",
                                      actor=AGENT, reason_code="triage_doctor_order", card_id=card["card_id"])
         conn.execute("UPDATE outbox_message SET triage_episode_id = %s WHERE message_id = %s",
                      (episode_id, msg["message_id"]))
-    ep = _update(conn, ep, doctor_order={"order": order, "note": (note or "").strip() or None, "by": user["user_id"],
-                                         "at": now.isoformat(timespec="minutes"),
-                                         "card_id": card["card_id"] if card else None},
-                 followup_due_on=now.date() + timedelta(days=1))  # the AI calls again 24 hours after the outcome
+    elif order == "medication":
+        msg = messaging.send_message(conn, mrn=ep["mrn"], template_id="triage_doctor_text", actor_type="person",
+                                     actor=user["user_id"], reason_code="triage_medication_order",
+                                     extra={"doctor": _name(user["user_id"]), "order_text": text})
+        conn.execute("UPDATE outbox_message SET triage_episode_id = %s WHERE message_id = %s",
+                     (episode_id, msg["message_id"]))
+    orders.append({"order": order, "text": text or None, "by": user["user_id"],
+                   "at": now.isoformat(timespec="minutes"), "card_id": card["card_id"] if card else None})
+    ep = _update(conn, ep, doctor_order=orders)
     _audit(conn, ep, "doctor_order_recorded", actor_type="person", actor=user["user_id"], outcome=order,
-           details={"note": note, "card_id": card["card_id"] if card else None,
-                    "within_callback": bool(ep["callback_due_at"] and now <= ep["callback_due_at"])})
-    set_next_action(conn, ep["mrn"], {"physio": "Book the physiotherapy referral", "bloods": "Book the blood tests",
-                                      "none": "No order needed"}[order] + "; follow-up call tomorrow")
+           details={"text": text or None, "card_id": card["card_id"] if card else None,
+                    "sent_to_patient": "word for word" if order == "medication" else
+                    "booking message" if card else None})
+    set_next_action(conn, ep["mrn"], f"Amber: {ORDER_LABELS[order]} ordered; the doctor logs the outcome")
+    return state(conn, episode_id)
+
+
+def doctor_outcome(conn, episode_id: int, user: dict, note: str | None, close: str) -> dict:
+    """Amber workflow v2: the doctor's one-line outcome, then Close now (closed at once) or Close after the 24-hour
+    follow-up (the AI calls tomorrow; "better" proposes closure and the doctor confirms)."""
+    ep = _load(conn, episode_id)
+    _open(ep)
+    if ep["tier"] != "TIER_2_AMBER" or _reaching(ep):
+        raise Conflict("The outcome is logged on an Amber ticket")
+    if close not in CLOSE_CHOICES:
+        raise Invalid("close must be NOW or FOLLOWUP")
+    note = (note or "").strip()
+    if not note:
+        raise Invalid("Write a one-line outcome")
+    if ep["doctor_outcome"]:
+        raise Conflict("The outcome is already logged")
+    if not _reached(ep):
+        raise Conflict("Log a call that reached her (or her attender) first")
+    if not _orders(ep):
+        raise Conflict("Record the orders first (or No order needed)")
+    ep = _auto_ack(conn, ep, user)
+    now = clock.get_now(conn)
+    fields = {"doctor_outcome": {"at": now.isoformat(timespec="minutes"), "by": user["user_id"], "note": note,
+                                 "close": close}}
+    if close == "FOLLOWUP":
+        fields["followup_due_on"] = now.date() + timedelta(days=1)
+    ep = _update(conn, ep, **fields)
+    _audit(conn, ep, "doctor_outcome_logged", actor_type="person", actor=user["user_id"], outcome=close,
+           details={"note": note, "orders": [o["order"] for o in _orders(ep)]})
+    if close == "NOW":
+        return _close(conn, ep, user, note, "amber_closed_by_doctor")
+    set_next_action(conn, ep["mrn"], "Amber: outcome logged; follow-up call tomorrow, then the doctor confirms closure")
     return state(conn, episode_id)
 
 
@@ -1091,8 +1250,9 @@ def change_tier(conn, episode_id: int, user: dict, tier: str, reason: str | None
                       followup_due_on=None)
     elif tier == "TIER_2_AMBER":
         fields["red_kind"] = None
-        if not ep["doctor_order"]:
-            fields.update(callback_due_at=now + timedelta(minutes=cfg["amber_callback_minutes"]), followup_due_on=None)
+        if not ep["doctor_outcome"]:
+            fields.update(callback_due_at=now + timedelta(minutes=cfg["amber_callback_minutes"]), followup_due_on=None,
+                          sla_start=now, reminded_at=None, overdue_at=None)
     else:
         fields.update(red_kind=None, callback_due_at=None)
         if ep["followup_due_on"] is None and not ep["followup"]:
@@ -1107,7 +1267,7 @@ def change_tier(conn, episode_id: int, user: dict, tier: str, reason: str | None
                details={"to": ["ER Desk", "Doctor on Duty", "Senior Oncologist (banner)"], "raised_by": who})
         set_next_action(conn, ep["mrn"], f"Red (raised by {who}): nurse to call back by "
                                          f"{_hhmm(ep['callback_due_at'])}; no family message sent")
-    elif tier == "TIER_2_AMBER" and not ep["doctor_order"]:
+    elif tier == "TIER_2_AMBER" and not ep["doctor_outcome"]:
         set_next_action(conn, ep["mrn"], f"Amber ({verb} by {who}): {_name(cfg['doctor_on_duty']) or 'Doctor on duty'} "
                                          f"to call back by {_hhmm(ep['callback_due_at'])}")
     else:
@@ -1155,29 +1315,75 @@ def _close_green(conn, ep: dict) -> None:
     set_next_action(conn, ep["mrn"], "Triage episode closed into the Green digest; routine follow-up resumed")
 
 
-def _check_cover(conn, ep: dict, now: datetime) -> dict:
-    """Amber: if nobody has acted (no doctor outcome, no nurse callback) 90 minutes after the result, the cover
-    coordinator is alerted, once, with a task."""
-    if ep["status"] != "open" or ep["tier"] != "TIER_2_AMBER" or ep["cover_alerted_at"] or ep["doctor_order"] \
-            or ep["nurse_callback"] or ep["result_at"] is None:
+def _check_sla(conn, ep: dict, now: datetime) -> dict:
+    """Amber workflow v2, read on the demo clock: at 90 minutes with no acknowledgement a reminder to the duty doctor;
+    at 120 minutes with no call logged the ticket is Overdue (backup doctor and Senior Oncologist alerted, the
+    coordinator gets a task); at 120 minutes with calls logged but nobody reached, Red (unconfirmed)."""
+    if ep["status"] != "open" or ep["tier"] != "TIER_2_AMBER" or _reaching(ep) or ep["doctor_outcome"] \
+            or _sla_start(ep) is None:
         return ep
-    cfg = config(conn)
-    if now < ep["result_at"] + timedelta(minutes=cfg["cover_alert_minutes"]):
+    cfg, start = config(conn), _sla_start(ep)
+    doc = _name(cfg["doctor_on_duty"]) or "the duty doctor"
+    if not ep["coord_ack_by"] and not ep["reminded_at"] and now >= start + timedelta(minutes=cfg["doctor_reminder_minutes"]):
+        ep = _update(conn, ep, reminded_at=now)
+        _audit(conn, ep, "doctor_reminder_sent", outcome="not_acknowledged",
+               details={"to": doc, "minutes": cfg["doctor_reminder_minutes"],
+                        "callback_due": _hhmm(ep["callback_due_at"])})
+        set_next_action(conn, ep["mrn"], f"Amber: not acknowledged in {cfg['doctor_reminder_minutes']} minutes; "
+                                         f"{doc} reminded")
+    if now < start + timedelta(minutes=cfg["amber_callback_minutes"]) or _reached(ep):
         return ep
-    cover = _name(cfg["cover"]) or None
-    ep = _update(conn, ep, cover_alerted_at=now)
-    task = tasks.create_task(
-        conn, mrn=ep["mrn"], task_type="triage_cover_alert", owner_name=cover, actor_type="system", actor="system",
-        dedupe_key=f"triage:{ep['episode_id']}:cover_alert",
-        reason=(f"Amber ticket {ep['ticket_id']}: nobody has acted {cfg['cover_alert_minutes']} minutes after the call "
-                f"({_hhmm(ep['result_at'])}). Reach {_name(cfg['doctor_on_duty']) or 'the Doctor on Duty'} now; the "
-                f"2-hour callback is due by {_hhmm(ep['callback_due_at'])}."))
-    conn.execute("UPDATE coordinator_task SET due_at_demo = %s, due_date = %s, triage_episode_id = %s "
-                 "WHERE task_id = %s", (ep["callback_due_at"], now.date(), ep["episode_id"], task["task_id"]))
-    _audit(conn, ep, "amber_cover_alerted", outcome="cover_task_created",
-           details={"cover": cover, "minutes": cfg["cover_alert_minutes"], "task_id": task["task_id"]})
-    set_next_action(conn, ep["mrn"], f"Amber: no action in {cfg['cover_alert_minutes']} minutes; cover ({cover}) "
-                                     "alerted")
+    if ep["doctor_calls"]:  # the doctor tried and nobody reached her in the 2 hours: Red (unconfirmed)
+        reason = "Not reached by the end of the 2-hour callback (the doctor's calls were not answered)"
+        changes = list(ep["tier_changes"]) + [{"from": "TIER_2_AMBER", "to": "TIER_1_RED", "by": "system",
+                                               "role": "rules", "at": now.isoformat(timespec="minutes"),
+                                               "reason": reason}]
+        ep = _update(conn, ep, tier="TIER_1_RED", red_kind="UNCONFIRMED", tier_changes=changes, followup_due_on=None,
+                     callback_due_at=now + timedelta(minutes=cfg["nurse_minutes"]))
+        _audit(conn, ep, "tier_raised", outcome="Amber -> Red", reason_code="AMBER_PATIENT_UNREACHED",
+               details={"reason": reason, "doctor_calls": len(ep["doctor_calls"]),
+                        "attender_calls": [c["outcome"] for c in ep["attender_calls"]]})
+        _audit(conn, ep, "er_desk_alert_created", outcome="UNCONFIRMED",
+               details={"to": ["ER Desk", "Doctor on Duty", "Senior Oncologist (banner)"], "raised_by": "rules"})
+        set_next_action(conn, ep["mrn"], "Red (unconfirmed): not reached in 2 hours; the doctor or the coordinator "
+                                         "may send the emergency package")
+        return ep
+    if not ep["overdue_at"]:
+        backup = _name(cfg["backup_doctor"] or cfg["senior_oncologist"]) or "the backup doctor"
+        senior = _name(cfg["senior_oncologist"]) or "the Senior Oncologist"
+        ep = _update(conn, ep, overdue_at=now)
+        task = tasks.create_task(
+            conn, mrn=ep["mrn"], task_type="triage_overdue", owner_name=_name(cfg["coordinator"]) or None,
+            actor_type="system", actor="system", dedupe_key=f"triage:{ep['episode_id']}:overdue",
+            reason=(f"Amber ticket {ep['ticket_id']} is OVERDUE: no doctor's call logged in "
+                    f"{cfg['amber_callback_minutes'] // 60} hours. {backup} (backup) and {senior} (Senior Oncologist) "
+                    "were alerted; make sure one of them calls her now."))
+        conn.execute("UPDATE coordinator_task SET due_at_demo = %s, due_date = %s, triage_episode_id = %s "
+                     "WHERE task_id = %s", (now, now.date(), ep["episode_id"], task["task_id"]))
+        _audit(conn, ep, "amber_overdue_escalated", outcome="OVERDUE",
+               details={"to": [backup + " (backup)", senior + " (Senior Oncologist)", _name(cfg["coordinator"])],
+                        "task_id": task["task_id"]})
+        set_next_action(conn, ep["mrn"], f"Amber OVERDUE: no doctor's call in 2 hours; {backup} and {senior} alerted")
+    return ep
+
+
+def _new_amber_round(conn, ep: dict, why: str, tell: bool = True) -> dict:
+    """A "same" or "worse" follow-up: the Amber ticket reopens with a new 2-hour round for the duty doctor. The round that ended is kept on the ticket."""
+    cfg, now = config(conn), clock.get_now(conn)
+    ended = {"ended_at": now.isoformat(timespec="minutes"), "why": why, "acknowledged_by": ep["coord_ack_by"],
+             "doctor_calls": ep["doctor_calls"], "attender_calls": ep["attender_calls"], "orders": _orders(ep),
+             "outcome": ep["doctor_outcome"], "followup": ep["followup"]}
+    fields = {"rounds": list(ep["rounds"]) + [ended], "doctor_calls": [], "attender_calls": [], "doctor_order": None,
+              "doctor_outcome": None, "followup": None, "followup_due_on": None, "coord_ack_by": None,
+              "coord_ack_at": None, "reminded_at": None, "overdue_at": None, "sla_start": now, "reopened_at": now,
+              "callback_due_at": now + timedelta(minutes=cfg["amber_callback_minutes"])}
+    ep = _update(conn, ep, **fields)
+    _audit(conn, ep, "amber_round_reopened", outcome="REOPENED", reason_code="FOLLOWUP_NOT_BETTER",
+           details={"why": why, "round": len(ep["rounds"]) + 1, "callback_due": _hhmm(ep["callback_due_at"])})
+    if tell:
+        _tell_patient(conn, ep, {"tier": "TIER_2_AMBER", "action_code": "DOCTOR_CALLBACK_2H"})
+    set_next_action(conn, ep["mrn"], f"{why}: reopened as Amber; {_name(cfg['doctor_on_duty']) or 'duty doctor'} "
+                                     f"to call back by {_hhmm(ep['callback_due_at'])}")
     return ep
 
 
@@ -1192,9 +1398,26 @@ def followup(conn, episode_id: int, user: dict, *, answer: str | None = None, te
     now = clock.get_now(conn)
     if now.date() < ep["followup_due_on"]:
         raise Conflict(f"The follow-up call is due on {ep['followup_due_on']:%d/%m/%Y}; advance the demo clock")
+    missed = conn.execute("SELECT * FROM coordinator_task WHERE triage_episode_id = %s AND task_type = "
+                          "'followup_no_answer' AND status = 'open' FOR UPDATE", (episode_id,)).fetchone()
+    if answer == "NO_ANSWER":  # Amber workflow v2: nobody answered the follow-up call; the coordinator calls her
+        if missed:
+            raise Conflict("The coordinator is already asked to call her")
+        task = tasks.create_task(
+            conn, mrn=ep["mrn"], task_type="followup_no_answer", owner_name=_name(config(conn)["coordinator"]) or None,
+            actor_type="system", actor="system", dedupe_key=f"triage:{ep['episode_id']}:followup_no_answer",
+            reason="The 24-hour follow-up call was not answered. Call her and record better, the same or worse.")
+        conn.execute("UPDATE coordinator_task SET due_at_demo = %s, due_date = %s, triage_episode_id = %s "
+                     "WHERE task_id = %s", (now, now.date(), ep["episode_id"], task["task_id"]))
+        _audit(conn, ep, "followup_call_not_answered", actor_type="agent", actor=AGENT, outcome="NO_ANSWER",
+               details={"task_id": task["task_id"]})
+        set_next_action(conn, ep["mrn"], "Follow-up call not answered; coordinator to call her")
+        return state(conn, episode_id)
     value = answer or R.parse_followup(text or "")
     if value not in FOLLOWUP_ANSWERS:
         raise Invalid("The answer must be better, same or worse")
+    if missed:
+        tasks.complete_task(conn, missed["task_id"], user["user_id"], f"Follow-up by phone: {value.lower()}")
     h = history(conn, ep["mrn"])
     m = R.messages(h)
     turns = list(ep["turns"])
@@ -1204,15 +1427,20 @@ def followup(conn, episode_id: int, user: dict, *, answer: str | None = None, te
           how="on-screen answer button" if answer else "typed; word list")
     _turn(turns, conn, "agent", "followup_closing", *m["followup_better" if value == "BETTER" else "followup_not_better"])
     fields = {"turns": turns, "followup": {"answer": value, "at": now.isoformat(timespec="minutes"),
-                                           "how": "button" if answer else "words"}}
-    if value != "BETTER":
+                                           "how": "coordinator's call" if missed else
+                                           "button" if answer else "words"}}
+    if value != "BETTER" and ep["tier"] == "TIER_3_GREEN":
         fields["callback_due_at"] = now + timedelta(minutes=config(conn)["amber_callback_minutes"])
     ep = _update(conn, ep, **fields)
-    _audit(conn, ep, "followup_call", actor_type="agent", actor=AGENT, outcome=value)
+    _audit(conn, ep, "followup_call", actor_type="person" if missed else "agent",
+           actor=user["user_id"] if missed else AGENT, outcome=value)
+    if value != "BETTER" and ep["tier"] == "TIER_2_AMBER":  # v2: the same or worse reopens it for the duty doctor
+        _new_amber_round(conn, ep, f"Follow-up call: {value.lower()}")
+        return state(conn, episode_id)
     if value == "BETTER" and ep["digest_ack_by"]:
         _close_green(conn, ep)
         return state(conn, episode_id)
-    set_next_action(conn, ep["mrn"], "Follow-up: better; doctor to confirm closure" if value == "BETTER"
+    set_next_action(conn, ep["mrn"], "Follow-up: better; the doctor confirms closure" if value == "BETTER"
                     else f"Follow-up: {value.lower()}; Doctor on Duty to call back by {_hhmm(fields['callback_due_at'])}")
     return state(conn, episode_id)
 
@@ -1226,7 +1454,7 @@ def _at(d) -> datetime:
     return datetime.combine(d, datetime.min.time()).replace(hour=9)
 
 
-def _deadlines(ep: dict, task: dict | None, cover_task: dict | None, cfg: dict) -> list[dict]:
+def _deadlines(ep: dict, task: dict | None, cfg: dict) -> list[dict]:
     """Every open deadline on the ticket: {at, what, role}. The countdown shows the nearest."""
     if ep["status"] != "open":
         return []
@@ -1242,17 +1470,15 @@ def _deadlines(ep: dict, task: dict | None, cover_task: dict | None, cfg: dict) 
             add(task["due_at_demo"], "Call the family", "coordinator")
     elif tier == "TIER_2_AMBER" and _reaching(ep):
         add(ep["callback_due_at"], "Staff call: reach her", "coordinator")
-    elif tier == "TIER_2_AMBER":
-        if _nurse_asked(ep):
-            if not ep["nurse_callback"]:
-                add(ep["callback_due_at"], "Nurse callback", "nurse")
-        elif not ep["doctor_order"]:
-            add(ep["callback_due_at"], "Doctor callback", "doctor")
-            if not ep["cover_alerted_at"] and ep["result_at"]:
-                add(ep["result_at"] + timedelta(minutes=cfg["cover_alert_minutes"]),
-                    f"Cover alert ({_name(cfg['cover']) or 'cover'})", "coordinator")
-        if cover_task and cover_task["status"] == "open" and not ep["doctor_order"]:
-            add(cover_task["due_at_demo"], "Cover: reach the Doctor on Duty", "coordinator")
+    elif tier == "TIER_2_AMBER" and not ep["doctor_outcome"]:
+        start = _sla_start(ep)
+        if not ep["coord_ack_by"] and start:
+            add(start + timedelta(minutes=cfg["doctor_reminder_minutes"]), "Doctor: acknowledge", "doctor")
+        if not _reached(ep):
+            if _misses(ep) == 1:
+                last = datetime.fromisoformat(ep["doctor_calls"][-1]["at"])
+                add(last + timedelta(minutes=cfg["doctor_retry_minutes"]), "Doctor: second call attempt", "doctor")
+            add(ep["callback_due_at"], "Doctor callback (2 hours)", "doctor")
     elif tier == "TIER_3_GREEN" and not ep["digest_ack_by"]:
         add(_digest_due(ep, cfg), "Acknowledge the digest", "coordinator")
     if ep["followup_due_on"] and not ep["followup"] and tier != "TIER_1_RED":
@@ -1260,7 +1486,7 @@ def _deadlines(ep: dict, task: dict | None, cover_task: dict | None, cfg: dict) 
     return sorted(out, key=lambda d: d["at"])
 
 
-def _next_actions(ep: dict, task: dict | None, cfg: dict) -> dict:
+def _next_actions(ep: dict, task: dict | None, cfg: dict, open_types=frozenset()) -> dict:
     """One card per role (AI, doctor, nurse, coordinator): what is due, or done, for this colour. Facts only."""
     none = {"text": "Nothing", "done": True}
     card = lambda text, done=False, due=None: {"text": text, "done": done, "due_at": due}  # noqa: E731
@@ -1311,38 +1537,48 @@ def _next_actions(ep: dict, task: dict | None, cfg: dict) -> dict:
                                   "family gets the standard message with the PDF", due=ep["callback_due_at"])
         out["nurse"] = card("Or the ER Desk makes the call and logs it")
     elif tier == "TIER_2_AMBER":
-        nurse_case = _nurse_asked(ep)
-        other = "AMBER_OTHER_SYMPTOM_REPORTED" in (ep["result"] or {}).get("reason_codes", [])
-        out["ai"] = card(("Told her a nurse will call within 15 minutes" if nurse_case else
-                          "Told her a doctor will call within 2 hours") + "; calls again 24 hours after the outcome" +
-                         (f". {followup}" if followup else ""), bool(fu))
-        reached = next((c for c in ep["reach_calls"] if c["outcome"] == "REACHED"), None)
-        if reached:
-            out["ai"] = card(f"Empty message, calls not answered; {_name(reached['by'])} reached her and escalated to "
-                             "the doctor" + (f". {followup}" if followup else ""), bool(fu))
-        if nurse_case:
-            out["nurse"] = card(f"Called back ({_name(ep['nurse_callback']['by'])}): “{ep['nurse_callback']['note']}”",
-                                True) if ep["nurse_callback"] else card(
-                f"Call her back by {_hhmm(ep['callback_due_at'])}", due=ep["callback_due_at"])
-        o = ep["doctor_order"]
-        if o:
-            out["doctor"] = card(f"Outcome logged by {_name(o['by'])}: {ORDER_LABELS[o['order']]}. Confirm closure"
-                                 + (" (follow-up done)" if fu else " after the follow-up call"))
-        elif not nurse_case:
-            out["doctor"] = card(f"{doc}: call her by {_hhmm(ep['callback_due_at'])}, log the outcome and pick an "
-                                 "order (physio or blood test)", due=ep["callback_due_at"])
-        if o and o["order"] != "none":
-            out["coordinator"] = card(f"Book the {ORDER_LABELS[o['order']].lower()} (task for {_name(cfg['coordinator'])})")
-        elif ep["cover_alerted_at"]:
-            out["coordinator"] = card(f"Nobody acted in {cfg['cover_alert_minutes']} minutes: the cover "
-                                      f"({_name(cfg['cover'])}) was alerted at {_hhmm(ep['cover_alerted_at'])}")
-        elif nurse_case and not ep["nurse_callback"]:
-            out["coordinator"] = card("If the nurse cannot reach her in 2 attempts, tell the Doctor on Duty" +
-                                      (" (she mentioned a problem we have no questions for)" if other else ""))
-        elif not nurse_case and not o:
-            out["coordinator"] = card(f"Book the order once the doctor picks one. If nobody acts by "
-                                      f"{_hhmm(ep['result_at'] + timedelta(minutes=cfg['cover_alert_minutes']))}, the "
-                                      f"cover ({_name(cfg['cover'])}) is alerted")
+        # Amber workflow v2: the duty doctor owns the ticket; the coordinator books and calls the attender
+        orders, outcome, misses = _orders(ep), ep["doctor_outcome"], _misses(ep)
+        staff = next((c for c in ep["reach_calls"] if c["outcome"] == "REACHED"), None)
+        out["ai"] = card((f"Empty message, calls not answered; {_name(staff['by'])} reached her and escalated to the "
+                          "doctor" if staff else "Told her a doctor will call within 2 hours, with the emergency line; calls "
+                          "again 24 hours after the outcome if the doctor asks")
+                         + (f". {followup}" if followup else ""),
+                         bool(fu) or not (outcome and outcome["close"] == "FOLLOWUP"))
+        late = "OVERDUE. " if ep["overdue_at"] and not ep["doctor_calls"] else ""
+        if outcome:
+            out["doctor"] = card("Follow-up: better. Confirm closure" if ticket_state(ep) == "CLOSURE_PROPOSED" else
+                                 f"Outcome logged by {_name(outcome['by'])}: “{outcome['note']}”. "
+                                 + ("Closed" if outcome["close"] == "NOW" else "Closure after the follow-up call"),
+                                 ticket_state(ep) != "CLOSURE_PROPOSED")
+        elif _reached(ep):
+            out["doctor"] = card(late + ("Record the orders (physiotherapy, blood tests, medication, visit or none), "
+                                         "then the outcome" if not orders else
+                                         "Ordered: " + ", ".join(ORDER_LABELS[o["order"]] for o in orders) +
+                                         ". Log the outcome: close now, or after the 24-hour follow-up call"))
+        else:
+            steps = ([] if ep["coord_ack_by"] else ["acknowledge"]) + (
+                [f"call her by {_hhmm(ep['callback_due_at'])}"] if misses == 0 else
+                [f"call again (the first call was not answered); by {_hhmm(ep['callback_due_at'])}"] if misses == 1 else
+                [f"two calls not answered: the coordinator calls her attender. Not reached by "
+                 f"{_hhmm(ep['callback_due_at'])}: Red (unconfirmed)"])
+            text = "; ".join(steps)
+            out["doctor"] = card(late + (f"{doc}: " if not late else "") + text[0].upper() + text[1:],
+                                 due=ep["callback_due_at"])
+        bookings = [ORDER_LABELS[o["order"]].lower() for o in orders if ORDERS.get(o["order"])]
+        if "call_attender" in open_types:
+            out["coordinator"] = card(f"Call her attender ({ep.get('caregiver_name') or 'family'}) before "
+                                      f"{_hhmm(ep['callback_due_at'])}; record reached or not reachable",
+                                      due=ep["callback_due_at"])
+        elif "followup_no_answer" in open_types:
+            out["coordinator"] = card("The follow-up call was not answered: call her and record better, the same or "
+                                      "worse")
+        elif ep["overdue_at"] and not ep["doctor_calls"]:
+            out["coordinator"] = card("OVERDUE: no doctor's call in 2 hours. The backup doctor and the Senior "
+                                      "Oncologist were alerted; make sure one of them calls her")
+        elif bookings:
+            out["coordinator"] = card(f"Book the {', '.join(bookings)} (task for {_name(cfg['coordinator'])})")
+
     else:
         r = ep["result"] or {}
         out["ai"] = card(("Repeated the doctor's signed sentence; " if r.get("repeat_advice") else "") +
@@ -1362,8 +1598,8 @@ def _proposed(ep: dict) -> str | None:
     fu = (ep["followup"] or {}).get("answer")
     if ep["tier"] == "TIER_1_RED" and ep["ed_outcome"] == "REACHED":
         return "Proposed: she reached an emergency department; the ER doctor may close the case"
-    if ep["tier"] == "TIER_2_AMBER" and (ep["doctor_order"] or ep["nurse_callback"]) and fu == "BETTER":
-        return "Proposed: close (outcome logged, follow-up better); the Doctor on Duty or the coordinator confirms"
+    if ep["tier"] == "TIER_2_AMBER" and ep["doctor_outcome"] and fu == "BETTER":
+        return "Proposed: close (outcome logged, follow-up better); the doctor confirms"
     if ep["tier"] == "TIER_3_GREEN" and fu == "BETTER" and not ep["digest_ack_by"]:
         return "Proposed: close into the digest once the coordinator acknowledges it"
     return None
@@ -1429,7 +1665,7 @@ def _plan_view(ep: dict) -> dict | None:
             "not_asked": TR.not_asked(p)}
 
 
-def _owner(ep: dict, task: dict | None, cfg: dict) -> str | None:
+def _owner(ep: dict, task: dict | None, cfg: dict, open_types=frozenset()) -> str | None:
     """Who the ticket waits on now (the list's Owner column)."""
     st = ticket_state(ep)
     if st == "CLOSED":
@@ -1443,11 +1679,15 @@ def _owner(ep: dict, task: dict | None, cfg: dict) -> str | None:
     if ep["tier"] == "TIER_2_AMBER":
         if _reaching(ep):
             return f"{_name(cfg['coordinator'])} or the ER Desk"
-        if _nurse_asked(ep) and not ep["nurse_callback"]:
-            return "Nurse (ER Desk)"
-        if not ep["doctor_order"] and not ep["nurse_callback"]:
-            return _name(cfg["doctor_on_duty"])
-        return _name(cfg["coordinator"]) if st == "CLOSURE_PROPOSED" else _name(cfg["doctor_on_duty"])
+        doc = _name(cfg["doctor_on_duty"])
+        if "call_attender" in open_types or "followup_no_answer" in open_types:
+            return _name(cfg["coordinator"])
+        if ep["doctor_outcome"]:
+            return doc if st == "CLOSURE_PROPOSED" else "CarePilot (follow-up call)"
+        if ep["overdue_at"] and not ep["doctor_calls"]:
+            backup = _name(cfg["backup_doctor"] or cfg["senior_oncologist"])
+            return f"{backup} (backup; {doc} overdue)"
+        return doc
     if ep["tier"] == "TIER_3_GREEN":
         return _name(cfg["coordinator"]) if not ep["digest_ack_by"] else "CarePilot (follow-up call)"
     return "CarePilot (the call)"
@@ -1458,11 +1698,11 @@ def _summary(conn, ep: dict, now: datetime) -> dict:
     task = conn.execute("SELECT task_id, status, due_at_demo, owner_name, cover_name, reason FROM coordinator_task "
                         "WHERE triage_episode_id = %s AND task_type = 'confirm_ed_visit' ORDER BY task_id DESC LIMIT 1",
                         (ep["episode_id"],)).fetchone()
-    cover_task = conn.execute("SELECT task_id, status, due_at_demo, owner_name FROM coordinator_task WHERE "
-                              "triage_episode_id = %s AND task_type = 'triage_cover_alert' ORDER BY task_id DESC LIMIT 1",
-                              (ep["episode_id"],)).fetchone()
+    open_types = frozenset(r["task_type"] for r in conn.execute(
+        "SELECT task_type FROM coordinator_task WHERE triage_episode_id = %s AND status = 'open'",
+        (ep["episode_id"],)).fetchall())
     cfg = config(conn)
-    deadlines = _deadlines(ep, task, cover_task, cfg)
+    deadlines = _deadlines(ep, task, cfg)
     doc = conn.execute("SELECT doc_id FROM triage_document WHERE episode_id = %s ORDER BY doc_id DESC LIMIT 1",
                        (ep["episode_id"],)).fetchone()
     return {
@@ -1476,17 +1716,21 @@ def _summary(conn, ep: dict, now: datetime) -> dict:
         "tier_label": TIERS.get(ep["tier"]), "result": ep["result"], "facts": R.facts_text(ep["answers"]),
         "history": history(conn, ep["mrn"]),
         "callback_overdue": bool(ep["callback_due_at"] and now > ep["callback_due_at"] and ep["status"] == "open"
-                                 and not ep["doctor_order"] and not ep["nurse_callback"]),
+                                 and not ep["doctor_outcome"] and not _reached(ep) and not ep["nurse_callback"]),
         "followup_due": bool(ep["followup_due_on"] and not ep["followup"] and now.date() >= ep["followup_due_on"]
                              and ep["status"] == "open"),
         "task": task, "task_overdue": bool(task and task["status"] == "open" and task["due_at_demo"]
                                            and now > task["due_at_demo"]),
         "pdf_doc_id": doc["doc_id"] if doc else None,
         "has_call": any(t["who"] == "agent" for t in ep["turns"]),  # a call took place: there is a recording
-        "deadlines": deadlines, "due": deadlines[0] if deadlines else None, "next": _next_actions(ep, task, cfg),
-        "proposed": _proposed(ep), "tier_set_by": _set_by(ep), "cover_task": cover_task,
+        "deadlines": deadlines, "due": deadlines[0] if deadlines else None,
+        "next": _next_actions({**ep, "caregiver_name": p["caregiver_name"]}, task, cfg, open_types),
+        "proposed": _proposed(ep), "tier_set_by": _set_by(ep), "open_tasks": sorted(open_types),
+        "orders": _orders(ep), "reached": _reached(ep), "overdue": bool(ep["overdue_at"] and ep["status"] == "open" and not ep["doctor_calls"]),
         "nurse_asked": _nurse_asked(ep), "state": ticket_state(ep), "state_label": STATE_LABELS[ticket_state(ep)],
-        "er_log": ep["er_log"], "reopened_at": ep["reopened_at"], "owner": _owner(ep, task, cfg),
+        "er_log": ep["er_log"], "reopened_at": ep["reopened_at"], "owner": _owner(ep, task, cfg, open_types),
+        **{k: ep[k] for k in ("doctor_calls", "attender_calls", "doctor_outcome", "sla_start", "reminded_at",
+                              "overdue_at", "rounds")},
         "plan": _plan_view(ep),
         "reach_calls": ep["reach_calls"], "reaching": _reaching(ep), "empty_message": _empty(ep),
         "now": now,
@@ -1500,7 +1744,7 @@ def episodes(conn, status: str = "open", mrn: str | None = None) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM triage_episode WHERE (%(s)s = 'all' OR status = %(s)s) AND (%(m)s::text IS NULL OR mrn = %(m)s) "
         "ORDER BY episode_id DESC", {"s": status, "m": mrn}).fetchall()
-    return [_summary(conn, _check_cover(conn, ep, now), now) for ep in rows]
+    return [_summary(conn, _check_sla(conn, ep, now), now) for ep in rows]
 
 
 def state(conn, episode_id: int) -> dict:
@@ -1508,7 +1752,7 @@ def state(conn, episode_id: int) -> dict:
     if ep is None:
         raise NotFound(f"Triage episode {episode_id} not found")
     h, now = history(conn, ep["mrn"]), clock.get_now(conn)
-    ep = _check_cover(conn, ep, now)
+    ep = _check_sla(conn, ep, now)
     asked = {t["id"] for t in ep["turns"] if t["who"] == "agent"}
     a = ep["answers"]
     plan = _plan(ep, h)
@@ -1586,10 +1830,20 @@ def episode_summary(ep: dict, h: dict | None) -> dict:
         details.append(f"Family call: {ep['ed_outcome'].replace('_', ' ').lower()}")
     if ep["nurse_callback"]:
         details.append(f"Nurse called back: “{ep['nurse_callback'].get('note') or 'done'}”")
-    order = ep["doctor_order"]
-    if order:
-        details.append(f"Doctor's order: {ORDER_LABELS[order['order']]} by {_name(order['by'])}"
-                       + (f" (“{order['note']}”)" if order.get("note") else ""))
+    for r in ep.get("rounds") or []:
+        details.append(f"Earlier round reopened ({r['why'].lower()})")
+    for c in ep.get("doctor_calls") or []:
+        details.append(f"{_name(c['by'])} called her: {'picked up' if c['outcome'] == 'PICKED_UP' else 'no answer'}")
+    for c in ep.get("attender_calls") or []:
+        details.append(f"Attender call by {_name(c['by'])}: {c['outcome'].replace('_', ' ').lower()}"
+                       + (f" (“{c['note']}”)" if c.get("note") else ""))
+    for o in _orders(ep):
+        text = o.get("text") or o.get("note")
+        details.append(f"Doctor's order: {ORDER_LABELS[o['order']]} by {_name(o['by'])}" + (f" (“{text}”)" if text else ""))
+    if ep.get("doctor_outcome"):
+        o = ep["doctor_outcome"]
+        details.append(f"Outcome by {_name(o['by'])}: “{o['note']}” ("
+                       + ("closed at once" if o["close"] == "NOW" else "close after the follow-up call") + ")")
     if ep["followup"]:
         details.append(f"Follow-up call: {ep['followup']['answer'].lower()}")
     for c in ep["tier_changes"] or []:
@@ -1637,7 +1891,7 @@ def question_bank() -> dict:
                       "Each symptom the AI heard adds its module, in the order listed here (not the order she said "
                       "them).",
                       "If the tags are broken, or she named no symptom, the fixed 12 questions are asked.",
-                      "A symptom no question covers (other symptom) keeps the call at least Amber and a nurse calls; "
+                      "A symptom no question covers (other symptom) keeps the call at least Amber and the duty doctor calls; "
                       "her own word “severe” keeps it at least Amber.",
                       "The AI never writes a question, never picks a tier and never gives advice."]}
 
@@ -1804,12 +2058,10 @@ def brief(conn, mrn: str, days: int = 90) -> dict:
             n = ep["nurse_callback"]
             lines.append({"at": n["at"], "kind": "person", "episode_id": eid,
                           "text": f"Nurse callback by {_name(n['by'])}: {n['note']}", "sources": []})
-        if ep["doctor_order"]:
-            o = ep["doctor_order"]
-            label = {"physio": "Physiotherapy referral", "bloods": "Bring forward blood tests",
-                     "none": "No order needed"}[o["order"]]
+        for o in _orders(ep):
+            text = o.get("text") or o.get("note")
             lines.append({"at": o["at"], "kind": "person", "episode_id": eid,
-                          "text": f"{_name(o['by'])}: {label}" + (f' — "{o["note"]}"' if o.get("note") else ""),
+                          "text": f"{_name(o['by'])}: {ORDER_LABELS[o['order']]}" + (f' — "{text}"' if text else ""),
                           "sources": [{"kind": "card", "label": "Order card", "card_id": o["card_id"]}]
                           if o.get("card_id") else []})
         for c in ep["tier_changes"]:

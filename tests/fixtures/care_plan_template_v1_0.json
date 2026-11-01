@@ -2,7 +2,7 @@
   "template_id": "BC-SURV-1",
   "version": "1.0",
   "name": "Breast cancer survivorship follow-up (MOCK, not clinical advice)",
-  "signed_off_by": "MOCK sign-off: Dr. Anand Rao (demo clinical lead)",
+  "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
   "effective_from": "2026-10-05",
   "weekend_rule": "move_forward_to_monday",
   "items": [

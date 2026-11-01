@@ -23,7 +23,7 @@ ALWAYS_ALLOWED_AUTOMATED = ("handover_ack",  # the fixed acknowledgement after a
                             "triage_outcome_nurse", "triage_outcome_unreached")
 # While a handover is open only these two pass, whoever sends (UC2a REQ-06): the acknowledgement and the
 # booking message for a doctor's instruction (a person decided that one). Everything else is refused.
-ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking",
+ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking", "triage_doctor_text",
                            # Use Case 2T REQ-20: decided by the doctor's click on a report, so they pass too
                            "report_continue_booked", "report_continue_due")
 # Use Case 2b: while a help-booking, can't-come or help-request task is open, routine reminders (and, later,
@@ -36,7 +36,7 @@ HOLD_TASK_TYPES = HELP_TASK_TYPES + ("urgent_call",
 # Voice Triage: while an episode is open, only the triage messages and a doctor's order booking go out.
 ALLOWED_DURING_TRIAGE = ("handover_ack", "triage_ack", "triage_red_caregiver", "instruction_booking",
                          "triage_outcome_amber", "triage_outcome_red", "triage_outcome_nurse",
-                         "triage_outcome_unreached")
+                         "triage_outcome_unreached", "triage_doctor_text")
 ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder", "test_booking_reminder", "test_report_check",
                      "report_upload_nudge")
 

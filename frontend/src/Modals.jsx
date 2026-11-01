@@ -367,7 +367,7 @@ function handledNote(m) {
     if (m.ep_tier === 'TIER_3_GREEN') return `${lead} → ${m.ep_ticket} Green: no doctor's call needed; follow-up call tomorrow`;
     if (nurse) return `${lead} → ${m.ep_ticket} handed to a Hospital Care Coordinator; a hospital nurse will call within 15 minutes`;
     if (m.ep_tier === 'TIER_1_RED') return `${lead} → ${m.ep_ticket} Red: go to the nearest emergency department now; handed to a Hospital Care Coordinator, hospital staff will call within 10 minutes`;
-    return `${lead} → ${m.ep_ticket} Amber: handed to a Hospital Care Coordinator; hospital staff will call within 2 hours`;
+    return `${lead} → ${m.ep_ticket} Amber: handed to the duty doctor, who will call within 2 hours`;
   }
   return m.ai_flag === 'yes' ? `${lead} → handed to a Hospital Care Coordinator` : 'CarePilot: no health mention → proposal for the coordinator';
 }
