@@ -7,6 +7,7 @@
 // The match score is about the document.
 import React, { useEffect, useState } from 'react';
 import { api, blobUrl, post } from './api.js';
+import { PatientLink } from './PatientCard.jsx';
 import { Dl, fmt, Pill, useUI } from './ui.jsx';
 
 const at = (ts) => (ts ? `${fmt(String(ts).slice(0, 10))} ${String(ts).slice(11, 16)}` : '');
@@ -245,7 +246,7 @@ export function InfoCopies() {
       {items.map((k) => (
         <div key={k.copy_id} className={`v4-item ${k.status === 'open' ? 'soon' : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div className="t"><a role="button" tabIndex={0} onClick={() => ui.nav('plan', k.mrn)}>{k.full_name}</a> · {k.mrn} — {k.test_name}</div>
+            <div className="t"><PatientLink mrn={k.mrn} name={k.full_name} /> · {k.mrn} — {k.test_name}</div>
             <Pill tone={k.status === 'open' ? 'warn' : k.status === 'flagged' ? 'bad' : 'good'}>
               {k.kind === 'auto_matched' ? `Auto-matched ${k.score}` : 'Possibly wrong or unclear report'}{k.status !== 'open' ? ` · ${k.status} by ${ui.name(k.acted_by)}` : ''}</Pill>
           </div>
@@ -332,7 +333,7 @@ export function TestVerifications() {
       {items.map((c) => (
         <div key={c.card_id} className="v4-item soon">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div className="t"><a role="button" tabIndex={0} onClick={() => ui.nav('plan', c.mrn)}>{c.full_name}</a> · {c.mrn} · {c.item_code} — {c.name}</div>
+            <div className="t"><PatientLink mrn={c.mrn} name={c.full_name} /> · {c.mrn} · {c.item_code} — {c.name}</div>
             <Pill tone="warn">{c.state} (non-specimen)</Pill>
           </div>
           <div className="d">Completed {fmt(c.completed_on)}{c.label ? ` · ${c.label}` : ''}</div>
@@ -367,7 +368,7 @@ export function ReportReviews() {
       {notices.map((v) => (
         <div key={`n${v.review_id}`} className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <div className="v4-name"><a role="button" tabIndex={0} onClick={() => ui.nav('plan', v.mrn)}>{v.full_name}</a> <span className="v4-meta">· {v.mrn} · {v.test_name}</span></div>
+            <div className="v4-name"><PatientLink mrn={v.mrn} name={v.full_name} /> <span className="v4-meta">· {v.mrn} · {v.test_name}</span></div>
             <Pill tone="bad">{v.withdrawn_reason}</Pill>
           </div>
           <div className="d">The coordinator flagged the auto-matched outside report as wrong{v.flag_reason ? `: ${v.flag_reason}` : ''}. Nothing was sent to the patient automatically.</div>
@@ -378,7 +379,7 @@ export function ReportReviews() {
         <div key={v.review_id} className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div className="v4-name">
-              <a role="button" tabIndex={0} onClick={() => ui.nav('plan', v.mrn)}>{v.full_name}</a>{' '}
+              <PatientLink mrn={v.mrn} name={v.full_name} />{' '}
               <span className="v4-meta">· {v.mrn} · {v.test_name}</span>
               {v.unverified_label && <> <span className="tag unverified">{v.unverified_label}</span></>}
             </div>

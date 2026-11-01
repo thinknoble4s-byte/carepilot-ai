@@ -153,6 +153,7 @@ def open_episode(conn, mrn: str, *, inbound: dict, words: str | None, translatio
     if existing:
         ep = _update(conn, existing, patient_words="\n".join(x for x in (existing["patient_words"], words) if x),
                      translation="\n".join(x for x in (existing["translation"], translation) if x))
+        _link_message(conn, ep, inbound)
         _audit(conn, ep, "triage_message_added", actor_type="system", actor="WhatsApp gateway",
                details={"inbound_id": inbound["inbound_id"]})
         return ep, False
@@ -177,6 +178,7 @@ def open_episode(conn, mrn: str, *, inbound: dict, words: str | None, translatio
     ).fetchone()
     conn.execute("UPDATE outbox_message SET triage_episode_id = %s WHERE message_id = %s",
                  (ep["episode_id"], ack["message_id"]))
+    _link_message(conn, ep, inbound)
     _audit(conn, ep, "triage_opened", actor_type="agent", actor=AGENT, reason_code="health_flag_voice_triage",
            trigger_event=f"inbound_message:{inbound['inbound_id']}", outcome="call_due",
            decision_inputs={"health_flag": "yes", "voice_triage": True, "tags": plan["tags"]},
@@ -185,6 +187,12 @@ def open_episode(conn, mrn: str, *, inbound: dict, words: str | None, translatio
                     "profile": plan["profile"]})
     set_next_action(conn, mrn, f"Automated triage call due by {_hhmm(ep['call_due_at'])}; routine messages held")
     return ep, True
+
+
+def _link_message(conn, ep: dict, inbound: dict) -> None:
+    """Her message belongs to this episode: the ticket lists it, and the chat clears it once the episode closes."""
+    conn.execute("UPDATE inbound_message SET triage_episode_id = %s WHERE inbound_id = %s",
+                 (ep["episode_id"], inbound["inbound_id"]))
 
 
 def _plan(ep: dict, h: dict) -> dict:
@@ -404,7 +412,34 @@ def _finish(conn, ep: dict, *, nurse=False, fault=False, no_answer=False) -> dic
            details={"why": result["why"], "red_kind": result.get("red_kind"),
                     "stopped_after_danger_sign": ep["stopped_early"]})
     _act(conn, ep, result)
+    _tell_patient(conn, ep, result)
     return state(conn, ep["episode_id"])
+
+
+# Testing round 31 Oct (defects 10 and 11): after the call the patient gets the outcome on WhatsApp too: who has her
+# case, when hospital staff will call, and the guardrail (if nobody calls in time, go to the nearest hospital).
+OUTCOME_TEMPLATES = {"TIER_1_RED": "triage_outcome_red", "TIER_2_AMBER": "triage_outcome_amber",
+                     "NURSE": "triage_outcome_nurse"}
+
+
+def outcome_template(result: dict) -> str | None:
+    """The WhatsApp outcome for this result: none for Green (the follow-up call is tomorrow) or when she never
+    answered (the Red family message goes out instead)."""
+    if result["tier"] == "TIER_3_GREEN" or result.get("red_kind") == "NO_ANSWER":
+        return None
+    if result.get("red_kind") == "UNCONFIRMED" or result["action_code"] == "NURSE_CALLBACK_15_MIN":
+        return OUTCOME_TEMPLATES["NURSE"]
+    return OUTCOME_TEMPLATES[result["tier"]]
+
+
+def _tell_patient(conn, ep: dict, result: dict) -> None:
+    template_id = outcome_template(result)
+    if template_id is None:
+        return
+    msg = messaging.send_message(conn, mrn=ep["mrn"], template_id=template_id, actor_type="agent", actor=AGENT,
+                                 reason_code=f"triage_outcome_{result['tier'].lower()}")
+    conn.execute("UPDATE outbox_message SET triage_episode_id = %s WHERE message_id = %s",
+                 (ep["episode_id"], msg["message_id"]))
 
 
 def _act(conn, ep: dict, result: dict) -> None:
@@ -885,8 +920,10 @@ def doctor_order(conn, episode_id: int, user: dict, order: str, note: str | None
         tasks.create_task(conn, mrn=ep["mrn"], task_type="booking_from_instruction", owner_name=card["owner_name"],
                           card_id=card["card_id"], actor_type="system", actor="system",
                           reason=f"Book the {name} by {card['due_date'].strftime('%d/%m/%Y')} (Doctor on Duty's order)")
-        messaging.send_message(conn, mrn=ep["mrn"], template_id="instruction_booking", actor_type="agent", actor=AGENT,
-                               reason_code="triage_doctor_order", card_id=card["card_id"])
+        msg = messaging.send_message(conn, mrn=ep["mrn"], template_id="instruction_booking", actor_type="agent",
+                                     actor=AGENT, reason_code="triage_doctor_order", card_id=card["card_id"])
+        conn.execute("UPDATE outbox_message SET triage_episode_id = %s WHERE message_id = %s",
+                     (episode_id, msg["message_id"]))
     ep = _update(conn, ep, doctor_order={"order": order, "note": (note or "").strip() or None, "by": user["user_id"],
                                          "at": now.isoformat(timespec="minutes"),
                                          "card_id": card["card_id"] if card else None},
@@ -1351,8 +1388,118 @@ def state(conn, episode_id: int) -> dict:
     return {**_summary(conn, ep, now), "turns": ep["turns"], "answers": a, "table": table,
             "current": current.__dict__ if current else None,
             "language": _lang(_patient(conn, ep["mrn"])), "protocol": R.PROTOCOL, "scenarios": R.SCENARIO_LABELS,
-            "summary": summary_facts(ep, h), "rec_offsets": ep["rec_offsets"], "tier_rule": TIER_RULE,
-            "not_asked": TR.not_asked(plan)}
+            "summary": summary_facts(ep, h), "rec_offsets": ep["rec_offsets"], "rec_spans": rec_spans(ep),
+            "tier_rule": TIER_RULE, "not_asked": TR.not_asked(plan), "patient_notes": patient_notes(conn, ep),
+            "previous": previous_episode(conn, ep)}
+
+
+def rec_spans(ep: dict) -> dict:
+    """For each answer in the summary: the part of the recording to play, from the question she was asked to the end
+    of her answer (testing round 31 Oct, defect 3: play only that question, then stop). {answer turn: [start, end]}."""
+    offs = ep["rec_offsets"] or {}
+    ends = offs.get("ends") or {}
+    spans, asked = {}, None
+    for t in ep["turns"]:
+        i = str(t["i"])
+        if t["who"] == "agent" and i in offs:
+            asked = i
+        elif t["who"] == "patient" and i in offs and i in ends:
+            spans[i] = [offs[asked] if asked is not None else offs[i], ends[i]]
+    return spans
+
+
+def patient_notes(conn, ep: dict) -> list[dict]:
+    """Her messages in this episode (the one that opened it and any she sent while it was open), most recent first,
+    with the date and time they arrived (defect 4)."""
+    return conn.execute(
+        """SELECT inbound_id, kind, text, transcript, translation, received_on, received_time
+           FROM inbound_message WHERE triage_episode_id = %s OR inbound_id = %s
+           ORDER BY received_on DESC, received_time DESC NULLS LAST, inbound_id DESC""",
+        (ep["episode_id"], ep["inbound_id"])).fetchall()
+
+
+def episode_summary(ep: dict, h: dict | None) -> dict:
+    """An episode in a few plain lines, built from its record (not written by a model): what she said, what the AI
+    heard, the tier and why, what people did, and how it was closed. The Patient journey shows it (defect 12), and the
+    next ticket for her shows the last closed one as context."""
+    p = ep["plan"] or {}
+    tags = (p.get("tags") or {}).get("symptoms") or []
+    tier = TIERS.get(ep["tier"]) or "no tier yet"
+    words = (ep["translation"] or ep["patient_words"] or "").strip()
+    head = (f"{ep['ticket_id']}: {tier}" + (f" ({ep['red_kind'].replace('_', ' ').lower()})" if ep["red_kind"] else "")
+            + (f" · she said: “{words.splitlines()[0][:140]}”" if words else ""))
+    details = []
+    if tags:
+        details.append("AI heard: " + ", ".join(TR.TAG_LABELS.get(t, t) for t in tags)
+                       + f"; the rules asked {len(p.get('question_ids') or [])} questions")
+    why = (ep["result"] or {}).get("why") or []
+    if why:
+        details.append(f"Why {tier}: " + "; ".join(w.rstrip(".") for w in why) + ".")
+    if h is not None and ep["answers"]:
+        facts = [f["text"] for f in summary_facts(ep, h)
+                 if f["source"] == "her answer" and not f["text"].startswith("Follow-up call")]
+        if facts:
+            details.append("Her answers: " + "; ".join(facts))
+    if ep["package_sent_at"]:
+        details.append(f"Emergency package sent to the family at {_hhmm(ep['package_sent_at'])}")
+    if ep["ed_outcome"]:
+        details.append(f"Family call: {ep['ed_outcome'].replace('_', ' ').lower()}")
+    if ep["nurse_callback"]:
+        details.append(f"Nurse called back: “{ep['nurse_callback'].get('note') or 'done'}”")
+    order = ep["doctor_order"]
+    if order:
+        details.append(f"Doctor's order: {ORDER_LABELS[order['order']]} by {_name(order['by'])}"
+                       + (f" (“{order['note']}”)" if order.get("note") else ""))
+    if ep["followup"]:
+        details.append(f"Follow-up call: {ep['followup']['answer'].lower()}")
+    for c in ep["tier_changes"] or []:
+        details.append(f"Tier {TIERS.get(c['from'], c['from'])} → {TIERS.get(c['to'], c['to'])} by {_name(c['by'])}: "
+                       f"“{c['reason']}”")
+    if ep["status"] == "closed":
+        details.append(f"Closed by {_name(ep['closed_by'])} on {_when(ep['closed_at'])}: “{ep['close_note']}”")
+    return {"episode_id": ep["episode_id"], "ticket_id": ep["ticket_id"], "tier": ep["tier"], "status": ep["status"],
+            "opened_at": ep["opened_at"], "closed_at": ep["closed_at"], "summary": head, "details": details}
+
+
+def previous_episode(conn, ep: dict) -> dict | None:
+    """Her last closed episode before this one: context for whoever handles this ticket."""
+    prev = conn.execute("SELECT * FROM triage_episode WHERE mrn = %s AND episode_id < %s AND status = 'closed' "
+                        "ORDER BY episode_id DESC LIMIT 1", (ep["mrn"], ep["episode_id"])).fetchone()
+    return episode_summary(prev, history(conn, prev["mrn"])) if prev else None
+
+
+def question_bank() -> dict:
+    """The whole question bank for the Triage Room's "Question bank" view (defect 1): every question in bank order,
+    with its module, whether it is a danger question, its skip rule and its wording in each call language, and the
+    rules the router uses to pick them."""
+    groups = [("core", TR.CORE), ("history_arm", TR.HISTORY_ARM), *TR.MODULES.items()]
+    module_of = {q: m for m, qs in groups for q in qs}
+    labels = {"core": "Danger core (always asked, first)", "history_arm": "Her record: left-arm baseline",
+              "chest_or_breathing": "Chest or breathing (in the danger core)",
+              "other_symptom": "Other symptom (no questions: a nurse calls)",
+              **{k: v[:1].upper() + v[1:] for k, v in TR.MODULE_LABELS.items()}}
+    skips = {"Q_HEAD_SCORE": "Skipped if she has no headache today",
+             "Q_HEAD_WORSE": "Skipped if she has no headache today",
+             "Q_SUPP": "Skipped if she has not felt like vomiting since yesterday",
+             "Q_LIQUIDS": "Skipped if she has not felt like vomiting and has not vomited"}
+    rows = []
+    for qid, field, kind, danger, hist, en in R.QUESTION_SPEC:
+        rows.append({"id": qid, "field": field, "kind": kind, "danger": danger, "history": hist,
+                     "module": module_of.get(qid), "module_label": labels.get(module_of.get(qid), "—"),
+                     "fixed_12": qid in TR.FALLBACK, "skip": skips.get(qid),
+                     "text": {"English": en.format(day="<day in her record>"),
+                              **{lang: R.QUESTION_TEXT[lang][qid].format(day="<…>")
+                                 for lang in R.CALL_LANGUAGES if lang in R.QUESTION_TEXT}}})
+    return {"questions": rows,
+            "modules": [{"tag": t, "label": labels.get(t, t), "questions": qs} for t, qs in groups],
+            "rules": ["The five danger questions are always asked first and are never skipped.",
+                      "The bangles question is added when her record has a left-arm baseline.",
+                      "Each symptom the AI heard adds its module, in the order listed here (not the order she said "
+                      "them).",
+                      "If the tags are broken, or she named no symptom, the fixed 12 questions are asked.",
+                      "A symptom no question covers (other symptom) keeps the call at least Amber and a nurse calls; "
+                      "her own word “severe” keeps it at least Amber.",
+                      "The AI never writes a question, never picks a tier and never gives advice."]}
 
 
 def turn_audio(conn, episode_id: int, index: int, cached_only: bool = False) -> tuple[bytes, str] | None:
@@ -1418,7 +1565,7 @@ def recording(conn, episode_id: int, user: dict) -> bytes | None:
     answered on screen and a pause where she was silent. Built from what the call already stored (the Bulbul cache
     and her recorded answers). None when there is no call audio (she did not answer, or simulated mode)."""
     ep = _load(conn, episode_id)
-    out, voiced, missing, offsets = array.array("h"), 0, 0, {}
+    out, voiced, missing, offsets, ends = array.array("h"), 0, 0, {}, {}
     started = time.monotonic()
     for t in ep["turns"]:
         if t["who"] == "agent":
@@ -1441,6 +1588,7 @@ def recording(conn, episode_id: int, user: dict) -> bytes | None:
             continue
         offsets[str(t["i"])] = round(len(out) / REC_RATE, 2)  # where this turn starts (seconds)
         out.extend(pcm)
+        ends[str(t["i"])] = round(len(out) / REC_RATE, 2)  # and where it ends: a summary line plays just its answer
         out.extend(_silence(REC_GAP_S))
     if not voiced:
         return None
@@ -1455,7 +1603,7 @@ def recording(conn, episode_id: int, user: dict) -> bytes | None:
         w.setsampwidth(2)
         w.setframerate(rate)
         w.writeframes(out.tobytes())
-    _update(conn, ep, rec_offsets=offsets)  # the ticket's summary lines jump to these moments
+    _update(conn, ep, rec_offsets={**offsets, "ends": ends})  # the ticket's summary lines play these moments
     audit.append(conn, actor_type="person", actor_name=user["user_id"], action="triage_recording_opened",
                  entity_type="triage_episode", entity_id=str(episode_id), mrn=ep["mrn"],
                  details={"seconds": round(len(out) / rate, 1), "lines_with_voice": voiced,

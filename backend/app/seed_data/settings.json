@@ -159,7 +159,7 @@
     "tts_model": "bulbul:v3",
     "call_within_minutes": 2,
     "retry_minutes": 5,
-    "confirm_within_minutes": 30,
+    "confirm_within_minutes": 10,
     "not_yet_again_minutes": 15,
     "nurse_minutes": 15,
     "amber_callback_minutes": 120,

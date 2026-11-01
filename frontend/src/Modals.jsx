@@ -349,6 +349,28 @@ const waDay = (d) => new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDate
 const waTime = (m) => (m.at ? String(m.at).slice(0, 5) : '');
 const initials = (name) => (name || 'H').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
+// What CarePilot did with her message, for staff (testing round 31 Oct, defects 9 and 10): the standard reply, the
+// triage ticket and, once the call is done, who has her case and when hospital staff will call.
+function handledNote(m) {
+  if (m.direction !== 'in' || !m.ai_flag) return null;
+  const handling = String(m.handling || '');
+  if (handling.includes('standard_reply')) return 'CarePilot: no health mention → standard reply sent (no call, no ticket, no task)';
+  const lead = m.ai_flag === 'yes' ? `CarePilot: health mention flagged${m.ai_failed ? ' (AI failed — safe path)' : ''}` : 'CarePilot: no health mention, but a ticket is open';
+  if (m.ep_ticket) {
+    if (handling.includes('episode_updated')) return `${lead} → added to the open triage ticket ${m.ep_ticket}`;
+    if (!m.ep_tier) return `${lead} → triage ticket ${m.ep_ticket}: automated call within 2 minutes`;
+    const nurse = m.ep_red_kind === 'UNCONFIRMED' || m.ep_action === 'NURSE_CALLBACK_15_MIN';
+    if (m.ep_tier === 'TIER_3_GREEN') return `${lead} → ${m.ep_ticket} Green: no doctor's call needed; follow-up call tomorrow`;
+    if (nurse) return `${lead} → ${m.ep_ticket} handed to a Hospital Care Coordinator; a hospital nurse will call within 15 minutes`;
+    if (m.ep_tier === 'TIER_1_RED') return `${lead} → ${m.ep_ticket} Red: go to the nearest emergency department now; handed to a Hospital Care Coordinator, hospital staff will call within 10 minutes`;
+    return `${lead} → ${m.ep_ticket} Amber: handed to a Hospital Care Coordinator; hospital staff will call within 2 hours`;
+  }
+  return m.ai_flag === 'yes' ? `${lead} → handed to a Hospital Care Coordinator` : 'CarePilot: no health mention → proposal for the coordinator';
+}
+
+// A tap names the order it is about (defect 6): "Physiotherapy referral: Booked".
+const withOrder = (m, label) => (m.order_name ? `${m.order_name}: ${label}` : label);
+
 function WaWave() {
   return (
     <span className="wa-wave" aria-hidden="true">
@@ -361,7 +383,14 @@ export function WaPhone({ thread, patient, settings, english, coordinator, onTap
   const clinic = settings?.clinic_name || 'Hospital A';
   const replied = (m) => thread.some((x) => x.direction === 'in' && x.reply_to === m.id);
   const chat = useRef(null);
-  useEffect(() => { if (chat.current) chat.current.scrollTop = chat.current.scrollHeight; }, [thread.length]);
+  // A triage episode is one cycle; once it is closed its messages are cleared from the chat (still on the patient
+  // page and in the audit trail), so the next episode starts clean. "Show" brings one back.
+  const [shownEps, setShownEps] = useState([]);
+  const cleared = (m) => m.ep_status === 'closed' && !shownEps.includes(m.triage_episode_id);
+  const visible = thread.filter((m) => !cleared(m)).length;
+  useEffect(() => { if (chat.current) chat.current.scrollTop = chat.current.scrollHeight; }, [visible]);
+  const firstOf = {};
+  thread.forEach((m) => { if (m.triage_episode_id && firstOf[m.triage_episode_id] === undefined) firstOf[m.triage_episode_id] = m; });
   let lastDay = null;
   return (
     <div className="wa-phone">
@@ -376,6 +405,18 @@ export function WaPhone({ thread, patient, settings, english, coordinator, onTap
         <div className="wa-notice">🔒 Messages from the clinic use approved templates. Simulated chat — not delivered to a real phone.</div>
         {thread.length === 0 && <div className="wa-pill">No messages yet</div>}
         {thread.map((m) => {
+          if (cleared(m)) {
+            if (firstOf[m.triage_episode_id] !== m) return null;
+            const n = thread.filter((x) => x.triage_episode_id === m.triage_episode_id).length;
+            return (
+              <div key={`ep-${m.triage_episode_id}`} className="wa-pill">
+                Triage ticket {m.ep_ticket} closed{m.ep_closed_at ? ` ${waDay(m.ep_closed_at)}` : ''} · {n} message{n > 1 ? 's' : ''} cleared{' '}
+                <button type="button" className="wa-show" onClick={() => setShownEps([...shownEps, m.triage_episode_id])}>Show</button>
+              </div>
+            );
+          }
+          const sepEp = m.ep_status === 'closed' && firstOf[m.triage_episode_id] === m
+            ? <div className="wa-pill">Closed triage ticket {m.ep_ticket} <button type="button" className="wa-show" onClick={() => setShownEps(shownEps.filter((x) => x !== m.triage_episode_id))}>Hide</button></div> : null;
           const day = String(m.day).slice(0, 10);
           const sep = day !== lastDay ? <div className="wa-pill">{waDay(day)}</div> : null;
           lastDay = day;
@@ -391,13 +432,13 @@ export function WaPhone({ thread, patient, settings, english, coordinator, onTap
           const failed = out && m.status && m.status !== 'sent';
           const taps = out && m.buttons?.length > 0;
           return (
-            <React.Fragment key={key}>{sep}
+            <React.Fragment key={key}>{sep}{sepEp}
               <div className={`wa-row ${out ? 'in' : 'me'}`}>
                 <div className={`wa-b ${out ? 'clinic' : 'patient'}${failed ? ' failed' : ''}${taps ? ' has-taps' : ''}`}>
                   {!out && m.party !== 'patient' && <div className="wa-from">{m.party.charAt(0).toUpperCase() + m.party.slice(1)}</div>}
                   {out && m.party !== 'patient' && <div className="wa-from">To the {m.party}</div>}
                   {failed && <div className="wa-failed">⊘ Not delivered: {m.status === 'blocked' ? (WA_REASON[m.blocked_reason] || (m.blocked_reason || 'blocked').replaceAll('_', ' ')) : m.status.replaceAll('_', ' ')}</div>}
-                  {m.direction === 'in' && m.button && <div className="wa-text">{buttonLabel(m.button)}</div>}
+                  {m.direction === 'in' && m.button && <div className="wa-text">{withOrder(m, buttonLabel(m.button))}</div>}
                   {m.kind === 'voice' && (
                     <div className="wa-voice">
                       <span className="wa-mic-av" aria-hidden="true">🎙</span>
@@ -418,9 +459,7 @@ export function WaPhone({ thread, patient, settings, english, coordinator, onTap
                   {m.kind === 'voice' && m.transcript && <div className="wa-note">Transcript: {m.transcript}</div>}
                   {english && m.translation && m.translation !== m.body && m.translation !== m.transcript && <div className="wa-note">AI translation: {m.translation}</div>}
                   {english && out && m.body_en && m.body_en !== m.body && <div className="wa-note">English: {m.body_en}</div>}
-                  {m.direction === 'in' && m.ai_flag && (
-                    <div className="wa-note">{m.ai_flag === 'yes' ? `CarePilot: health mention flagged${m.ai_failed ? ' (AI failed — safe path)' : ''} → handed to a person` : 'CarePilot: no health mention → proposal for the coordinator'}</div>
-                  )}
+                  {handledNote(m) && <div className="wa-note">{handledNote(m)}</div>}
                   <span className="wa-meta">{waTime(m)}{out && !failed && <span className={`wa-ticks${replied(m) ? ' read' : ''}`} aria-label={replied(m) ? 'Read' : 'Delivered'}>✓✓</span>}</span>
                 </div>
                 {taps && (
@@ -430,8 +469,8 @@ export function WaPhone({ thread, patient, settings, english, coordinator, onTap
                       return coordinator && !failed ? (
                         <button key={b.id} type="button" className={`wa-tap${tapped ? ' tapped' : ''}`} aria-pressed={tapped}
                           title={`Demo: the patient taps "${b.label_en}"`} onClick={() => onTap(m, b)}>
-                          {tapped ? '✓ ' : '↩ '}{b.label}</button>
-                      ) : <span key={b.id} className={`wa-tap${tapped ? ' tapped' : ''}`}>{tapped ? '✓ ' : '↩ '}{b.label}</span>;
+                          {tapped ? '✓ ' : '↩ '}{withOrder(m, b.label)}</button>
+                      ) : <span key={b.id} className={`wa-tap${tapped ? ' tapped' : ''}`}>{tapped ? '✓ ' : '↩ '}{withOrder(m, b.label)}</span>;
                     })}
                   </div>
                 )}
@@ -476,7 +515,11 @@ function Messages({ patient }) {
     api('care-plan').then((c) => setSettings(c.settings)).catch(() => {});
   }, []);
   const actOnReplies = settings?.act_on_replies !== false;
-  useEffect(() => load(), [load]);
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [load]);
   const voiceForm = (ev) => {
     const fd = new FormData();
     fd.append('file', ev.blob, 'voice-note.wav');
@@ -580,7 +623,7 @@ function Messages({ patient }) {
               <>
                 <label className="v3-field" htmlFor="msgTo">Replying to</label>
                 <select id="msgTo" className="v3-in" value={lastSent.id} onChange={(e) => setTarget(Number(e.target.value))}>
-                  {withButtons.map((m) => <option key={m.id} value={m.id}>{fmt(m.day)} · to {m.party} · {m.body_en.slice(0, 70)}…</option>)}
+                  {withButtons.map((m) => <option key={m.id} value={m.id}>{fmt(m.day)} · to {m.party} · {m.order_name ? `${m.order_name} · ` : ''}{m.body_en.slice(0, 70)}…</option>)}
                 </select>
               </>
             )}
@@ -588,7 +631,7 @@ function Messages({ patient }) {
               <div className="btn-row">
                 {lastSent.buttons.map((b) => (
                   <button key={b.id} type="button" className="btn sm" title={b.label_en}
-                    onClick={() => reply({ button: b.id, in_reply_to: lastSent.id })}>Tap “{b.label_en}”</button>
+                    onClick={() => reply({ button: b.id, in_reply_to: lastSent.id })}>Tap “{withOrder(lastSent, b.label_en)}”</button>
                 ))}
               </div>
             ) : <div className="small-note" style={{ marginTop: 8 }}>No message with reply buttons yet.</div>}

@@ -1,6 +1,7 @@
 """Read side for the Workspace, Patient journey and Summary screens."""
 from . import messaging, policy, urgent_calls
 from .errors import NotFound
+from .states import DONE_STATES
 
 
 def list_patients(conn) -> list[dict]:
@@ -82,6 +83,44 @@ def patient_detail(conn, mrn: str) -> dict:
     }
 
 
+def patient_card(conn, mrn: str) -> dict:
+    """The pop-up behind a patient's name (testing round 31 Oct, defect 2): who she is, how to reach her and her
+    family, her plan and next due items, open tasks, and her triage tickets. Read only; staff in Voice Triage
+    (including the ER Desk) see it."""
+    p = conn.execute(
+        """SELECT mrn, full_name, phone, caregiver_name, caregiver_phone, preferred_language, status, agent_on,
+                  next_planned_action, coordinator, pause_until, pause_reason
+           FROM patient WHERE mrn = %s""", (mrn,)).fetchone()
+    if p is None:
+        raise NotFound(f"Patient {mrn} not found")
+    history = conn.execute("SELECT data FROM triage_history WHERE mrn = %s", (mrn,)).fetchone()
+    h = history["data"] if history else {}
+    clinical = h.get("clinical") or {}
+    return {
+        **p,
+        "consent": conn.execute("SELECT consent_reference, scopes, recorded_on FROM consent WHERE mrn = %s "
+                                "ORDER BY consent_id DESC LIMIT 1", (mrn,)).fetchone(),
+        "plan": conn.execute("SELECT template_id, therapy, treatment_end_date, confirmed_by FROM care_plan "
+                             "WHERE mrn = %s", (mrn,)).fetchone(),
+        "record": {"title": h.get("title"), "age": h.get("age"), "sex": h.get("sex"),
+                   "caregiver_relation": h.get("caregiver_relation"), "diagnosis": clinical.get("diagnosis"),
+                   "treatment": clinical.get("active_treatment_completed"), "phase": clinical.get("current_phase"),
+                   "medicines": [m["name"] for m in h.get("medicines") or []],
+                   "arm_baseline": h.get("arm_baseline"), "last_headache": h.get("last_headache")} if h else None,
+        "due": conn.execute(
+            """SELECT item_code, name, due_date, state FROM order_card WHERE mrn = %s AND state <> ALL(%s)
+               ORDER BY due_date LIMIT 5""", (mrn, list(DONE_STATES))).fetchall(),
+        "appointments": conn.execute(
+            "SELECT appointment_date, department FROM appointment WHERE mrn = %s ORDER BY appointment_date", (mrn,)
+        ).fetchall(),
+        "open_tasks": conn.execute("SELECT count(*) AS n FROM coordinator_task WHERE mrn = %s AND status = 'open'",
+                                   (mrn,)).fetchone()["n"],
+        "triage": conn.execute(
+            """SELECT episode_id, ticket_id, tier, status, opened_at, closed_at FROM triage_episode WHERE mrn = %s
+               ORDER BY episode_id DESC LIMIT 5""", (mrn,)).fetchall(),
+    }
+
+
 def patient_cards(conn, mrn: str) -> list[dict]:
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
@@ -134,11 +173,17 @@ def summary(conn) -> dict:
 
 def messages(conn, mrn: str) -> list[dict]:
     """The WhatsApp thread for one patient: outbox (sent, blocked, drafts), replies (taps, text, voice notes with
-    their transcript, translation and flag) and calls, in order."""
+    their transcript, translation and flag) and calls, in order. A message and the replies it triggers are written in
+    one transaction (same created_at), so the order within it is the order the audit ledger logged them (her message,
+    then what was sent back). Each row carries the order
+    it is about (a tap is about the message it answers) and its triage episode (ticket, tier, open or closed)."""
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
     return conn.execute(
         """
+        SELECT t.*, e.ticket_id AS ep_ticket, e.status AS ep_status, e.tier AS ep_tier, e.red_kind AS ep_red_kind,
+               e.result->>'action_code' AS ep_action, e.closed_at AS ep_closed_at
+        FROM (
         SELECT 'out' AS direction, message_id AS id, created_at, created_on AS day,
                (SELECT a.demo_time::time FROM audit_ledger a WHERE a.entity_type = 'outbox_message'
                   AND a.entity_id = message_id::text AND a.demo_time IS NOT NULL ORDER BY a.id LIMIT 1) AS at,
@@ -146,18 +191,25 @@ def messages(conn, mrn: str) -> list[dict]:
                body, body_en, buttons, status, blocked_reason, template_id, actor, NULL::text AS button,
                NULL::text AS handling, language, NULL::text AS kind, NULL::text AS transcript, NULL::text AS translation,
                NULL::text AS ai_flag, NULL::boolean AS ai_failed, NULL::bigint AS audio_id, NULL::text AS clip_id,
-               NULL::bigint AS reply_to, attachment_doc_id, triage_episode_id
-        FROM outbox_message WHERE mrn = %(mrn)s
+               NULL::bigint AS reply_to, attachment_doc_id, triage_episode_id,
+               (SELECT c.name FROM order_card c WHERE c.card_id = o.card_id) AS order_name,
+               (SELECT min(a.id) FROM audit_ledger a WHERE a.mrn = %(mrn)s AND a.entity_type = 'outbox_message'
+                  AND a.entity_id = message_id::text) AS seq
+        FROM outbox_message o WHERE mrn = %(mrn)s
         UNION ALL
-        SELECT 'in', inbound_id, created_at, received_on, received_time, from_role, text, NULL, NULL, NULL, NULL, NULL,
+        SELECT 'in', inbound_id, i.created_at, received_on, received_time, from_role, text, NULL, NULL, NULL, NULL, NULL,
                NULL, button, handling, NULL, kind, transcript, translation, ai_flag, ai_failed, audio_id, clip_id,
-               in_reply_to, NULL, NULL
-        FROM inbound_message WHERE mrn = %(mrn)s
+               in_reply_to, NULL, coalesce(i.triage_episode_id, o.triage_episode_id),
+               (SELECT c.name FROM order_card c WHERE c.card_id = o.card_id),
+               (SELECT min(a.id) FROM audit_ledger a WHERE a.mrn = %(mrn)s AND a.entity_type = 'inbound_message'
+                  AND a.entity_id = inbound_id::text)
+        FROM inbound_message i LEFT JOIN outbox_message o ON o.message_id = i.in_reply_to WHERE i.mrn = %(mrn)s
         UNION ALL
         SELECT 'call', call_id, created_at, called_on, NULL, who, note, NULL, NULL, outcome, NULL, NULL, called_by,
-               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
         FROM call_log WHERE mrn = %(mrn)s
-        ORDER BY created_at
+        ) t LEFT JOIN triage_episode e ON e.episode_id = t.triage_episode_id
+        ORDER BY t.created_at, t.seq NULLS LAST, t.direction <> 'in', t.id
         """,
         {"mrn": mrn},
     ).fetchall()

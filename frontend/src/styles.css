@@ -98,6 +98,7 @@ blockquote { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--line
 .wa-pill { align-self: center; background: #e1f2fb; color: #54656f; font-size: 11.5px; border-radius: 8px; padding: 4px 10px;
   margin: 8px 0 4px; box-shadow: 0 1px .5px rgba(0,0,0,.13); text-align: center; max-width: 92%; }
 .wa-pill.wa-call { background: #fff; }
+.wa-show { background: none; border: 0; padding: 0 2px; color: #027eb5; font: inherit; font-weight: 600; cursor: pointer; }
 .wa-row { display: flex; flex-direction: column; max-width: 84%; margin-top: 2px; }
 .wa-row.in { align-self: flex-start; }
 .wa-row.me { align-self: flex-end; }

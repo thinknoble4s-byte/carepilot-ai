@@ -1,6 +1,7 @@
 // R7 — Audit trail (prototype v7.2 scrAudit): patient, date range, actor type and text filters.
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
+import { PatientLink } from './PatientCard.jsx';
 import { describe, fmt, KIND, KIND_LABEL, ScreenHead, useUI } from './ui.jsx';
 
 const QUICK = [[1, 'Since yesterday'], [7, 'Last 7 days'], [30, 'Last 30 days']];
@@ -112,7 +113,7 @@ export default function AuditTrail({ mrn: initialMrn, users }) {
                 <div className="ts">#{e.id} · demo {e.demo_date ? fmt(e.demo_date) : '—'}{e.demo_time ? ` ${e.demo_time}` : ''}
                   <div className="small-note">{new Date(e.occurred_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</div></div>
                 <div><span className={`v4-k ${k}`}>{KIND_LABEL[k]}</span></div>
-                <div>{e.mrn ? <a role="button" tabIndex={0} onClick={() => ui.nav('plan', e.mrn)}>{byMrn[e.mrn] || e.mrn}</a> : 'All patients'}</div>
+                <div>{e.mrn ? <PatientLink mrn={e.mrn} name={byMrn[e.mrn] || e.mrn} /> : 'All patients'}</div>
                 <div><b>{names[e.actor_name] || e.actor_name}</b> — {describe(e)}
                   <span className="small-note"> · {e.hash.slice(0, 10)}</span></div>
               </div>

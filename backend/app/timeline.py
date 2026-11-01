@@ -249,6 +249,17 @@ def build(conn, mrn: str) -> dict:
         events.append(_ev(pr["created_at_demo"].date(), f"Proposal drafted by AI: {pr['summary'] or 'no draft'} "
                           f"(intent {pr['intent'] or 'none'}) — {pr['status']}", "routine", "carepilot",
                           f"Proposal #{pr['proposal_id']}", f"Voice/text reply #{pr['inbound_id']}"))
+    # Voice Triage (testing round 31 Oct, defect 12): each episode as one entry, its summary first and the details
+    # folded under it; the summary is built from the episode's record.
+    from . import triage
+    h = triage.history(conn, mrn)
+    for ep in conn.execute("SELECT * FROM triage_episode WHERE mrn = %s ORDER BY episode_id", (mrn,)).fetchall():
+        s = triage.episode_summary(ep, h)
+        state = "closed" if ep["status"] == "closed" else "open"
+        events.append({**_ev(ep["opened_at"].date(), f"Triage episode {s['summary']} — {state}", "milestone",
+                             "carepilot", f"Triage ticket {ep['ticket_id']}",
+                             f"Her message #{ep['inbound_id']}" if ep["inbound_id"] else "Voice Triage"),
+                       "triage": {"tier": ep["tier"], "status": ep["status"], "details": s["details"]}})
     events.sort(key=lambda e: (e["date"], e["kind"] != "milestone"))
     routine = [e for e in events if e["kind"] == "routine"]
     return {"mrn": mrn, "full_name": p["full_name"], "status": p["status"],

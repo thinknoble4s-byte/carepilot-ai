@@ -348,7 +348,8 @@ def test_red_package_message_pdf_note_and_task(vt, client):
         assert never not in text.lower(), never
     assert s["doctor_note"].startswith("RED alert: Mrs. Lakshmi V. (SYN-0142). Why: Left arm reported as red or "
                                        "hot to touch. At 27 Oct 2026 10:12 the family (Karthik, her son) was sent")
-    assert s["task"]["due_at_demo"][11:16] == "10:42" and s["task"]["reason"].startswith("Call Karthik within 30")
+    # Testing round 31 Oct: hospital staff call within 10 minutes on a Red case (was 30)
+    assert s["task"]["due_at_demo"][11:16] == "10:22" and s["task"]["reason"].startswith("Call Karthik within 10")
     # The coordinator's call does not close the case; the nurse cannot close it; only the ER doctor can.
     eid = s["episode_id"]
     r = client.post(f"/triage/episodes/{eid}/ed-call", headers=ANITA,
@@ -563,6 +564,8 @@ def test_call_recording_puts_the_call_back_together_and_is_audited(vt, client, m
     s = episode(client, headers=ANANYA)
     q1 = next(x for x in s["summary"] if x["text"].startswith("Speech slurred"))
     assert s["rec_offsets"][str(q1["turn"])] == 2.9
+    # Its play button plays just question 1 and her 2-second answer, then stops (defect 3)
+    assert s["rec_spans"][str(q1["turn"])] == [1.45, 4.9]
     assert client.get(f"/triage/episodes/{eid}/recording", headers=NURSE).status_code == 200
     assert client.get(f"/triage/episodes/{eid}/recording", headers=users_header("u_suresh")).status_code == 403
     brief = client.get(f"/triage/brief/{MRN}", headers=SEKHAR).json()
@@ -809,3 +812,158 @@ def test_v12_voice_notes_take_their_road_in_every_language(clip, road):
         assert (len(p["question_ids"]), p["floors"]) == (8, ["AMBER_PATIENT_SAYS_SEVERE"])
     else:
         assert p["modules"][-1] == "tiredness" and p["floors"] == []
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Testing round 31 Oct 2026 (Defects/31oct-TestingV1.0.xlsx): the fixes, and the two mandatory scenarios
+# ---------------------------------------------------------------------------------------------------------------
+MIX = {"health_related": "YES", "symptoms": ["headache", "fever_chills", "nausea_vomiting", "tiredness"],
+       "severity_word": "NONE"}  # mandatory scenario 1: headache, fever, vomiting and tiredness
+
+
+def test_mandatory_1_headache_fever_vomiting_tiredness_asks_17_and_skips_the_rest():
+    p = TR.plan(LAKSHMI, MIX)
+    assert p["question_ids"] == ["Q_SLURRED", "Q_AWAKE", "Q_CHEST", "Q_ARM_RED", "Q_TEMP", "Q_BANGLES",
+                                 "Q_CHILLS", "Q_FEELS_HOT", "Q_HEADACHE", "Q_HEAD_SCORE", "Q_HEAD_WORSE",
+                                 "Q_NAUSEA", "Q_VOMIT", "Q_LIQUIDS", "Q_SUPP", "Q_TIRED_DAYS", "Q_TIRED_WORSE"]
+    assert TR.not_asked(p) == ["dizziness and vision", "sleepiness", "arm pain", "arm swelling and skin"]
+    # No headache today skips its score and "worse"; no nausea and no vomiting skip supplements and water
+    a = {**R.blank(), "headache_present": R.NO, "nausea_since_yesterday": R.NO, "vomiting_count": 0.0}
+    left = [q.id for q in R.questions(LAKSHMI, p["question_ids"]) if not R.skipped(q, a)]
+    assert "Q_HEAD_SCORE" not in left and "Q_HEAD_WORSE" not in left and "Q_SUPP" not in left
+    assert "Q_LIQUIDS" not in left and len(left) == 13
+
+
+MIX_BASE = {"shaking_chills": R.NO, "feels_hot": R.NO, "tired_days": 2.0, "tired_getting_worse": R.NO,
+            "cannot_stay_awake": R.NO, "chest_pain": R.NO}
+
+
+@pytest.mark.parametrize("kw,tier,codes", [
+    ({}, "TIER_3_GREEN", []),
+    ({"vomiting_count": 3.0, "nausea_since_yesterday": R.YES, "can_keep_liquids_down": R.YES,
+      "took_supplements_after_full_meals": R.NO}, "TIER_2_AMBER", ["AMBER_VOMITING_2_TO_5"]),
+    ({"tired_days": 8.0}, "TIER_2_AMBER", ["AMBER_TIREDNESS_7_DAYS_PLUS"]),
+    ({"tired_getting_worse": R.YES}, "TIER_2_AMBER", ["AMBER_TIREDNESS_GETTING_WORSE"]),
+    ({"headache_present": R.YES, "headache_score": 5.0, "headache_worse_than_last_time": R.YES}, "TIER_2_AMBER",
+     ["AMBER_HEADACHE_RISE_2_PLUS", "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"]),
+    ({"thermometer_used": R.NO, "temperature_value": None, "feels_hot": R.YES}, "TIER_2_AMBER",
+     ["AMBER_FEELS_HOT_NO_THERMOMETER"]),
+    ({"temperature_value": 100.8}, "TIER_1_RED", ["RED_FEVER_100_4F_PLUS"]),
+    ({"shaking_chills": R.YES}, "TIER_1_RED", ["RED_SHAKING_CHILLS"]),
+    ({"vomiting_count": 6.0, "nausea_since_yesterday": R.YES}, "TIER_1_RED", ["RED_VOMITING_6_PLUS"]),
+    ({"nausea_since_yesterday": R.YES, "vomiting_count": 1.0, "can_keep_liquids_down": R.NO}, "TIER_1_RED",
+     ["RED_CANNOT_KEEP_LIQUIDS"]),
+    ({"headache_present": R.YES, "headache_score": 8.0}, "TIER_1_RED", ["RED_HEADACHE_SEVERE_7_PLUS"]),
+])
+def test_mandatory_2_every_rag_road_for_that_mix(kw, tier, codes):
+    p = TR.plan(LAKSHMI, MIX)
+    r = R.triage(answers(**{**MIX_BASE, **kw}), LAKSHMI, TODAY, floors=p["floors"], profile=p["profile"])
+    assert r["tier"] == tier and sorted(c for c in r["reason_codes"] if c in codes) == sorted(codes), r["reason_codes"]
+
+
+def test_d1_the_question_bank_is_listed_for_triage_staff(vt, client):
+    bank = client.get("/triage/questions", headers=NURSE).json()
+    assert [q["id"] for q in bank["questions"]] == list(R.QUESTION_IDS) and len(bank["questions"]) == 24
+    head = next(q for q in bank["questions"] if q["id"] == "Q_HEAD_SCORE")
+    assert head["module"] == "headache" and head["danger"] and head["skip"] == "Skipped if she has no headache today"
+    assert set(head["text"]) == {"English", "Tamil", "Hindi", "Telugu"} and head["fixed_12"]
+    assert [m["tag"] for m in bank["modules"]][:2] == ["core", "history_arm"]
+    assert client.get("/triage/questions", headers=users_header("u_suresh")).status_code == 403
+
+
+def test_d2_a_patients_name_opens_her_card_for_every_triage_role(vt, client):
+    voice_note(client)
+    for who in (ANITA, ANANYA, NURSE):
+        c = client.get(f"/patients/{MRN}/card", headers=who)
+        assert c.status_code == 200, c.text
+    c = c.json()
+    assert (c["record"]["title"], c["record"]["caregiver_relation"], c["caregiver_phone"]) == \
+        ("Mrs. Lakshmi V.", "son", "+919000100142")
+    assert c["record"]["medicines"][0].startswith("Shelcal-HD") and c["triage"][0]["status"] == "open"
+    assert client.get("/patients/SYN-9999/card", headers=ANITA).status_code == 404
+    assert client.get(f"/patients/{MRN}/card", headers=users_header("u_suresh")).status_code == 403
+
+
+def test_d4_her_voice_notes_are_listed_with_date_and_time_newest_first(vt, client):
+    voice_note(client)
+    text_note(client, "My head hurts more now")
+    notes = episode(client)["patient_notes"]
+    assert [n["kind"] for n in notes] == ["text", "voice"] and notes[0]["text"] == "My head hurts more now"
+    assert all(n["received_on"] == "2026-10-27" and n["received_time"] for n in notes)
+
+
+def thread(client, mrn=MRN, headers=ANITA) -> list[dict]:
+    return client.get(f"/patients/{mrn}/messages", headers=headers).json()
+
+
+def test_d9_the_standard_reply_comes_after_her_message_in_the_chat(vt, client):
+    text_note(client, "I want to go shopping tomorrow")
+    t = thread(client)
+    assert [(m["direction"], m["template_id"]) for m in t[-2:]] == [("in", None), ("out", "triage_not_health")]
+    assert "standard_reply" in t[-2]["handling"] and t[-2]["triage_episode_id"] is None
+
+
+@pytest.mark.parametrize("scenario,template,says", [
+    ("amber", "triage_outcome_amber", "Hospital staff will call you within 2 hours"),
+    ("red", "triage_outcome_red", "hospital staff will call you within 10 minutes"),
+    ("unclear_chest", "triage_outcome_nurse", "A hospital nurse will call you within 15 minutes"),
+    ("green", None, None),
+])
+def test_d10_d11_after_the_call_she_is_told_who_calls_and_when_and_the_guardrail(vt, client, scenario, template, says):
+    voice_note(client)
+    s = play(client, scenario)
+    out = [m for m in sent() if m["template_id"].startswith("triage_outcome")]
+    if template is None:
+        assert out == []
+        return
+    assert len(out) == 1 and out[0]["template_id"] == template and out[0]["recipient"] == "patient"
+    m = out[0]
+    assert "handed to a Hospital Care Coordinator" in m["body_en"] and says in m["body_en"]
+    assert "go to the nearest hospital" in m["body_en"] and m["language"] == "Tamil" and m["body"] != m["body_en"]
+    assert m["triage_episode_id"] == s["episode_id"]
+    note = next(x for x in thread(client) if x["direction"] == "in" and x["triage_episode_id"] == s["episode_id"])
+    assert note["ep_tier"] == s["tier"] and note["ep_ticket"] == s["ticket_id"]
+
+
+def test_d10_hybrid_shopping_and_tired_hands_aching_is_triaged_not_the_standard_reply(vt, client):
+    r = text_note(client, "I thought about going shopping today, but I'm feeling tired and my hands are also aching")
+    assert any(h.startswith("triage_call_due") for h in r["handling"])
+    assert not [m for m in sent() if m["template_id"] == "triage_not_health"]
+    assert "tiredness" in episode(client)["plan"]["modules"]
+
+
+def test_d6_d8_taps_name_the_order_and_a_closed_episode_is_cleared_from_the_chat(vt, client):
+    voice_note(client)
+    eid = play(client, "amber")["episode_id"]
+    client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "physio"})
+    booking = next(m for m in thread(client) if m["template_id"] == "instruction_booking")
+    assert booking["order_name"] == "Physiotherapy referral" and booking["triage_episode_id"] == eid
+    r = client.post(f"/simulator/{MRN}/reply", headers=ANITA, json={"button": "booked", "in_reply_to": booking["id"]})
+    assert r.status_code == 201, r.text
+    tap = next(m for m in thread(client) if m["direction"] == "in" and m["button"] == "booked")
+    assert tap["order_name"] == "Physiotherapy referral" and tap["triage_episode_id"] == eid
+    assert {m["ep_status"] for m in thread(client) if m["triage_episode_id"] == eid} == {"open"}
+    client.post("/clock/advance", headers=ANITA, json={"days": 1})
+    client.post(f"/triage/episodes/{eid}/followup", headers=ANITA, json={"answer": "BETTER"})
+    client.post(f"/triage/episodes/{eid}/confirm-closure", headers=ANITA, json={"note": "better, physio booked"})
+    mine = [m for m in thread(client) if m["triage_episode_id"] == eid]
+    # her voice note, the acknowledgement, the outcome, the booking message and her tap: all cleared together
+    assert len(mine) == 5 and {m["ep_status"] for m in mine} == {"closed"}
+
+
+def test_d12_the_patient_journey_shows_each_triage_episode_and_the_next_ticket_sees_the_last(vt, client):
+    voice_note(client)
+    eid = play(client, "amber")["episode_id"]
+    client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "none"})
+    client.post("/clock/advance", headers=ANITA, json={"days": 1})
+    client.post(f"/triage/episodes/{eid}/followup", headers=ANITA, json={"answer": "BETTER"})
+    client.post(f"/triage/episodes/{eid}/confirm-closure", headers=ANITA, json={"note": "better"})
+    t = client.get(f"/patients/{MRN}/timeline", headers=ANANYA).json()
+    ev = next(e for e in t["events"] if e.get("triage"))
+    assert ev["label"].startswith("Triage episode CP-") and "Amber" in ev["label"] and ev["label"].endswith("closed")
+    details = ev["triage"]["details"]
+    assert details[0].startswith("AI heard: headache, nausea, sleepy, arm pain")
+    assert any(d.startswith("Why Amber:") for d in details) and details[-1].startswith("Closed by Anita")
+    text_note(client, "I have a headache again")
+    prev = episode(client)["previous"]
+    assert prev["episode_id"] == eid and prev["details"] == details

@@ -893,6 +893,17 @@ def triage_episode(episode_id: int, _user: dict = Depends(require_role(*TRIAGE_V
     return in_tx(triage.state, episode_id)
 
 
+@app.get("/triage/questions")
+def triage_questions(_user: dict = Depends(require_role(*TRIAGE_VIEW))):
+    """The question bank and how the router picks from it (no database needed)."""
+    return triage.question_bank()
+
+
+@app.get("/patients/{mrn}/card")
+def patient_card(mrn: str, _user: dict = Depends(require_role(*TRIAGE_VIEW))):
+    return in_tx(views.patient_card, mrn)
+
+
 @app.post("/triage/episodes/{episode_id}/pickup")
 def triage_pickup(episode_id: int, user: dict = Depends(require_role(*COORDINATOR))):
     """Demo: the patient picks up the automated call."""

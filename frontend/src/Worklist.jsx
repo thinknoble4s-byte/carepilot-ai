@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { openCall, openDeptLists, openHandover, openMessages, openPause } from './Modals.jsx';
+import { PatientLink } from './PatientCard.jsx';
 import ProposalCard from './Proposals.jsx';
 import { InfoCopies, RoutingSettings } from './TestCycle.jsx';
 import { Chip, fmt, GapState, GUARD, Reason, ScreenHead, useUI } from './ui.jsx';
@@ -162,7 +163,7 @@ export default function Worklist() {
           <div key={p.mrn} className="v4-row">
             <div>
               <div className="v4-name">
-                <a role="button" tabIndex={0} onClick={() => open(p.mrn)} style={{ color: 'inherit', textDecoration: 'none' }}>{p.full_name}</a>
+                <PatientLink mrn={p.mrn} name={p.full_name} style={{ color: 'inherit', textDecoration: 'none' }} />
                 {p.mrn === 'SYN-0011' && <> <span className="tag hosp">Demo patient</span></>}
               </div>
               <div className="v4-meta">{p.mrn} · {p.language}{p.therapy ? ` · ${p.therapy}` : ''}
@@ -210,7 +211,7 @@ export default function Worklist() {
             <div className="card-desc">The agent is working these patients. They come back to your list automatically if a reply doesn't arrive in time or a health matter comes up.</div>
             {handled.map((p) => (
               <div key={p.mrn} className="hrow">
-                <a role="button" tabIndex={0} onClick={() => open(p.mrn)}><b>{p.full_name}</b></a>
+                <PatientLink mrn={p.mrn} name={p.full_name} bold />
                 <span>{p.reasons.filter((r) => r.tag === 'agent').map((r) => r.txt).join(' · ')}</span>
               </div>
             ))}
@@ -226,7 +227,7 @@ export default function Worklist() {
             <tbody>
               {allCards.map((c) => (
                 <tr key={c.card_id}>
-                  <td><a role="button" tabIndex={0} onClick={() => open(c.mrn)}>{c.full_name}</a> <span className="small-note">{c.mrn}</span></td>
+                  <td><PatientLink mrn={c.mrn} name={c.full_name} /> <span className="small-note">{c.mrn}</span></td>
                   <td>{c.name}</td><td>{fmt(c.due_date)}</td>
                   <td><span className={`tag ${c.state === 'Due' ? '' : 'verified'}`}>{c.state}{c.booking_source === 'coordinator' ? ' (confirmed by coordinator)' : c.booking_source === 'patient_button' ? ' (patient-reported)' : c.booking_source ? ` (${c.booking_source.replaceAll('_', ' ')})` : ''}</span></td>
                   <td>{c.owner_name}<div className="small-note">cover {c.cover_name}</div></td>
@@ -250,7 +251,7 @@ export default function Worklist() {
             <div key={i} className="e">
               <div className="ts">{fmt(r.day)}</div>
               <div><span className="v4-k agent">Agent</span></div>
-              <div><a role="button" tabIndex={0} onClick={() => open(r.mrn)}><b>{r.full_name}</b></a> — {r.text}</div>
+              <div><PatientLink mrn={r.mrn} name={r.full_name} bold /> — {r.text}</div>
             </div>
           ))}
           {!data.feed.length && <div className="small-note">No agent actions yet today. Run the morning check.</div>}

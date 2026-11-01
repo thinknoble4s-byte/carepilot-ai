@@ -1,10 +1,24 @@
 // R3 — Patient journey (prototype v7.2 scrJourney): the longitudinal timeline, with origins.
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
+import { PatientLink } from './PatientCard.jsx';
 import { fmt, patientStatusPill, Pill, ScreenHead, useUI } from './ui.jsx';
 
 const FILTERS = [['all', 'All events'], ['ms', 'Defining milestones'], ['gaps', 'Gaps'], ['patient', 'Patient-reported']];
 const TIER = { hosp: ['hosp', 'Hospital A'], carepilot: ['unverified', 'CarePilot'], patient: ['ext', 'Patient-reported'] };
+
+// A triage episode's summary, folded (testing round 31 Oct, defect 12): built from the episode's record.
+function TriageDetails({ details }) {
+  const [open, setOpen] = useState(false);
+  if (!details?.length) return null;
+  return (
+    <div className="v31-origin">
+      <button type="button" className="btn sm ghost" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? '▾ Hide the episode summary' : '▸ Show the episode summary'}</button>
+      {open && <ul className="vt-sum">{details.map((d, i) => <li key={i}>{d}</li>)}</ul>}
+    </div>
+  );
+}
 
 export default function Timeline({ mrn }) {
   const ui = useUI();
@@ -39,7 +53,7 @@ export default function Timeline({ mrn }) {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <div className="v4-name">
-              <a role="button" tabIndex={0} onClick={() => ui.nav('plan', mrn)} style={{ color: 'inherit', textDecoration: 'none' }}>{t.full_name}</a>{' '}
+              <PatientLink mrn={mrn} name={t.full_name} style={{ color: 'inherit', textDecoration: 'none' }} />{' '}
               {patientStatusPill(t.status)}
               <div className="v4-meta">{mrn}{t.therapy ? ` · ${t.therapy}` : t.plan ? ` · plan ${t.plan} confirmed` : ' · follow-up plan not confirmed yet'}</div>
             </div>
@@ -72,6 +86,7 @@ export default function Timeline({ mrn }) {
                     ? <div className="v31-origin">↳ Raised automatically by the morning gap check · <b>rule {e.rule}</b></div>
                     : gap ? <div className="v31-origin gap">No order, request or episode on file explains this item. Not assumed; shown to the care team.</div>
                       : e.origin ? <div className="v31-origin">↳ Origin: <b>{e.origin}</b></div> : null}
+                  {e.triage && <TriageDetails details={e.triage.details} />}
                 </div>
               );
             })}

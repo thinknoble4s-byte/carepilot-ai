@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, blobUrl, post, upload } from './api.js';
 import { openMessages, toWav } from './Modals.jsx';
+import { PatientLink } from './PatientCard.jsx';
 import { fmt, Pill, ScreenHead, useUI, VoiceClip } from './ui.jsx';
 
 const TIER = { TIER_1_RED: ['Red', 'bad'], TIER_2_AMBER: ['Amber', 'warn'], TIER_3_GREEN: ['Green', 'good'] };
@@ -28,6 +29,38 @@ const OWN = {
   Telugu: { YES: 'అవును', NO: 'లేదు', UNKNOWN: 'తెలియదు', followup: 'నమస్కారం. … ఈ రోజు మీరు ఎలా ఉన్నారు: నిన్నటి కంటే బాగా, అలాగే, లేదా ఇంకా బాగోలేదా?' },
 };
 const answerLabel = (lang, v, en) => (OWN[lang] ? `${en} · ${OWN[lang][v]}` : en);
+
+// Testing round 31 Oct, defect 4: every message she sent in this episode, with the date and time, most recent first.
+export function PatientNotes({ ep }) {
+  const notes = ep.patient_notes || [];
+  if (!notes.length) return null;
+  return (
+    <div className="vt-notes">
+      <div className="small-note"><b>Patient voice note{notes.length > 1 ? 's' : ''}</b> (most recent first):</div>
+      {notes.map((n) => (
+        <div key={n.inbound_id} className="card-flat" style={{ padding: '6px 10px', margin: '6px 0' }}>
+          <div className="small-note">{fmt(n.received_on)}{n.received_time ? ` · ${String(n.received_time).slice(0, 5)}` : ''}{n.kind === 'voice' ? ' · voice note' : ' · message'}</div>
+          {n.kind === 'voice' ? <VoiceClip inboundId={n.inbound_id} /> : <div>{n.text}</div>}
+          {(n.translation || n.transcript) && <div className="small-note">{n.translation ? `AI translation: ${n.translation}` : `Transcript: ${n.transcript}`}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Defect 12: her last closed episode, as context for whoever handles this one (built from its record).
+function Previous({ ep }) {
+  const [open, setOpen] = useState(false);
+  const prev = ep.previous;
+  if (!prev) return null;
+  return (
+    <div className="card-flat" style={{ margin: '8px 0', padding: '8px 12px' }}>
+      <button type="button" className="btn sm ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? '▾' : '▸'} Previous episode</button>
+      {' '}<span className="small-note">{prev.summary}</span>
+      {open && <ul className="vt-sum">{prev.details.map((d, i) => <li key={i}>{d}</li>)}</ul>}
+    </div>
+  );
+}
 
 export function Synthetic() {
   return (
@@ -428,7 +461,7 @@ function EpisodeView({ id }) {
       <div className="grid-2">
         <div><Turns ep={ep} /></div>
         <div><AnswerTable table={ep.table} /><WhyPanel ep={ep} />
-          {ep.inbound_id && <><div className="small-note">Her voice note:</div><VoiceClip inboundId={ep.inbound_id} /></>}</div>
+          <PatientNotes ep={ep} /></div>
       </div>
     </>
   );
@@ -495,7 +528,7 @@ function Head({ ep, children }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
       <div className="v4-name">
-        <a role="button" tabIndex={0} onClick={() => ui.nav('plan', ep.mrn)}>{ep.full_name}</a>{' '}
+        <PatientLink mrn={ep.mrn} name={ep.full_name} />{' '}
         <span className="v4-meta">· {ep.mrn} · {ep.preferred_language} · call #{ep.episode_id} at {hm(ep.result_at || ep.opened_at)}</span>
       </div>
       <div><TierPill ep={ep} /> {children}</div>
@@ -765,6 +798,7 @@ function Ticket({ id, view, cfg }) {
   const [recErr, setRecErr] = useState('');
   const player = useRef(null);
   const seekTo = useRef(null);
+  const stopAt = useRef(null);
   useEffect(() => { api(`triage/episodes/${id}`).then(setEp).catch((e) => setRecErr(e.message)); }, [id]);
   useEffect(() => () => { if (src) URL.revokeObjectURL(src); }, [src]);
   if (!ep) return <div className="empty">{recErr || 'Loading…'}</div>;
@@ -784,22 +818,24 @@ function Ticket({ id, view, cfg }) {
       setRecBusy(false);
     }
   };
-  // A summary line jumps to the moment in the recording where she said it.
+  // A summary line plays just that question and her answer, then stops (testing round 31 Oct, defect 3). Pressing
+  // the player's own play button afterwards plays on through the call as before.
   const jump = async (turn) => {
-    let offsets = ep.rec_offsets;
+    let spans = ep.rec_spans;
     if (!src) {
       const fresh = await openRecording();
       if (!fresh) return;
-      offsets = fresh.rec_offsets;
+      spans = fresh.rec_spans;
     }
-    const at = offsets?.[String(turn)];
-    if (at === undefined) return;
+    const span = spans?.[String(turn)];
+    if (!span) return;
     stopVoice();
+    stopAt.current = span[1];
     const a = player.current;
     if (a && a.readyState >= 1) {
-      a.currentTime = at;
+      a.currentTime = span[0];
       a.play().catch(() => {});
-    } else seekTo.current = at;
+    } else seekTo.current = span[0];
   };
   const onLoaded = () => {
     if (seekTo.current === null || !player.current) return;
@@ -807,13 +843,23 @@ function Ticket({ id, view, cfg }) {
     seekTo.current = null;
     player.current.play().catch(() => {});
   };
+  const onTime = () => {
+    const a = player.current;
+    if (a && stopAt.current !== null && a.currentTime >= stopAt.current) {
+      a.pause();
+      stopAt.current = null;
+    }
+  };
+  const onSeek = () => {  // moved past the answer by hand: play on
+    if (player.current && stopAt.current !== null && player.current.currentTime > stopAt.current) stopAt.current = null;
+  };
 
   return (
     <div className="vt-ticket">
       <div className="vt-thead">
         <div>
           <div className="vt-tid">{ep.ticket_id}</div>
-          <div><a role="button" tabIndex={0} onClick={() => ui.nav('plan', ep.mrn)}>{ep.full_name}</a>
+          <div><PatientLink mrn={ep.mrn} name={ep.full_name} />
             <span className="v4-meta"> · {ep.mrn} · {ep.preferred_language} · opened {when(ep.opened_at)}</span></div>
         </div>
         <div className="vt-chipbig">{ep.tier ? <TierPill ep={ep} /> : <Pill tone="brand">Call {ep.call_status === 'due' ? 'due' : 'in progress'}</Pill>}
@@ -822,6 +868,7 @@ function Ticket({ id, view, cfg }) {
       </div>
       {ep.owner && <div className="small-note">Waiting on: <b>{ep.owner}</b>{ep.state === 'REOPENED' ? ` · reopened ${when(ep.reopened_at)}` : ''}</div>}
       <PlanChips ep={ep} />
+      <Previous ep={ep} />
       {ep.status === 'closed' && <div className="small-note">Closed by {ui.name(ep.closed_by)} {when(ep.closed_at)}: “{ep.close_note}”</div>}
       {ep.proposed && <div className="vt-proposed">AI proposes (a person decides): {ep.proposed.replace(/^Proposed: /, '')}</div>}
       {ep.cover_alerted_at && ep.status === 'open' && <div className="vt-proposed late">Nobody acted on this Amber ticket in {cfg?.cover_alert_minutes || 90} minutes: the cover ({ep.cover_task?.owner_name}) was alerted at {hm(ep.cover_alerted_at)}.</div>}
@@ -831,7 +878,8 @@ function Ticket({ id, view, cfg }) {
           {ep.has_call ? (
             src ? (
               <div className="vt-rec">
-                <audio ref={player} controls preload="auto" src={src} onLoadedMetadata={onLoaded} onPlay={() => stopVoice()} />
+                <audio ref={player} controls preload="auto" src={src} onLoadedMetadata={onLoaded} onPlay={() => stopVoice()}
+                  onTimeUpdate={onTime} onSeeking={onSeek} />
                 <div className="btn-row"><a className="btn sm ghost" href={src} download={`${ep.ticket_id}.wav`}>⬇ Download the recording</a></div>
               </div>
             ) : <div className="btn-row"><button type="button" className="btn sm" disabled={recBusy} onClick={openRecording}>{recBusy ? 'Preparing the recording…' : '▶ Call recording'}</button></div>
@@ -839,8 +887,8 @@ function Ticket({ id, view, cfg }) {
           {recErr && <div className="error">{recErr}</div>}
           <div className="small-note">One file, in call order: the AI's questions and her answers. ♪ a short tone = an answer given on screen. Her language and the English translation:</div>
           {ep.turns.length > 0 && <Turns ep={ep} />}
-          {/* Her voice note is for the coordinator and doctors (the ER Desk has the call recording). */}
-          {ep.inbound_id && ui.role !== 'er_desk' && <><div className="small-note">Her voice note:</div><VoiceClip inboundId={ep.inbound_id} /></>}
+          {/* Her voice notes are for the coordinator and doctors (the ER Desk has the call recording). */}
+          {ui.role !== 'er_desk' && <PatientNotes ep={ep} />}
         </div>
         <div>
           <div className="card-title">Summary <span className="small-note">facts from her answers and the record; no assessment</span></div>
@@ -849,7 +897,7 @@ function Ticket({ id, view, cfg }) {
               {ep.summary.map((l, i) => (
                 <li key={i}>
                   {l.turn !== null && ep.has_call
-                    ? <button type="button" className="vt-jump" title="Play from where she said it" onClick={() => jump(l.turn)}>▶{ep.rec_offsets?.[String(l.turn)] !== undefined ? ` ${mmss(ep.rec_offsets[String(l.turn)])}` : ''}</button>
+                    ? <button type="button" className="vt-jump" title="Play this question and her answer" onClick={() => jump(l.turn)}>▶{ep.rec_spans?.[String(l.turn)] ? ` ${mmss(ep.rec_spans[String(l.turn)][0])}–${mmss(ep.rec_spans[String(l.turn)][1])}` : ''}</button>
                     : <span className="tag">{l.source === 'hospital record' ? 'record' : 'answer'}</span>}
                   {' '}{l.text}
                 </li>
@@ -875,6 +923,44 @@ function Ticket({ id, view, cfg }) {
         {ep.pdf_doc_id && <button type="button" className="btn sm ghost" onClick={() => openPdf(ep.pdf_doc_id)}>Emergency summary PDF</button>}
         {['oncologist', 'er_desk'].includes(ui.role) && <button type="button" className="btn sm ghost" onClick={() => openBrief(ui, ep.mrn)}>Pre-OPD brief</button>}
       </div>
+    </div>
+  );
+}
+
+// Testing round 31 Oct, defect 1: the question bank the calls are built from, with the rules that pick the questions.
+function QuestionBank() {
+  const [bank, setBank] = useState(null);
+  const [error, setError] = useState('');
+  const [lang, setLang] = useState('Tamil');
+  useEffect(() => { api('triage/questions').then(setBank).catch((e) => setError(e.message)); }, []);
+  if (!bank) return <div className="card"><div className="empty">{error || 'Loading…'}</div></div>;
+  return (
+    <div className="card">
+      <div className="card-title">Question bank ({bank.questions.length} questions)</div>
+      <ul className="vt-sum">{bank.rules.map((r) => <li key={r}>{r}</li>)}</ul>
+      <div className="seg" role="group" aria-label="Language" style={{ margin: '8px 0' }}>
+        {['Tamil', 'Hindi', 'Telugu'].map((l) => <button key={l} type="button" className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>{l}</button>)}
+      </div>
+      <table className="vt-table">
+        <thead><tr><th>#</th><th>Question</th><th>Module (asked when)</th><th>Answer</th><th>Rules</th></tr></thead>
+        <tbody>
+          {bank.questions.map((q, i) => (
+            <tr key={q.id}>
+              <td className="small-note">{i + 1}<div>{q.id}</div></td>
+              <td>{q.text.English}<div className="small-note v31-kn">{q.text[lang]}</div></td>
+              <td>{q.module_label}</td>
+              <td className="small-note">{{ yesno: 'yes / no', number: 'a number', temperature: 'temperature or “no thermometer”' }[q.kind]}</td>
+              <td className="small-note">
+                {q.danger && <><span className="tag live">Danger</span> </>}
+                {q.history && <><span className="tag hosp">Uses her record</span> </>}
+                {q.fixed_12 && <><span className="tag">Fixed 12</span> </>}
+                {q.skip && <div>{q.skip}</div>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="small-note" style={{ marginTop: 8 }}>&lt;…&gt; is filled from her record (the day she last reported a headache). Tamil, Hindi and Telugu are drafts until Dr. Sekhar signs them.</div>
     </div>
   );
 }
@@ -926,7 +1012,7 @@ export function TriageRoom() {
         </div>
         <div className="seg" role="group" aria-label="Tickets">
           {[['needs', `Needs ${viewLabel} (${needs.length})`], ['open', `All open (${list.length})`], ['digest', `Green digest (${green.length})`],
-            ['closed', `Closed (${closed?.length || 0})`], ...(doctor ? [['brief', 'Pre-OPD briefs']] : [])].map(([k, l]) => (
+            ['closed', `Closed (${closed?.length || 0})`], ...(doctor ? [['brief', 'Pre-OPD briefs']] : []), ['bank', 'Question bank']].map(([k, l]) => (
             <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>))}
         </div>
         <select className="v3-in" style={{ width: 'auto' }} value={colour} onChange={(e) => setColour(e.target.value)} aria-label="Filter by colour">
@@ -938,7 +1024,7 @@ export function TriageRoom() {
           {STATES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
       </div>
-      {tab === 'brief' ? (
+      {tab === 'bank' ? <QuestionBank /> : tab === 'brief' ? (
         <div className="card">
           <div className="card-title">Pre-OPD briefs</div>
           {mrns.map((e) => <div key={e.mrn} className="btn-row"><button type="button" className="btn sm" onClick={() => openBrief(ui, e.mrn)}>{e.full_name} · {e.mrn}</button></div>)}
@@ -955,7 +1041,7 @@ export function TriageRoom() {
                     <tr className={`vt-row ${open === e.episode_id ? 'on' : ''}`} onClick={() => toggle(e.episode_id)}
                       tabIndex={0} onKeyDown={(k) => { if (k.key === 'Enter') toggle(e.episode_id); }}>
                       <td className="vt-tid">{e.ticket_id}</td>
-                      <td>{e.full_name}<div className="small-note">{e.mrn} · {e.preferred_language}</div></td>
+                      <td><span onClick={(k) => k.stopPropagation()}><PatientLink mrn={e.mrn} name={e.full_name} /></span><div className="small-note">{e.mrn} · {e.preferred_language}</div></td>
                       <td>{hm(e.result_at || e.opened_at)}<div className="small-note">{fmt(String(e.opened_at).slice(0, 10))}</div></td>
                       <td className="vt-chipbig">{e.tier ? <TierPill ep={e} /> : <Pill tone="brand">Call</Pill>}<div className={`vt-state s-${e.state}`}>{e.state_label}</div></td>
                       <td>{e.status === 'closed' ? <span className="small-note">Closed {when(e.closed_at)}</span> : <Countdown ep={e} />}</td>

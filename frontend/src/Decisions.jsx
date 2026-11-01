@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { InstructionForm, PatientWords } from './Modals.jsx';
+import { PatientLink } from './PatientCard.jsx';
 import { ReportReviews, RoutingSettings, TestVerifications } from './TestCycle.jsx';
 import { Dl, fmt, ScreenHead, useUI } from './ui.jsx';
 
@@ -41,7 +42,7 @@ export default function Decisions() {
         <div key={c.handover_id} className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div className="v4-name">
-              <a role="button" tabIndex={0} onClick={() => ui.nav('plan', c.mrn)}>{c.full_name}</a>{' '}
+              <PatientLink mrn={c.mrn} name={c.full_name} />{' '}
               <span className="v4-meta">· {c.mrn} · {c.preferred_language}</span>
             </div>
             <Dl due={c.due_date} label="Decision" today={ui.today} />
