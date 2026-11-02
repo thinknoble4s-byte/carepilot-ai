@@ -25,5 +25,5 @@ def require_role(*roles: str):
 
 COORDINATOR = ("coordinator",)
 CLINICAL = ("coordinator", "oncologist")
-ANY_ROLE = ("coordinator", "oncologist", "chief", "er_desk")
-TRIAGE_VIEW = ("coordinator", "oncologist", "er_desk")  # Voice Triage: the ER Desk sees the Red alerts
+ANY_ROLE = ("coordinator", "oncologist", "chief")
+TRIAGE_VIEW = ("coordinator", "oncologist")  # Voice Triage v3: two people roles (no ER Desk)

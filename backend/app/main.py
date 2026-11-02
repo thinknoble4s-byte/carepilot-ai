@@ -90,7 +90,7 @@ def users():
         with db.connect() as conn:
             loaded = conn.execute("SELECT user_id, name, role FROM app_user ORDER BY role, user_id").fetchall()
         if loaded:
-            order = {"coordinator": 0, "oncologist": 1, "er_desk": 2, "chief": 3}
+            order = {"coordinator": 0, "oncologist": 1, "chief": 2}
             rows = sorted(loaded, key=lambda u: (order[u["role"]], u["user_id"]))
     except psycopg.Error:
         pass
@@ -983,28 +983,6 @@ def triage_outcome_pdf(episode_id: int, _user: dict = Depends(require_role(*TRIA
                     headers={"Content-Disposition": f'inline; filename="triage-outcome-{episode_id}.pdf"'})
 
 
-class FollowupIn(BaseModel):
-    answer: str | None = None  # BETTER, SAME or WORSE (on-screen button); NO_ANSWER: nobody picked up
-    text: str | None = None
-
-
-@app.post("/triage/episodes/{episode_id}/followup")
-def triage_followup(episode_id: int, body: FollowupIn, user: dict = Depends(require_role(*COORDINATOR))):
-    """Demo: the next-day follow-up call."""
-    return in_tx(triage.followup, episode_id, user, answer=body.answer, text=body.text)
-
-
-class EdCallIn(BaseModel):
-    outcome: str
-    hospital: str | None = None
-    note: str | None = None
-
-
-@app.post("/triage/episodes/{episode_id}/ed-call")
-def triage_ed_call(episode_id: int, body: EdCallIn, user: dict = Depends(require_role(*COORDINATOR))):
-    return in_tx(triage.ed_call, episode_id, user, body.outcome, body.hospital, body.note)
-
-
 class ReachCallIn(BaseModel):
     outcome: str
     next: str | None = None
@@ -1013,15 +991,14 @@ class ReachCallIn(BaseModel):
 
 @app.post("/triage/episodes/{episode_id}/reach-call")
 def triage_reach_call(episode_id: int, body: ReachCallIn,
-                      user: dict = Depends(require_role("coordinator", "er_desk"))):
-    """Testing round 1 Nov (Worksheet2): staff call her after an empty message and two unanswered automated calls."""
+                      user: dict = Depends(require_role(*COORDINATOR))):
+    """Testing round 1 Nov (Worksheet2): the coordinator calls her after an empty message and two unanswered calls."""
     return in_tx(triage.reach_call, episode_id, user, body.outcome, body.next, body.note)
 
 
 @app.post("/triage/episodes/{episode_id}/acknowledge")
-def triage_acknowledge(episode_id: int, user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
-    """Green the coordinator (the digest); Amber the duty doctor; Red the nurse or the ER doctor. A role that may
-    not is refused with the reason."""
+def triage_acknowledge(episode_id: int, user: dict = Depends(require_role(*CLINICAL))):
+    """Triage v3: the Doctor on Duty acknowledges Red and Amber. A role that may not is refused with the reason."""
     return in_tx(triage.acknowledge, episode_id, user)
 
 
@@ -1031,41 +1008,54 @@ class TriageNoteIn(BaseModel):
 
 @app.post("/triage/episodes/{episode_id}/reopen")
 def triage_reopen(episode_id: int, body: TriageNoteIn,
-                  user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
-    """Any staff reopens a closed ticket, with a reason; the coordinator reopens a Green digest line into Amber."""
+                  user: dict = Depends(require_role(*CLINICAL))):
+    """Any staff reopens a closed ticket, with a reason."""
     return in_tx(triage.reopen, episode_id, user, body.note)
 
 
 @app.post("/triage/episodes/{episode_id}/send-package")
 def triage_send_package(episode_id: int,
-                        user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
-    """Red (unconfirmed) only: a person sends the emergency package after the nurse could not confirm, or after
-    nobody reached her in the Amber 2 hours (the duty doctor or the coordinator)."""
+                        user: dict = Depends(require_role(*CLINICAL))):
+    """Red (unconfirmed) only: the coordinator or the Doctor on Duty sends the emergency package."""
     return in_tx(triage.send_package, episode_id, user)
 
 
-@app.post("/triage/episodes/{episode_id}/nurse-callback")
-def triage_nurse_callback(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role("er_desk"))):
-    return in_tx(triage.nurse_callback, episode_id, user, body.note)
+@app.post("/triage/episodes/{episode_id}/callback")
+def triage_callback(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Triage v3: Red (unconfirmed): the coordinator calls her back within 15 minutes and records what she found."""
+    return in_tx(triage.callback, episode_id, user, body.note)
 
 
-@app.post("/triage/episodes/{episode_id}/er-close")
-def triage_er_close(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role("er_desk"))):
-    """Only the ER doctor closes a Red case."""
-    return in_tx(triage.er_close, episode_id, user, body.note)
+class ReviewIn(BaseModel):
+    action: str
+    reason: str | None = None
 
 
-@app.post("/triage/episodes/{episode_id}/er-log")
-def triage_er_log(episode_id: int, body: TriageNoteIn, user: dict = Depends(require_role("er_desk"))):
-    """Red: "Log what was done" (the nurse or the ER doctor). The ER doctor then closes."""
-    return in_tx(triage.er_log, episode_id, user, body.note)
+@app.post("/triage/episodes/{episode_id}/review")
+def triage_review(episode_id: int, body: ReviewIn, user: dict = Depends(require_role(*COORDINATOR))):
+    """Triage v3: the coordinator's review of a Red or Amber ticket: CONFIRM, or FLAG as wrong (with why). Not a
+    gate; Raise tier is POST .../tier."""
+    return in_tx(triage.review, episode_id, user, body.action, body.reason)
 
 
-@app.post("/triage/episodes/{episode_id}/confirm-closure")
-def triage_confirm_closure(episode_id: int, body: TriageNoteIn,
-                           user: dict = Depends(require_role("oncologist"))):
-    """Amber: the doctor confirms the closure the 24-hour call proposed (Amber workflow v2)."""
-    return in_tx(triage.confirm_closure, episode_id, user, body.note)
+class CloseIn(BaseModel):
+    summary: str | None = None
+    recommendation: str | None = None
+    contact: str | None = None
+
+
+@app.post("/triage/episodes/{episode_id}/summary-draft")
+def triage_summary_draft(episode_id: int, body: CloseIn, user: dict = Depends(require_role(*CLINICAL))):
+    """Triage v3: the 2-sentence closing summary drafted from the record and the recommendation (to edit)."""
+    return in_tx(triage.summary_draft, episode_id, user, body.recommendation, body.contact)
+
+
+@app.post("/triage/episodes/{episode_id}/close")
+def triage_close(episode_id: int, body: CloseIn, user: dict = Depends(require_role(*CLINICAL))):
+    """Triage v3: Red and Amber the Doctor on Duty closes (recommendation, how she contacted her, the summary);
+    Green the coordinator. The summary goes to the Patient journey."""
+    return in_tx(triage.close, episode_id, user, summary=body.summary, recommendation=body.recommendation,
+                 contact=body.contact)
 
 
 class OrderIn(BaseModel):
@@ -1097,32 +1087,15 @@ def triage_attender_call(episode_id: int, body: CallLogIn, user: dict = Depends(
     return in_tx(triage.attender_call, episode_id, user, body.outcome, body.note)
 
 
-class OutcomeIn(BaseModel):
-    note: str | None = None
-    close: str
-
-
-@app.post("/triage/episodes/{episode_id}/outcome")
-def triage_outcome(episode_id: int, body: OutcomeIn, user: dict = Depends(require_role("oncologist"))):
-    """Amber workflow v2: the doctor's one-line outcome, then close now or after the 24-hour follow-up call."""
-    return in_tx(triage.doctor_outcome, episode_id, user, body.note, body.close)
-
-
 class TierIn(BaseModel):
     tier: str
     reason: str | None = None
 
 
 @app.post("/triage/episodes/{episode_id}/tier")
-def triage_tier(episode_id: int, body: TierIn, user: dict = Depends(require_role("coordinator", "oncologist", "er_desk"))):
+def triage_tier(episode_id: int, body: TierIn, user: dict = Depends(require_role(*CLINICAL))):
     """Anyone on the team may raise the tier; only a doctor lowers it, and Red only the ER doctor. Always a reason."""
     return in_tx(triage.change_tier, episode_id, user, body.tier, body.reason)
-
-
-@app.post("/triage/episodes/{episode_id}/digest-ack")
-def triage_digest_ack(episode_id: int, user: dict = Depends(require_role(*COORDINATOR))):
-    """Green: the coordinator acknowledges the digest line (within 1 working day)."""
-    return in_tx(triage.digest_ack, episode_id, user)
 
 
 @app.get("/triage/brief/{mrn}")

@@ -80,10 +80,7 @@ def step_a_settings() -> dict:
 USERS: list[dict] = list({u["user_id"]: u for u in STEP_A_USERS + _json("uc1/scenario.json")["users"]
                            + _json("vt/scenario.json")["users"]}.values())
 USERS_BY_ID = {u["user_id"]: u for u in USERS}
-ROLE_LABELS = {"coordinator": "Care coordinator", "oncologist": "Oncologist", "chief": "Chief of hospital",
-               "er_desk": "ER Desk"}
-# Voice Triage: the ER Desk (duty nurse and ER doctor) is added to the Golden Path users when triage is on.
-ER_DESK_USERS = [u for u in _json("vt/scenario.json")["users"] if u["role"] == "er_desk"]
+ROLE_LABELS = {"coordinator": "Care coordinator", "oncologist": "Oncologist", "chief": "Chief of hospital"}
 
 LANGUAGES = config()["supported_languages"]
 DEPARTMENTS = config()["departments"]

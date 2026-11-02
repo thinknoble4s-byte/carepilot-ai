@@ -18,10 +18,8 @@ const TABS = {
   oncologist: [['decide', 'Needs my decision', 'decisions'], ['triage', 'Triage Room', 'triage'], ['journey', 'Patient journey'],
     ['audit', 'Audit trail'], ['programme', 'Care Plan']],
   chief: [['programme', 'Performance Indicators']],
-  // Voice Triage: the ER Desk (duty nurse and ER doctor) works in the Triage Room, as one of its role views.
-  er_desk: [['triage', 'Triage Room', 'triage']],
 };
-const HOME = { coordinator: 'worklist', oncologist: 'decide', chief: 'programme', er_desk: 'triage' };
+const HOME = { coordinator: 'worklist', oncologist: 'decide', chief: 'programme' };
 
 function readTheme() {
   try {
@@ -128,7 +126,7 @@ function ResetChoice({ onReset }) {
       <div className="card-flat">
         <div className="card-title">Voice Triage MVP-lite</div>
         <div className="small-note" style={{ lineHeight: 1.7 }}>Mrs. Lakshmi V. (SYN-0142, Tamil, son Karthik), her 10 Oct and 19 Oct
-          history; Anita (cover Ravi), Dr. Ananya on duty, Dr. Sekhar, the ER Desk; clock Tue 27 Oct 10:12. Send voice note TA-01:
+          history; Anita (cover Ravi), Dr. Ananya on duty, Dr. Sekhar; clock Tue 27 Oct 10:12. Send voice note TA-01:
           the acknowledgement, then the automated call (10 Tamil questions), Red, Amber or Green by plain rules, the Red package
           with the PDF, the doctor's order, the follow-up and the Pre-OPD brief. Replaces the Use Case 2c handover for health messages.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('vt')}>Reset to Voice Triage</button></div>
@@ -138,7 +136,7 @@ function ResetChoice({ onReset }) {
         <div className="small-note" style={{ lineHeight: 1.7 }}>Savitri Patil (SYN-0011, the demo patient, Hindi), Nirmala Reddy
           (SYN-0013, Telugu) and Lakshmi V. (SYN-0142, Tamil; for Voice Triage: son Karthik, her 10 Oct and 19 Oct history); Priya and
           Meera. Each patient's messages and triage call are in her own language (voice notes HI-04, TE-01, TA-01). Everything switched on, including the test cycle: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
-          tasks for people. A health message goes to Voice Triage (the call, Red, Amber or Green; the ER Desk joins); HELP still
+          tasks for people. A health message goes to Voice Triage (the call, Red, Amber or Green); HELP still
           opens a handover.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('step_a')}>Reset to Golden Path</button></div>
       </div>
@@ -176,7 +174,7 @@ export default function App() {
   const role = user?.role || 'coordinator';
   const dbUp = health?.db === 'available';
   const tabs = TABS[role].filter((t) => t[0] !== 'triage' || demoSettings?.voice_triage?.enabled);
-  const allowed = (s) => tabs.some((t) => t[0] === s) || (s === 'plan' && !['chief', 'er_desk'].includes(role));
+  const allowed = (s) => tabs.some((t) => t[0] === s) || (s === 'plan' && role !== 'chief');
   const current = screen && allowed(screen) ? screen : HOME[role];
 
   const toast = useCallback((text) => {
@@ -195,8 +193,7 @@ export default function App() {
       setDemoSettings(d);
       if (d.voice_triage?.enabled && role !== 'chief') {
         const open = await api('triage/episodes');
-        const view = myView(role, userId, d.voice_triage);
-        next.triage = open.filter((e) => waitsOn(e, view, role)).length;
+        next.triage = open.filter((e) => waitsOn(e, myView(role))).length;
       }
       if (role === 'coordinator') {
         const w = await api('worklist');

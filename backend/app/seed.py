@@ -13,7 +13,7 @@ from psycopg.types.json import Jsonb
 
 from . import audit, clock, consent, importer, plan, states
 from .errors import Invalid
-from .reference import (DEMO_START_DATE, ER_DESK_USERS, STEP_A_USERS, autonomy_policy, deadline_policy,
+from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy,
                         message_templates, plan_templates, read_seed, report_routing, step_a_settings, triage_history,
                         uc1, uc2a, uc2b, uc2c, uc2t, vt)
 
@@ -48,7 +48,7 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     uc2t    Use Case 2T test cycle: TP001, TP004-TP007; D0 Mon 2 Nov.
     vt      Voice Triage MVP-lite: Mrs. Lakshmi V. (Tamil) and her history; clock Tue 27 Oct 10:12.
     step_a  Step A / Golden Path: Savitri Patil and Nirmala Reddy (Tamil), Priya and Meera, everything on; a health
-            message goes to Voice Triage (the ER Desk users join).
+            message goes to Voice Triage.
 
     Every data set offers the same three care plans (T1 hormone receptor positive, T2 hormone receptor negative,
     T3 HER2 positive) and seeds no plan: the coordinator chooses one for each patient. A scenario file may still
@@ -130,8 +130,7 @@ def _seed_step_a(conn) -> None:
         consent.record_consent(conn, row["recorded_by"], row["mrn"], row["consent_reference"],
                                row["scopes"].split(";"), row["recorded_on"])
     if (step_a_settings().get("voice_triage") or {}).get("enabled"):
-        # Voice Triage: the ER Desk joins, and the short synthetic record the call reads.
-        _users(conn, ER_DESK_USERS)
+        # Voice Triage: the short synthetic record the call reads (triage v3: no ER Desk users).
         _triage_history(conn, {k: v for k, v in triage_history().items() if not k.startswith("_")})
 
 
@@ -143,7 +142,7 @@ def _triage_history(conn, records: dict) -> None:
 
 def _seed_vt(conn, uc: dict) -> None:
     """Voice Triage MVP-lite (guide v1.1, section 1.3): Mrs. Lakshmi V., 54, Tamil, son Karthik; her 10 Oct and
-    19 Oct history; Anita (cover Ravi), Dr. Ananya on duty, Dr. Sekhar, the ER Desk. Clock Tue 27 Oct 10:12, just
+    19 Oct history; Anita (cover Ravi), Dr. Ananya on duty, Dr. Sekhar. Clock Tue 27 Oct 10:12, just
     before her voice note."""
     from datetime import date, time
 

@@ -10,12 +10,14 @@ switch it on (settings.voice_triage.enabled).
    questions (8 to 16; the fixed 12 when the tags were unusable), one at a time. Each answer becomes one value (word lists, then a checked model answer); one re-ask; stop at the
    first danger sign; keypad 0 for a nurse. Two unanswered calls 5 minutes apart give Red (no answer).
 3. Plain rules (triage_rules) give Red, Amber or Green, and the "Why this tier" lines. No model decides.
-4. Red: the family message with a one-page PDF, a facts-only note for the ER Desk, Doctor on Duty and Senior
-   Oncologist, and a coordinator task to confirm the emergency visit within 30 minutes. Only the ER doctor closes.
-   Red (unconfirmed) is not sent by itself: a nurse calls back within 15 minutes; a person may send the package.
+4. Triage v3 (2 Nov): two people roles. The coordinator reviews Red and Amber (Confirm, Raise tier, Flag as wrong;
+   not a gate); the Doctor on Duty acknowledges and closes them; the Senior Oncologist is the overdue backup.
+   Red: the family message with a one-page PDF and a facts-only note for the Doctor on Duty and Senior Oncologist.
+   Red (unconfirmed) is not sent by itself: the coordinator calls back within 15 minutes; a person may send it.
    Amber: the SBAR card to the Doctor on Duty and the coordinator, a 2-hour callback, the doctor's order buttons.
-   Green: the doctor's own signed sentence (only when she reported nausea), a digest line, a follow-up tomorrow.
-5. Next day: the follow-up call; the doctor confirms closure; the Pre-OPD brief shows the episode with sources.
+   Green: the doctor's own signed sentence (only when she reported nausea), a digest line; the coordinator closes.
+5. Closing: a 2-sentence summary drafted from the record and the closer's recommendation, edited and submitted. No
+   follow-up call. The Pre-OPD brief and the Patient journey show the episode with sources.
 
 Every sentence sent or shown is a template or a stored fact; no model writes one. SYNTHETIC DEMO only.
 """
@@ -49,7 +51,8 @@ ORDER_LABELS = {"physio": "Physiotherapy referral", "bloods": "Blood tests broug
                 "medication": "Medication order", "none": "No order needed"}
 DOCTOR_CALL_OUTCOMES = ("PICKED_UP", "NO_ANSWER")
 ATTENDER_OUTCOMES = ("REACHED", "NOT_REACHABLE")
-CLOSE_CHOICES = ("NOW", "FOLLOWUP")
+REVIEW_ACTIONS = {"CONFIRM": "CONFIRMED", "FLAG": "FLAGGED"}  # the coordinator's review (Raise tier is RAISED)
+CONTACT_METHODS = {"PHONE": "phone", "VIDEO": "video", "IN_PERSON": "in person"}
 ED_OUTCOMES = ("REACHED", "NOT_YET", "REFUSED", "NOT_REACHABLE")
 FOLLOWUP_ANSWERS = ("BETTER", "SAME", "WORSE")
 REASON_LINES = {
@@ -92,7 +95,7 @@ REACH_NEXT = ("CLOSE", "ESCALATE")
 def config(conn) -> dict:
     t = policy.settings(conn).get("voice_triage") or {}
     return {"enabled": bool(t.get("enabled")), "doctor_on_duty": t.get("doctor_on_duty"),
-            "senior_oncologist": t.get("senior_oncologist"), "er_doctor": t.get("er_doctor"),
+            "senior_oncologist": t.get("senior_oncologist"),
             "coordinator": t.get("coordinator"), "call_within_minutes": t.get("call_within_minutes", 2),
             "retry_minutes": t.get("retry_minutes", 5), "confirm_within_minutes": t.get("confirm_within_minutes", 30),
             "not_yet_again_minutes": t.get("not_yet_again_minutes", 15), "nurse_minutes": t.get("nurse_minutes", 15),
@@ -486,7 +489,7 @@ def outcome_template(result: dict) -> str | None:
         return OUTCOME_TEMPLATES["UNREACHED"]
     if result["tier"] == "TIER_3_GREEN" or result.get("red_kind") == "NO_ANSWER":
         return None
-    if result.get("red_kind") == "UNCONFIRMED" or result["action_code"] == "NURSE_CALLBACK_15_MIN":
+    if result.get("red_kind") == "UNCONFIRMED":
         return OUTCOME_TEMPLATES["NURSE"]
     return OUTCOME_TEMPLATES[result["tier"]]
 
@@ -501,18 +504,20 @@ def _tell_patient(conn, ep: dict, result: dict) -> None:
                  (ep["episode_id"], msg["message_id"]))
 
 
+RED_ALERT_TO = ["Doctor on Duty", "Care coordinator", "Senior Oncologist (banner)"]
+
+
 def _act(conn, ep: dict, result: dict) -> None:
     cfg, now = config(conn), clock.get_now(conn)
     tier = result["tier"]
     if tier == "TIER_1_RED":
-        _audit(conn, ep, "er_desk_alert_created", outcome=result["red_kind"],
-               details={"to": ["ER Desk", "Doctor on Duty", "Senior Oncologist (banner)"]})
+        _audit(conn, ep, "red_alert_created", outcome=result["red_kind"], details={"to": RED_ALERT_TO})
         if result["red_kind"] in ("CONFIRMED", "NO_ANSWER"):
             send_package(conn, ep["episode_id"], None)
         else:
             due = now + timedelta(minutes=cfg["nurse_minutes"])
             _update(conn, ep, callback_due_at=due)
-            set_next_action(conn, ep["mrn"], f"Red (unconfirmed): nurse to call back by {_hhmm(due)}; "
+            set_next_action(conn, ep["mrn"], f"Red (unconfirmed): coordinator to call back by {_hhmm(due)}; "
                                              "no family message sent")
     elif tier == "TIER_2_AMBER" and result["action_code"] == "STAFF_CALL_15_MIN":
         due = now + timedelta(minutes=cfg["nurse_minutes"])
@@ -526,7 +531,7 @@ def _act(conn, ep: dict, result: dict) -> None:
         conn.execute("UPDATE coordinator_task SET due_at_demo = %s, due_date = %s, triage_episode_id = %s "
                      "WHERE task_id = %s", (due, now.date(), ep["episode_id"], task["task_id"]))
         _audit(conn, ep, "staff_call_task_created", outcome=result["action_code"],
-               details={"to": [_name(cfg["coordinator"]), "ER Desk"], "call_due": _hhmm(due),
+               details={"to": [_name(cfg["coordinator"])], "call_due": _hhmm(due),
                         "task_id": task["task_id"], "family_message": "only if staff cannot reach her in 2 calls"})
         set_next_action(conn, ep["mrn"], f"Empty message, calls not answered: staff to call her by {_hhmm(due)}")
     elif tier == "TIER_2_AMBER":
@@ -538,17 +543,16 @@ def _act(conn, ep: dict, result: dict) -> None:
                details={"to": [doc], "callback_due": _hhmm(due),
                         "reminder_at": _hhmm(now + timedelta(minutes=cfg["doctor_reminder_minutes"]))})
         set_next_action(conn, ep["mrn"], f"Amber: {doc} to call back by {_hhmm(due)}")
-    else:
-        _update(conn, ep, followup_due_on=now.date() + timedelta(days=1))
-        _audit(conn, ep, "green_digest_line", outcome="GREEN_COACH_AND_FOLLOWUP_24H",
+    else:  # triage v3: the coordinator reviews and closes it; no follow-up call
+        _audit(conn, ep, "green_digest_line", outcome="GREEN_COORDINATOR_REVIEW",
                details={"doctor_sentence_repeated": result["repeat_advice"],
                         "instruction_id": result.get("repeat_instruction_id")})
-        set_next_action(conn, ep["mrn"], "Green: follow-up call tomorrow")
+        set_next_action(conn, ep["mrn"], "Green: the coordinator reviews and closes it")
 
 
 def send_package(conn, episode_id: int, user: dict | None) -> dict:
-    """The Red package (Part 5): family message + PDF, doctor note, coordinator task, audit rows. Automatic for
-    CONFIRMED and NO ANSWER; for UNCONFIRMED only when a person presses "Send emergency package"."""
+    """The Red package (Part 5): family message + PDF, doctor note, audit rows. Automatic for CONFIRMED and NO
+    ANSWER; for UNCONFIRMED only when a person presses "Send emergency package". Triage v3: no family-call task."""
     ep = _load(conn, episode_id)
     if ep["tier"] != "TIER_1_RED":
         raise Conflict("The emergency package is only for a Red case")
@@ -584,31 +588,16 @@ def send_package(conn, episode_id: int, user: dict | None) -> dict:
     told = (f"At {sent_at} {family} was sent a message telling them to take her to the nearest emergency department, "
             "with an emergency summary PDF for the receiving doctor." if msg["status"] == "sent" else
             f"The family message could not be sent at {sent_at} ({(msg['blocked_reason'] or '').replace('_', ' ')}).")
-    mins = cfg["confirm_within_minutes"]
-    note = (f"RED alert: {h.get('title', patient['full_name'])} ({ep['mrn']}). Why: {why}. {told} Not yet known: whether "
-            "she has reached an emergency department, and which one. The coordinator has been asked to confirm within "
-            f"{mins} minutes. Alert type: {kind}{' (empty message)' if line_kind != kind else ''}. Source: call audio "
-            "and the PDF are linked on this card.")
-    caller = patient["caregiver_name"] or "the family"
-    first = h["name_en"]
-    task = tasks.create_task(
-        conn, mrn=ep["mrn"], task_type="confirm_ed_visit", owner_name=_name(cfg["coordinator"]) or None,
-        actor_type="system", actor="system", dedupe_key=f"triage:{ep['episode_id']}:confirm_ed_visit",
-        reason=(f"Call {caller} within {mins} minutes. Ask: has {first} reached an emergency department, and which "
-                "one? Record the answer: REACHED (with hospital name), NOT YET, REFUSED, or NOT REACHABLE. If the "
-                f"caregiver cannot be reached in 2 attempts, tell the Doctor on Duty. Message and PDF were sent at "
-                f"{sent_at}."))
-    conn.execute("UPDATE coordinator_task SET due_at_demo = %s, due_date = %s, triage_episode_id = %s "
-                 "WHERE task_id = %s", (now + timedelta(minutes=mins), now.date(), ep["episode_id"], task["task_id"]))
+    doc_on_duty = _name(cfg["doctor_on_duty"]) or "the Doctor on Duty"
+    note = (f"RED alert: {h.get('title', patient['full_name'])} ({ep['mrn']}). Why: {why}. {told} {doc_on_duty} "
+            f"records the outcome and closes the ticket. Alert type: {kind}"
+            f"{' (empty message)' if line_kind != kind else ''}. Source: call audio and the PDF are linked on this card.")
     ep = _update(conn, ep, package_sent_at=now, package_sent_by=actor, doctor_note=note)
-    _audit(conn, ep, "doctor_note_created", details={"to": ["Doctor on Duty", "ER Desk", "Senior Oncologist"],
-                                                     "note": note})
+    _audit(conn, ep, "doctor_note_created", details={"to": ["Doctor on Duty", "Senior Oncologist"], "note": note})
     _audit(conn, ep, "emergency_package_sent", actor_type=actor_type, actor=actor, outcome=msg["status"],
            template_id="TPL_WA_RED_CAREGIVER_V1", reason_code=f"red_{kind.lower()}",
-           details={"message_id": msg["message_id"], "pdf_doc_id": doc["doc_id"], "task_id": task["task_id"],
-                    "due_minutes": mins})
-    set_next_action(conn, ep["mrn"], f"Red: coordinator to confirm the emergency visit by "
-                                     f"{_hhmm(now + timedelta(minutes=mins))}; ER Desk alerted")
+           details={"message_id": msg["message_id"], "pdf_doc_id": doc["doc_id"]})
+    set_next_action(conn, ep["mrn"], f"Red: family message and PDF sent; {doc_on_duty} records the outcome and closes")
     return state(conn, episode_id)
 
 
@@ -769,6 +758,8 @@ def outcome_pdf(conn, episode_id: int) -> bytes:
     if h is not None and ep["answers"]:
         lines += [("head", "Her answers and the record")] + [
             ("body", f"- {f['text']} ({f['source']})") for f in summary_facts(ep, h)]
+    if ep["closing"]:
+        lines[6:6] = [("head", "Closing summary"), ("body", ep["closing"]["summary"])]
     if ep["status"] == "open":
         lines += [("head", "Still open"), ("body", "This ticket is not closed yet; the PDF shows the state now.")]
     return _pdf(lines, f"Triage outcome {ep['ticket_id']} - SYNTHETIC", TIER_BANDS.get(ep["tier"], "0.35 0.38 0.42"),
@@ -786,44 +777,27 @@ def _open(ep: dict) -> None:
 
 # ---- Ticket states (guide v1.2, section 7.6). The state is read from what people did; a move a role may not make,
 # or one the state does not allow, is refused with a message. The agent never acknowledges or closes.
-STATES = ("IN_DIGEST", "OPEN", "ACKNOWLEDGED", "OUTCOME_LOGGED", "CLOSURE_PROPOSED", "CLOSED", "REOPENED")
-STATE_LABELS = {"IN_DIGEST": "In digest", "OPEN": "Open", "ACKNOWLEDGED": "Acknowledged",
-                "OUTCOME_LOGGED": "Outcome logged", "CLOSURE_PROPOSED": "Closure proposed", "CLOSED": "Closed",
-                "REOPENED": "Reopened"}
-# who may acknowledge, by tier: Green the coordinator (the digest); Amber the duty doctor (Amber workflow v2);
-# Red the nurse or the ER doctor (both sign in at the ER Desk)
-WHO_MAY_ACK = {"TIER_3_GREEN": ("coordinator",), "TIER_2_AMBER": ("oncologist",),
-               "TIER_1_RED": ("er_desk",)}
-ACK_FIELD = {"TIER_3_GREEN": "digest_ack_by", "TIER_2_AMBER": "coord_ack_by", "TIER_1_RED": "er_ack_by"}
-
-
-def _outcome_logged(ep: dict) -> bool:
-    if ep["tier"] == "TIER_1_RED":
-        return bool(ep["er_log"] or ep["nurse_callback"] or ep["ed_outcome"])
-    return bool(ep["doctor_outcome"])
+# Triage v3 (2 Nov): Open -> Acknowledged (the doctor, on Red and Amber) -> Closed; Reopened after a reopen.
+STATES = ("OPEN", "ACKNOWLEDGED", "CLOSED", "REOPENED")
+STATE_LABELS = {"OPEN": "Open", "ACKNOWLEDGED": "Acknowledged", "CLOSED": "Closed", "REOPENED": "Reopened"}
+# who may acknowledge, by tier: Red and Amber the Doctor on Duty (any oncologist); Green is not acknowledged (the
+# coordinator reviews and closes it)
+WHO_MAY_ACK = {"TIER_2_AMBER": ("oncologist",), "TIER_1_RED": ("oncologist",)}
+ACK_FIELD = {"TIER_2_AMBER": "coord_ack_by", "TIER_1_RED": "coord_ack_by"}
 
 
 def ticket_state(ep: dict) -> str:
     if ep["status"] == "closed":
         return "CLOSED"
-    tier = ep["tier"]
-    if tier is None:
-        return "OPEN"
-    if not ep[ACK_FIELD[tier]]:
-        return "REOPENED" if ep["reopened_at"] else "IN_DIGEST" if tier == "TIER_3_GREEN" else "OPEN"
-    if tier == "TIER_2_AMBER" and _outcome_logged(ep) and (ep["followup"] or {}).get("answer") == "BETTER":
-        return "CLOSURE_PROPOSED"  # the agent proposes after the 24-hour call; a person confirms
-    if tier != "TIER_3_GREEN" and _outcome_logged(ep):
-        return "OUTCOME_LOGGED"
-    return "ACKNOWLEDGED"
+    if ep["tier"] in ACK_FIELD and ep[ACK_FIELD[ep["tier"]]]:
+        return "ACKNOWLEDGED"
+    return "REOPENED" if ep["reopened_at"] else "OPEN"
 
 
 def _ack(conn, ep: dict, user: dict, now: datetime, how: str = "button") -> dict:
-    """Record the acknowledgement for the ticket's tier (Amber and Red only; Green is the digest)."""
+    """Record the doctor's acknowledgement (Red and Amber; a Green ticket is reviewed and closed instead)."""
     tier = ep["tier"]
-    field = ACK_FIELD[tier]
-    at = {"coord_ack_by": "coord_ack_at", "er_ack_by": "er_ack_at"}[field]
-    ep = _update(conn, ep, **{field: user["user_id"], at: now})
+    ep = _update(conn, ep, coord_ack_by=user["user_id"], coord_ack_at=now)
     _audit(conn, ep, "triage_acknowledged", actor_type="person", actor=user["user_id"],
            outcome="ACKNOWLEDGED", details={"role": user["role"], "tier": TIERS[tier], "how": how})
     return ep
@@ -832,115 +806,59 @@ def _ack(conn, ep: dict, user: dict, now: datetime, how: str = "button") -> dict
 def _auto_ack(conn, ep: dict, user: dict) -> dict:
     """A person who logs an outcome on an unacknowledged ticket acknowledges it too (when the role may)."""
     tier = ep["tier"]
-    if tier in ("TIER_1_RED", "TIER_2_AMBER") and not ep[ACK_FIELD[tier]] and user["role"] in WHO_MAY_ACK[tier]:
+    if tier in ACK_FIELD and not ep[ACK_FIELD[tier]] and user["role"] in WHO_MAY_ACK[tier]:
         ep = _ack(conn, ep, user, clock.get_now(conn), how="with the outcome")
     return ep
 
 
 def acknowledge(conn, episode_id: int, user: dict) -> dict:
-    """Acknowledge the ticket: Green the coordinator (the digest line), Amber the Doctor on Duty, the nurse or the
-    coordinator, Red the nurse or the ER doctor."""
+    """The Doctor on Duty acknowledges a Red or Amber ticket. Green has no acknowledgement: the coordinator reviews and
+    closes it."""
     ep = _load(conn, episode_id)
     _open(ep)
     tier = ep["tier"]
     if tier is None:
         raise Conflict("The call has no result yet")
+    if tier not in WHO_MAY_ACK:
+        raise Conflict("A Green ticket is not acknowledged: the coordinator reviews and closes it")
     if user["role"] not in WHO_MAY_ACK[tier]:
-        raise Conflict({"TIER_3_GREEN": "Only the coordinator acknowledges the Green digest",
-                        "TIER_2_AMBER": "The duty doctor acknowledges an Amber ticket",
-                        "TIER_1_RED": "Only the nurse or the ER doctor acknowledges a Red alert"}[tier])
-    if tier == "TIER_3_GREEN":
-        return digest_ack(conn, episode_id, user)
+        raise Conflict("The Doctor on Duty acknowledges a Red or Amber ticket; the coordinator reviews it")
     if ep[ACK_FIELD[tier]]:
         raise Conflict(f"Already acknowledged by {_name(ep[ACK_FIELD[tier]])}")
     _ack(conn, ep, user, clock.get_now(conn))
     return state(conn, episode_id)
 
 
-def er_log(conn, episode_id: int, user: dict, note: str | None) -> dict:
-    """Red: the nurse or the ER doctor records what was done (the outcome). Only the ER doctor then closes."""
-    ep = _load(conn, episode_id)
-    _open(ep)
-    if ep["tier"] != "TIER_1_RED":
-        raise Conflict("'Log what was done' is for a Red ticket")
-    if not (note or "").strip():
-        raise Invalid("Write what was done")
-    ep = _auto_ack(conn, ep, user)
-    now = clock.get_now(conn)
-    ep = _update(conn, ep, er_log={"by": user["user_id"], "at": now.isoformat(timespec="minutes"),
-                                   "note": note.strip()})
-    _audit(conn, ep, "red_outcome_logged", actor_type="person", actor=user["user_id"], outcome="OUTCOME_LOGGED",
-           details={"note": note.strip()})
-    set_next_action(conn, ep["mrn"], f"Red: outcome logged by {_name(user['user_id'])}; the ER doctor closes")
-    return state(conn, episode_id)
-
-
-def _nurse_asked(ep: dict) -> bool:
-    """Red (unconfirmed): by the rules or raised to Red by hand. The nurse is not in the Amber path (v2)."""
+def _callback_asked(ep: dict) -> bool:
+    """Red (unconfirmed), by the rules, raised to Red by hand, or Amber not reached in 2 hours: the coordinator calls
+    her back within 15 minutes (triage v3; the nurse before)."""
     return ep["tier"] == "TIER_1_RED" and ep["red_kind"] == "UNCONFIRMED"
 
 
-def nurse_callback(conn, episode_id: int, user: dict, note: str | None) -> dict:
+def callback(conn, episode_id: int, user: dict, note: str | None) -> dict:
+    """Red (unconfirmed): the coordinator's call back within 15 minutes, with what she found (triage v3)."""
     ep = _load(conn, episode_id)
     _open(ep)
     if not (note or "").strip():
-        raise Invalid("Write what the nurse found on the call")
-    if not _nurse_asked(ep):
-        raise Conflict("No nurse callback was asked for in this episode")
-    ep = _auto_ack(conn, ep, user)
+        raise Invalid("Write what you found on the call")
+    if not _callback_asked(ep):
+        raise Conflict("No call back is asked for on this ticket")
+    if ep["nurse_callback"]:
+        raise Conflict(f"Already called back by {_name(ep['nurse_callback']['by'])}")
     now = clock.get_now(conn)
-    fields = {"nurse_callback": {"by": user["user_id"], "at": now.isoformat(timespec="minutes"), "note": note.strip()}}
-    if ep["tier"] == "TIER_2_AMBER" and ep["followup_due_on"] is None:
-        fields["followup_due_on"] = now.date() + timedelta(days=1)  # 24 hours after the nurse's outcome
-    ep = _update(conn, ep, **fields)
-    _audit(conn, ep, "nurse_callback_recorded", actor_type="person", actor=user["user_id"],
-           details={"note": note.strip(), "within_minutes": int((now - ep["result_at"]).total_seconds() // 60)})
-    return state(conn, episode_id)
-
-
-def ed_call(conn, episode_id: int, user: dict, outcome: str, hospital: str | None = None,
-            note: str | None = None) -> dict:
-    """The coordinator's call to the family after a Red package (Part 5.6). It never closes the case."""
-    ep = _load(conn, episode_id)
-    _open(ep)
-    if outcome not in ED_OUTCOMES:
-        raise Invalid("outcome must be one of: " + ", ".join(ED_OUTCOMES))
-    if outcome == "REACHED" and not (hospital or "").strip():
-        raise Invalid("REACHED needs the hospital name")
-    task = conn.execute("SELECT * FROM coordinator_task WHERE triage_episode_id = %s AND task_type = 'confirm_ed_visit' "
-                        "AND status = 'open' FOR UPDATE", (episode_id,)).fetchone()
-    if task is None:
-        raise Conflict("There is no open 'confirm the emergency visit' task for this episode")
-    cfg, now = config(conn), clock.get_now(conn)
-    calls = list(ep["ed_calls"]) + [{"at": now.isoformat(timespec="minutes"), "by": user["user_id"],
-                                     "outcome": outcome, "hospital": (hospital or "").strip() or None,
-                                     "note": (note or "").strip() or None}]
-    unanswered = sum(1 for c in calls if c["outcome"] in ("NOT_YET", "NOT_REACHABLE"))
-    tell_doctor = outcome == "REFUSED" or (outcome in ("NOT_YET", "NOT_REACHABLE") and unanswered >= 2)
-    fields = {"ed_calls": calls, "ed_outcome": outcome}
-    if tell_doctor and ep["doctor_told_at"] is None:
-        fields["doctor_told_at"] = now
-    ep = _update(conn, ep, **fields)
-    if outcome in ("REACHED", "REFUSED") or tell_doctor:
-        line = {"REACHED": f"Reached: at {(hospital or '').strip()}", "REFUSED": "Family refused; Doctor on Duty told",
-                "NOT_YET": "Not yet there after 2 calls; Doctor on Duty told",
-                "NOT_REACHABLE": "Family not reachable in 2 attempts; Doctor on Duty told"}[outcome]
-        tasks.complete_task(conn, task["task_id"], user["user_id"], line)
-        set_next_action(conn, ep["mrn"], f"Red: {line}. Only the ER doctor closes the case")
-    else:
-        again = now + timedelta(minutes=cfg["not_yet_again_minutes"])
-        conn.execute("UPDATE coordinator_task SET due_at_demo = %s WHERE task_id = %s", (again, task["task_id"]))
-        set_next_action(conn, ep["mrn"], f"Red: call the family again by {_hhmm(again)}")
-    _audit(conn, ep, "ed_visit_call_logged", actor_type="person", actor=user["user_id"], outcome=outcome,
-           details={"hospital": (hospital or "").strip() or None, "note": note, "attempt": len(calls),
-                    "doctor_on_duty_told": tell_doctor,
-                    "external_care_episode": bool(hospital) and outcome == "REACHED"})
+    ep = _update(conn, ep, nurse_callback={"by": user["user_id"], "at": now.isoformat(timespec="minutes"),
+                                           "note": note.strip()})
+    _audit(conn, ep, "staff_callback_recorded", actor_type="person", actor=user["user_id"],
+           details={"note": note.strip(), "within_minutes": int((now - (ep["result_at"] or now)).total_seconds() // 60),
+                    "role": user["role"]})
+    set_next_action(conn, ep["mrn"], f"Red (unconfirmed): {_name(user['user_id'])} called her back; the doctor "
+                                     "decides and closes")
     return state(conn, episode_id)
 
 
 def reach_call(conn, episode_id: int, user: dict, outcome: str, next_step: str | None = None,
                note: str | None = None) -> dict:
-    """Testing round 1 Nov (Worksheet2): the coordinator or the ER Desk calls her after an empty message and two
+    """Testing round 1 Nov (Worksheet2): the coordinator calls her after an empty message and two
     unanswered automated calls. Reached: close the ticket with what she said, or escalate to the Doctor on Duty (the
     Amber doctor callback). Not reachable twice: Red (no answer), and the family gets the standard message with the
     PDF."""
@@ -1008,38 +926,114 @@ def reach_call(conn, episode_id: int, user: dict, outcome: str, next_step: str |
     return state(conn, episode_id)
 
 
-def er_close(conn, episode_id: int, user: dict, note: str | None) -> dict:
-    """Only the ER doctor closes a Red case."""
+def review(conn, episode_id: int, user: dict, action: str, reason: str | None = None) -> dict:
+    """Triage v3: the coordinator reviews the AI's Red or Amber triage: Confirm, or Flag as wrong (with why). It is not
+    a gate: the doctor sees the ticket at once, and a flagged ticket still goes to the doctor for a clinical decision.
+    Raise tier (change_tier) counts as a review too."""
     ep = _load(conn, episode_id)
     _open(ep)
-    if ep["tier"] != "TIER_1_RED":
-        raise Conflict("Only a Red case is closed at the ER Desk; the doctor confirms closure of the others")
-    if user["user_id"] != config(conn)["er_doctor"]:
-        raise Conflict("Only the ER doctor closes a Red case")
-    st = ticket_state(ep)
-    if st in ("OPEN", "REOPENED"):
-        raise Conflict("Acknowledge the alert first")
-    if st == "ACKNOWLEDGED":
-        raise Conflict("Log what was done first (or the coordinator records the family call)")
-    return _close(conn, ep, user, note, "red_closed_by_er_doctor")
+    if action not in REVIEW_ACTIONS:
+        raise Invalid("action must be CONFIRM or FLAG")
+    if ep["tier"] not in ("TIER_1_RED", "TIER_2_AMBER"):
+        raise Conflict("The coordinator reviews Red and Amber tickets; a Green ticket she closes")
+    if ep["review"]:
+        raise Conflict(f"Already reviewed by {_name(ep['review']['by'])} ({ep['review']['action'].lower()})")
+    reason = (reason or "").strip()
+    if action == "FLAG" and not reason:
+        raise Invalid("Say why the AI's triage is wrong")
+    now = clock.get_now(conn)
+    ep = _update(conn, ep, review={"action": REVIEW_ACTIONS[action], "by": user["user_id"],
+                                   "at": now.isoformat(timespec="minutes"), "reason": reason or None})
+    _audit(conn, ep, "triage_reviewed", actor_type="person", actor=user["user_id"], outcome=REVIEW_ACTIONS[action],
+           details={"reason": reason or None, "tier": TIERS[ep["tier"]]})
+    set_next_action(conn, ep["mrn"], f"{TIERS[ep['tier']]}: {'confirmed' if action == 'CONFIRM' else 'flagged as wrong'} "
+                                     f"by {_name(user['user_id'])}; with the Doctor on Duty")
+    return state(conn, episode_id)
 
 
-def confirm_closure(conn, episode_id: int, user: dict, note: str | None) -> dict:
-    """Amber: the doctor confirms closure after the 24-hour call proposed it (outcome logged with "close after the
-    follow-up", and the follow-up says better). The agent never closes."""
+def _contact_line(c: dict) -> str:
+    return CONTACT_METHODS.get(c.get("contact") or "", "")
+
+
+def summary_draft(conn, episode_id: int, user: dict, recommendation: str | None = None,
+                  contact: str | None = None) -> dict:
+    """Triage v3: the 2-sentence closing summary, drafted from the record (what she reported, the questions and her
+    answers, the tier and why) and the closer's recommendation word for word. Not written by a model; the person who
+    closes edits it and submits it."""
+    ep = _load(conn, episode_id)
+    return {"draft": _draft(conn, ep, user, (recommendation or "").strip(), contact)}
+
+
+def _draft(conn, ep: dict, user: dict, recommendation: str, contact: str | None) -> str:
+    h = history(conn, ep["mrn"])
+    first = (h or {}).get("name_en") or _patient(conn, ep["mrn"])["full_name"].split()[0]
+    p = ep["plan"] or {}
+    heard = [TR.TAG_LABELS.get(t, t) for t in ((p.get("tags") or {}).get("symptoms") or [])]
+    tier, result = TIERS.get(ep["tier"]) or "no tier", ep["result"] or {}
+    asked = len(p.get("question_ids") or [])
+    if ep["red_kind"] == "NO_ANSWER":
+        found = f"CarePilot could not reach her on two calls, so the ticket is {tier}"
+    else:
+        why = [w.rstrip(".") for w in (result.get("why") or [])][:3]
+        found = (f"CarePilot asked {asked} questions and found {tier}"
+                 + (": " + "; ".join(w[0].lower() + w[1:] for w in why) if why and result.get("reason_codes") else
+                    ", with no warning signs" + (f" ({R.facts_text(ep['answers'])})" if ep["answers"] else "")))
+    said = f"{first} reported {', '.join(heard)}" if heard else f"{first} sent a message"
+    one = f"{said}; {found}."
+    by = _name(user["user_id"])
+    orders = [ORDER_LABELS[o["order"]].lower() for o in _orders(ep) if o["order"] != "none"]
+    how = f" after contacting her by {CONTACT_METHODS[contact]}" if contact in CONTACT_METHODS else ""
+    if recommendation:
+        two = f"{by} recommended{how}: “{recommendation}”" + (f" (orders: {', '.join(orders)})" if orders else "") + "."
+    elif user["role"] == "coordinator":
+        two = f"Reviewed by {by}: no doctor's call needed."
+    else:
+        two = f"Reviewed by {by}{how}" + (f"; orders: {', '.join(orders)}" if orders else "") + "."
+    return f"{one} {two}"
+
+
+def close(conn, episode_id: int, user: dict, *, summary: str | None, recommendation: str | None = None,
+          contact: str | None = None) -> dict:
+    """Triage v3: close a ticket with the summary for the Patient journey (the draft, edited by the closer). Red and
+    Amber: only the Doctor on Duty (an oncologist), with her recommendation and how she contacted the patient; Amber
+    once she (or her attender) was reached and the orders are recorded. Green: the coordinator (or the doctor who
+    lowered it). There is no follow-up call."""
     ep = _load(conn, episode_id)
     _open(ep)
-    if ep["tier"] == "TIER_1_RED":
-        raise Conflict("Only the ER doctor closes a Red case")
-    if ep["tier"] == "TIER_3_GREEN":
-        raise Conflict("A Green ticket closes into the digest: the coordinator acknowledges it")
-    if user["role"] != "oncologist":
-        raise Conflict("The doctor confirms closure of an Amber ticket")
-    if ticket_state(ep) != "CLOSURE_PROPOSED":
-        raise Conflict("An Amber ticket waiting for its follow-up call is closed only after the call says better "
-                       f"(now: {STATE_LABELS[ticket_state(ep)]})")
-    return _close(conn, ep, user, note or ("Follow-up: " + ep["followup"]["answer"].lower() if ep["followup"] else None),
-                  "closure_confirmed_by_doctor")
+    tier = ep["tier"]
+    if tier is None:
+        raise Conflict("The call has no result yet")
+    summary, recommendation = (summary or "").strip(), (recommendation or "").strip()
+    if tier in ("TIER_1_RED", "TIER_2_AMBER"):
+        if user["role"] != "oncologist":
+            raise Conflict("Only the Doctor on Duty closes a Red or Amber ticket")
+        if not recommendation:
+            raise Invalid("Write your recommendation")
+        if contact not in CONTACT_METHODS:
+            raise Invalid("Pick how you contacted her: PHONE, VIDEO or IN_PERSON")
+        if tier == "TIER_2_AMBER" and not _reaching(ep):
+            if not _reached(ep):
+                raise Conflict("Log a call that reached her (or her attender) first")
+            if not _orders(ep):
+                raise Conflict("Record the orders first (or No order needed)")
+    elif user["role"] not in ("coordinator", "oncologist"):
+        raise Conflict("The coordinator closes a Green ticket")
+    if contact is not None and contact not in CONTACT_METHODS:
+        raise Invalid("contact must be PHONE, VIDEO or IN_PERSON")
+    if not summary:
+        raise Invalid("Submit the summary (edit the draft if needed)")
+    ep = _auto_ack(conn, ep, user)
+    now = clock.get_now(conn)
+    draft = _draft(conn, ep, user, recommendation, contact)
+    closing = {"by": user["user_id"], "at": now.isoformat(timespec="minutes"), "recommendation": recommendation or None,
+               "contact": contact, "draft": draft, "summary": summary, "edited": summary != draft}
+    ep = _update(conn, ep, closing=closing)
+    _audit(conn, ep, "closing_summary_submitted", actor_type="person", actor=user["user_id"],
+           outcome="EDITED" if closing["edited"] else "AS_DRAFTED",
+           details={"draft": draft, "summary": summary, "recommendation": recommendation or None,
+                    "contact": CONTACT_METHODS.get(contact or "")})
+    return _close(conn, ep, user, summary, {"TIER_1_RED": "red_closed_by_doctor", "TIER_2_AMBER": "amber_closed_by_doctor",
+                                            "TIER_3_GREEN": "green_closed_after_review"}[tier])
 
 
 def _close(conn, ep: dict, user: dict, note: str | None, action: str) -> dict:
@@ -1056,31 +1050,23 @@ def _close(conn, ep: dict, user: dict, note: str | None, action: str) -> dict:
 
 
 def reopen(conn, episode_id: int, user: dict, reason: str | None) -> dict:
-    """Any staff reopens a closed ticket, with a reason: it is Reopened until someone acknowledges it again. A Green
-    ticket in the digest is reopened by the coordinator: it becomes an open Amber ticket."""
+    """Any staff reopens a closed ticket, with a reason: it is Reopened until the doctor acknowledges it again (an
+    open Green ticket is raised to Amber instead)."""
     ep = _load(conn, episode_id)
     if not (reason or "").strip():
         raise Invalid("Reopening needs a reason")
     if ep["status"] == "open":
-        if ep["tier"] != "TIER_3_GREEN":
-            raise Conflict("The ticket is open")
-        if user["role"] != "coordinator":
-            raise Conflict("Only the coordinator reopens a ticket in the Green digest")
-        change_tier(conn, episode_id, user, "TIER_2_AMBER", reason)
-        ep = _update(conn, _load(conn, episode_id), reopened_at=clock.get_now(conn))
-        _audit(conn, ep, "triage_reopened", actor_type="person", actor=user["user_id"], outcome="REOPENED",
-               details={"reason": reason.strip(), "from": "Green digest", "now": "Amber, open"})
-        return state(conn, episode_id)
+        raise Conflict("The ticket is open (to send a Green ticket to the doctor, raise it to Amber)")
     if messaging.open_triage(conn, ep["mrn"]):
         raise Conflict("Another triage episode is open for this patient")
-    ep = _update(conn, ep, status="open", closed_by=None, closed_at=None, close_note=None,
+    ep = _update(conn, ep, status="open", closed_by=None, closed_at=None, close_note=None, closing=None,
                  reopened_at=clock.get_now(conn), coord_ack_by=None, coord_ack_at=None, er_ack_by=None, er_ack_at=None,
                  digest_ack_by=None, digest_ack_at=None)
     _audit(conn, ep, "triage_reopened", actor_type="person", actor=user["user_id"], outcome="REOPENED",
            details={"reason": reason.strip()})
     set_next_action(conn, ep["mrn"], "Triage episode reopened: " + reason.strip())
     if ep["tier"] == "TIER_2_AMBER":  # Amber workflow v2: a new 2-hour round for the duty doctor
-        _new_amber_round(conn, ep, "Reopened: " + reason.strip(), tell=False)
+        _new_amber_round(conn, ep, "Reopened: " + reason.strip())
     return state(conn, episode_id)
 
 
@@ -1094,7 +1080,7 @@ def doctor_call(conn, episode_id: int, user: dict, outcome: str, note: str | Non
     if outcome not in DOCTOR_CALL_OUTCOMES:
         raise Invalid("outcome must be one of: " + ", ".join(DOCTOR_CALL_OUTCOMES))
     if _reached(ep):
-        raise Conflict("She has been reached: record the orders and the outcome")
+        raise Conflict("She has been reached: record the orders, then close with your recommendation")
     if outcome == "NO_ANSWER" and _misses(ep) >= 2:
         raise Conflict("Two attempts are logged: the coordinator is calling her attender")
     ep = _auto_ack(conn, ep, user)
@@ -1111,7 +1097,7 @@ def doctor_call(conn, episode_id: int, user: dict, outcome: str, note: str | Non
         tasks.complete_task(conn, overdue["task_id"], user["user_id"], f"{_name(user['user_id'])} called her")
     who = _name(user["user_id"])
     if outcome == "PICKED_UP":
-        set_next_action(conn, ep["mrn"], f"Amber: {who} reached her; orders and outcome next")
+        set_next_action(conn, ep["mrn"], f"Amber: {who} reached her; orders and the closing summary next")
     elif _misses(ep) == 1:
         again = now + timedelta(minutes=cfg["doctor_retry_minutes"])
         set_next_action(conn, ep["mrn"], f"Amber: no answer; {who} tries again by {_hhmm(again)}")
@@ -1154,7 +1140,7 @@ def attender_call(conn, episode_id: int, user: dict, outcome: str, note: str | N
     _audit(conn, ep, "attender_call_logged", actor_type="person", actor=user["user_id"], outcome=outcome,
            details={"note": note or None})
     doc = _name(config(conn)["doctor_on_duty"]) or "the duty doctor"
-    set_next_action(conn, ep["mrn"], f"Amber: attender reached; {doc} to record the orders and the outcome"
+    set_next_action(conn, ep["mrn"], f"Amber: attender reached; {doc} to record the orders and close"
                     if outcome == "REACHED" else
                     f"Amber: attender not reachable; Red (unconfirmed) at {_hhmm(ep['callback_due_at'])} if she is "
                     "still not reached")
@@ -1165,7 +1151,7 @@ def doctor_order(conn, episode_id: int, user: dict, order: str, note: str | None
     """The duty doctor, once she (or her attender) is reached: Physiotherapy referral, Bring forward blood tests or
     Advise visit (each an order card, the approved booking message and a booking task for the coordinator), a
     Medication order (the doctor's own words, sent to the patient word for word; the AI writes nothing), or No order
-    needed. Several orders may be recorded; the outcome then ends the round."""
+    needed. Several orders may be recorded; the doctor then closes with her recommendation."""
     ep = _load(conn, episode_id)
     _open(ep)
     if order not in ORDERS:
@@ -1176,8 +1162,6 @@ def doctor_order(conn, episode_id: int, user: dict, order: str, note: str | None
         raise Conflict("Hospital staff have not reached her yet")
     if not _reached(ep):
         raise Conflict("Log a call that reached her (or her attender) before an order")
-    if ep["doctor_outcome"]:
-        raise Conflict("The outcome is logged: no more orders in this round")
     orders, text = _orders(ep), (note or "").strip()
     if any(o["order"] == "none" for o in orders) or (order == "none" and orders):
         raise Conflict("“No order needed” cannot go with other orders")
@@ -1227,52 +1211,20 @@ def doctor_order(conn, episode_id: int, user: dict, order: str, note: str | None
            details={"text": text or None, "card_id": card["card_id"] if card else None,
                     "sent_to_patient": "word for word" if order == "medication" else
                     "booking message" if card else None})
-    set_next_action(conn, ep["mrn"], f"Amber: {ORDER_LABELS[order]} ordered; the doctor logs the outcome")
-    return state(conn, episode_id)
-
-
-def doctor_outcome(conn, episode_id: int, user: dict, note: str | None, close: str) -> dict:
-    """Amber workflow v2: the doctor's one-line outcome, then Close now (closed at once) or Close after the 24-hour
-    follow-up (the AI calls tomorrow; "better" proposes closure and the doctor confirms)."""
-    ep = _load(conn, episode_id)
-    _open(ep)
-    if ep["tier"] != "TIER_2_AMBER" or _reaching(ep):
-        raise Conflict("The outcome is logged on an Amber ticket")
-    if close not in CLOSE_CHOICES:
-        raise Invalid("close must be NOW or FOLLOWUP")
-    note = (note or "").strip()
-    if not note:
-        raise Invalid("Write a one-line outcome")
-    if ep["doctor_outcome"]:
-        raise Conflict("The outcome is already logged")
-    if not _reached(ep):
-        raise Conflict("Log a call that reached her (or her attender) first")
-    if not _orders(ep):
-        raise Conflict("Record the orders first (or No order needed)")
-    ep = _auto_ack(conn, ep, user)
-    now = clock.get_now(conn)
-    fields = {"doctor_outcome": {"at": now.isoformat(timespec="minutes"), "by": user["user_id"], "note": note,
-                                 "close": close}}
-    if close == "FOLLOWUP":
-        fields["followup_due_on"] = now.date() + timedelta(days=1)
-    ep = _update(conn, ep, **fields)
-    _audit(conn, ep, "doctor_outcome_logged", actor_type="person", actor=user["user_id"], outcome=close,
-           details={"note": note, "orders": [o["order"] for o in _orders(ep)]})
-    if close == "NOW":
-        return _close(conn, ep, user, note, "amber_closed_by_doctor")
-    set_next_action(conn, ep["mrn"], "Amber: outcome logged; follow-up call tomorrow, then the doctor confirms closure")
+    set_next_action(conn, ep["mrn"], f"Amber: {ORDER_LABELS[order]} ordered; the doctor closes with her "
+                                     "recommendation")
     return state(conn, episode_id)
 
 
 RANK = {"TIER_3_GREEN": 0, "TIER_2_AMBER": 1, "TIER_1_RED": 2}
-TIER_RULE = ("Coordinators and nurses can only raise the tier. Only a doctor can lower it, and Red only the ER doctor. "
-             "A reason is always needed.")
+TIER_RULE = ("The coordinator can only raise the tier (that counts as her review). Only the Doctor on Duty can lower "
+             "it. A reason is always needed.")
 
 
 def change_tier(conn, episode_id: int, user: dict, tier: str, reason: str | None) -> dict:
-    """The rules set the tier; a person may change it, always with a reason. Anyone on the team may raise it; only a
-    doctor lowers it, and Red only the ER doctor. Raised to Red by hand it is Red (unconfirmed): the ER Desk alert
-    and a nurse callback within 15 minutes; the family message goes only when a person sends it."""
+    """The rules set the tier; a person may change it, always with a reason. The coordinator may only raise it (her
+    review: it goes to the doctor at once); only the Doctor on Duty lowers it. Raised to Red by hand it is Red
+    (unconfirmed): the coordinator calls back within 15 minutes; the family message goes only when a person sends it."""
     ep = _load(conn, episode_id)
     _open(ep)
     if tier not in TIERS:
@@ -1285,36 +1237,31 @@ def change_tier(conn, episode_id: int, user: dict, tier: str, reason: str | None
         raise Invalid("Changing the tier needs a reason")
     cfg, now = config(conn), clock.get_now(conn)
     raising = RANK[tier] > RANK[ep["tier"]]
-    if not raising and ep["tier"] == "TIER_1_RED" and user["user_id"] != cfg["er_doctor"]:
-        raise Conflict("Only the ER doctor lowers a Red case")
-    if not raising and ep["tier"] != "TIER_1_RED" and user["role"] != "oncologist":
-        raise Conflict("Only a doctor lowers the tier; coordinators and nurses can only raise it")
+    if not raising and user["role"] != "oncologist":
+        raise Conflict("Only the Doctor on Duty lowers the tier; the coordinator can only raise it")
     changes = list(ep["tier_changes"]) + [{"from": ep["tier"], "to": tier, "by": user["user_id"], "role": user["role"],
                                            "at": now.isoformat(timespec="minutes"), "reason": reason.strip()}]
     fields = {"tier": tier, "tier_changes": changes}
+    if raising and user["role"] == "coordinator" and not ep["review"]:  # her review: to the doctor at once
+        fields["review"] = {"action": "RAISED", "by": user["user_id"], "at": now.isoformat(timespec="minutes"),
+                            "reason": reason.strip()}
     if tier == "TIER_1_RED":
-        fields.update(red_kind="UNCONFIRMED", callback_due_at=now + timedelta(minutes=cfg["nurse_minutes"]),
-                      followup_due_on=None)
+        fields.update(red_kind="UNCONFIRMED", callback_due_at=now + timedelta(minutes=cfg["nurse_minutes"]))
     elif tier == "TIER_2_AMBER":
-        fields["red_kind"] = None
-        if not ep["doctor_outcome"]:
-            fields.update(callback_due_at=now + timedelta(minutes=cfg["amber_callback_minutes"]), followup_due_on=None,
-                          sla_start=now, reminded_at=None, overdue_at=None)
+        fields.update(red_kind=None, callback_due_at=now + timedelta(minutes=cfg["amber_callback_minutes"]),
+                      sla_start=now, reminded_at=None, overdue_at=None)
     else:
         fields.update(red_kind=None, callback_due_at=None)
-        if ep["followup_due_on"] is None and not ep["followup"]:
-            fields["followup_due_on"] = now.date() + timedelta(days=1)
     ep = _update(conn, ep, **fields)
     _audit(conn, ep, "tier_raised" if raising else "tier_lowered", actor_type="person", actor=user["user_id"],
            outcome=f"{TIERS[changes[-1]['from']]} -> {TIERS[tier]}",
            details={"reason": reason.strip(), "role": user["role"]})
     who, verb = _name(user["user_id"]), "raised" if raising else "lowered"
     if tier == "TIER_1_RED":
-        _audit(conn, ep, "er_desk_alert_created", outcome="UNCONFIRMED",
-               details={"to": ["ER Desk", "Doctor on Duty", "Senior Oncologist (banner)"], "raised_by": who})
-        set_next_action(conn, ep["mrn"], f"Red (raised by {who}): nurse to call back by "
+        _audit(conn, ep, "red_alert_created", outcome="UNCONFIRMED", details={"to": RED_ALERT_TO, "raised_by": who})
+        set_next_action(conn, ep["mrn"], f"Red (raised by {who}): coordinator to call back by "
                                          f"{_hhmm(ep['callback_due_at'])}; no family message sent")
-    elif tier == "TIER_2_AMBER" and not ep["doctor_outcome"]:
+    elif tier == "TIER_2_AMBER":
         set_next_action(conn, ep["mrn"], f"Amber ({verb} by {who}): {_name(cfg['doctor_on_duty']) or 'Doctor on duty'} "
                                          f"to call back by {_hhmm(ep['callback_due_at'])}")
     else:
@@ -1323,7 +1270,7 @@ def change_tier(conn, episode_id: int, user: dict, tier: str, reason: str | None
 
 
 def _digest_due(ep: dict, cfg: dict) -> datetime | None:
-    """Green: the coordinator acknowledges the digest by the end of the next working day (Monday to Saturday)."""
+    """Green: the coordinator reviews and closes it by the end of the next working day (Monday to Saturday)."""
     if ep["result_at"] is None:
         return None
     d = ep["result_at"].date() + timedelta(days=1)
@@ -1332,42 +1279,11 @@ def _digest_due(ep: dict, cfg: dict) -> datetime | None:
     return datetime.combine(d, datetime.min.time()).replace(hour=cfg["digest_ack_hour"])
 
 
-def digest_ack(conn, episode_id: int, user: dict) -> dict:
-    """Green: the coordinator acknowledges the digest line. The ticket closes into the digest once the follow-up call
-    says she is better (to reopen it instead, raise it to Amber with a reason)."""
-    ep = _load(conn, episode_id)
-    _open(ep)
-    if ep["tier"] != "TIER_3_GREEN":
-        raise Conflict("Only a Green ticket goes to the digest")
-    if ep["digest_ack_by"]:
-        raise Conflict(f"Already acknowledged by {_name(ep['digest_ack_by'])}")
-    now = clock.get_now(conn)
-    due = _digest_due(ep, config(conn))
-    ep = _update(conn, ep, digest_ack_by=user["user_id"], digest_ack_at=now)
-    _audit(conn, ep, "green_digest_acknowledged", actor_type="person", actor=user["user_id"],
-           details={"due": due.isoformat(timespec="minutes") if due else None, "in_time": bool(due and now <= due)})
-    _close_green(conn, ep)
-    return state(conn, episode_id)
-
-
-def _close_green(conn, ep: dict) -> None:
-    """Green closes into the digest: acknowledged by the coordinator and the follow-up says better."""
-    if not (ep["status"] == "open" and ep["tier"] == "TIER_3_GREEN" and ep["digest_ack_by"]
-            and (ep["followup"] or {}).get("answer") == "BETTER"):
-        return
-    note = f"Closed into the Green digest (acknowledged by {_name(ep['digest_ack_by'])}; follow-up: better)"
-    ep = _update(conn, ep, status="closed", closed_by=ep["digest_ack_by"], closed_at=clock.get_now(conn),
-                 close_note=note)
-    _audit(conn, ep, "closed_into_green_digest", outcome="closed_routine_messages_resume", details={"note": note})
-    set_next_action(conn, ep["mrn"], "Triage episode closed into the Green digest; routine follow-up resumed")
-
-
 def _check_sla(conn, ep: dict, now: datetime) -> dict:
     """Amber workflow v2, read on the demo clock: at 90 minutes with no acknowledgement a reminder to the duty doctor;
     at 120 minutes with no call logged the ticket is Overdue (backup doctor and Senior Oncologist alerted, the
     coordinator gets a task); at 120 minutes with calls logged but nobody reached, Red (unconfirmed)."""
-    if ep["status"] != "open" or ep["tier"] != "TIER_2_AMBER" or _reaching(ep) or ep["doctor_outcome"] \
-            or _sla_start(ep) is None:
+    if ep["status"] != "open" or ep["tier"] != "TIER_2_AMBER" or _reaching(ep) or _sla_start(ep) is None:
         return ep
     cfg, start = config(conn), _sla_start(ep)
     doc = _name(cfg["doctor_on_duty"]) or "the duty doctor"
@@ -1385,15 +1301,14 @@ def _check_sla(conn, ep: dict, now: datetime) -> dict:
         changes = list(ep["tier_changes"]) + [{"from": "TIER_2_AMBER", "to": "TIER_1_RED", "by": "system",
                                                "role": "rules", "at": now.isoformat(timespec="minutes"),
                                                "reason": reason}]
-        ep = _update(conn, ep, tier="TIER_1_RED", red_kind="UNCONFIRMED", tier_changes=changes, followup_due_on=None,
+        ep = _update(conn, ep, tier="TIER_1_RED", red_kind="UNCONFIRMED", tier_changes=changes,
                      callback_due_at=now + timedelta(minutes=cfg["nurse_minutes"]))
         _audit(conn, ep, "tier_raised", outcome="Amber -> Red", reason_code="AMBER_PATIENT_UNREACHED",
                details={"reason": reason, "doctor_calls": len(ep["doctor_calls"]),
                         "attender_calls": [c["outcome"] for c in ep["attender_calls"]]})
-        _audit(conn, ep, "er_desk_alert_created", outcome="UNCONFIRMED",
-               details={"to": ["ER Desk", "Doctor on Duty", "Senior Oncologist (banner)"], "raised_by": "rules"})
-        set_next_action(conn, ep["mrn"], "Red (unconfirmed): not reached in 2 hours; the doctor or the coordinator "
-                                         "may send the emergency package")
+        _audit(conn, ep, "red_alert_created", outcome="UNCONFIRMED", details={"to": RED_ALERT_TO, "raised_by": "rules"})
+        set_next_action(conn, ep["mrn"], "Red (unconfirmed): not reached in 2 hours; the coordinator calls back, and "
+                                         "the doctor or the coordinator may send the emergency package")
         return ep
     if not ep["overdue_at"]:
         backup = _name(cfg["backup_doctor"] or cfg["senior_oncologist"]) or "the backup doctor"
@@ -1414,82 +1329,19 @@ def _check_sla(conn, ep: dict, now: datetime) -> dict:
     return ep
 
 
-def _new_amber_round(conn, ep: dict, why: str, tell: bool = True) -> dict:
-    """A "same" or "worse" follow-up: the Amber ticket reopens with a new 2-hour round for the duty doctor. The round that ended is kept on the ticket."""
+def _new_amber_round(conn, ep: dict, why: str) -> dict:
+    """A reopened Amber ticket: a new 2-hour round for the duty doctor. The round that ended is kept on the ticket."""
     cfg, now = config(conn), clock.get_now(conn)
     ended = {"ended_at": now.isoformat(timespec="minutes"), "why": why, "acknowledged_by": ep["coord_ack_by"],
-             "doctor_calls": ep["doctor_calls"], "attender_calls": ep["attender_calls"], "orders": _orders(ep),
-             "outcome": ep["doctor_outcome"], "followup": ep["followup"]}
-    fields = {"rounds": list(ep["rounds"]) + [ended], "doctor_calls": [], "attender_calls": [], "doctor_order": None,
-              "doctor_outcome": None, "followup": None, "followup_due_on": None, "coord_ack_by": None,
-              "coord_ack_at": None, "reminded_at": None, "overdue_at": None, "sla_start": now, "reopened_at": now,
-              "callback_due_at": now + timedelta(minutes=cfg["amber_callback_minutes"])}
-    ep = _update(conn, ep, **fields)
-    _audit(conn, ep, "amber_round_reopened", outcome="REOPENED", reason_code="FOLLOWUP_NOT_BETTER",
+             "doctor_calls": ep["doctor_calls"], "attender_calls": ep["attender_calls"], "orders": _orders(ep)}
+    ep = _update(conn, ep, rounds=list(ep["rounds"]) + [ended], doctor_calls=[], attender_calls=[], doctor_order=None,
+                 coord_ack_by=None, coord_ack_at=None, reminded_at=None, overdue_at=None, sla_start=now,
+                 reopened_at=now, callback_due_at=now + timedelta(minutes=cfg["amber_callback_minutes"]))
+    _audit(conn, ep, "amber_round_reopened", outcome="REOPENED",
            details={"why": why, "round": len(ep["rounds"]) + 1, "callback_due": _hhmm(ep["callback_due_at"])})
-    if tell:
-        _tell_patient(conn, ep, {"tier": "TIER_2_AMBER", "action_code": "DOCTOR_CALLBACK_2H"})
     set_next_action(conn, ep["mrn"], f"{why}: reopened as Amber; {_name(cfg['doctor_on_duty']) or 'duty doctor'} "
                                      f"to call back by {_hhmm(ep['callback_due_at'])}")
     return ep
-
-
-def followup(conn, episode_id: int, user: dict, *, answer: str | None = None, text: str | None = None) -> dict:
-    """The next-day follow-up call (one question: better, the same or worse)."""
-    ep = _load(conn, episode_id)
-    _open(ep)
-    if ep["tier"] == "TIER_1_RED" or ep["followup_due_on"] is None:
-        raise Conflict("No follow-up call is planned for this episode")
-    if ep["followup"]:
-        raise Conflict("The follow-up call has already been made")
-    now = clock.get_now(conn)
-    if now.date() < ep["followup_due_on"]:
-        raise Conflict(f"The follow-up call is due on {ep['followup_due_on']:%d/%m/%Y}; advance the demo clock")
-    missed = conn.execute("SELECT * FROM coordinator_task WHERE triage_episode_id = %s AND task_type = "
-                          "'followup_no_answer' AND status = 'open' FOR UPDATE", (episode_id,)).fetchone()
-    if answer == "NO_ANSWER":  # Amber workflow v2: nobody answered the follow-up call; the coordinator calls her
-        if missed:
-            raise Conflict("The coordinator is already asked to call her")
-        task = tasks.create_task(
-            conn, mrn=ep["mrn"], task_type="followup_no_answer", owner_name=_name(config(conn)["coordinator"]) or None,
-            actor_type="system", actor="system", dedupe_key=f"triage:{ep['episode_id']}:followup_no_answer",
-            reason="The 24-hour follow-up call was not answered. Call her and record better, the same or worse.")
-        conn.execute("UPDATE coordinator_task SET due_at_demo = %s, due_date = %s, triage_episode_id = %s "
-                     "WHERE task_id = %s", (now, now.date(), ep["episode_id"], task["task_id"]))
-        _audit(conn, ep, "followup_call_not_answered", actor_type="agent", actor=AGENT, outcome="NO_ANSWER",
-               details={"task_id": task["task_id"]})
-        set_next_action(conn, ep["mrn"], "Follow-up call not answered; coordinator to call her")
-        return state(conn, episode_id)
-    value = answer or R.parse_followup(text or "")
-    if value not in FOLLOWUP_ANSWERS:
-        raise Invalid("The answer must be better, same or worse")
-    if missed:
-        tasks.complete_task(conn, missed["task_id"], user["user_id"], f"Follow-up by phone: {value.lower()}")
-    h = history(conn, ep["mrn"])
-    m = R.messages(h)
-    turns = list(ep["turns"])
-    _turn(turns, conn, "system", "followup", en="Follow-up call answered")
-    _turn(turns, conn, "agent", "followup", *m["followup"])
-    _turn(turns, conn, "patient", "followup", (text or "").strip(), value.lower(), value=value,
-          how="on-screen answer button" if answer else "typed; word list")
-    _turn(turns, conn, "agent", "followup_closing", *m["followup_better" if value == "BETTER" else "followup_not_better"])
-    fields = {"turns": turns, "followup": {"answer": value, "at": now.isoformat(timespec="minutes"),
-                                           "how": "coordinator's call" if missed else
-                                           "button" if answer else "words"}}
-    if value != "BETTER" and ep["tier"] == "TIER_3_GREEN":
-        fields["callback_due_at"] = now + timedelta(minutes=config(conn)["amber_callback_minutes"])
-    ep = _update(conn, ep, **fields)
-    _audit(conn, ep, "followup_call", actor_type="person" if missed else "agent",
-           actor=user["user_id"] if missed else AGENT, outcome=value)
-    if value != "BETTER" and ep["tier"] == "TIER_2_AMBER":  # v2: the same or worse reopens it for the duty doctor
-        _new_amber_round(conn, ep, f"Follow-up call: {value.lower()}")
-        return state(conn, episode_id)
-    if value == "BETTER" and ep["digest_ack_by"]:
-        _close_green(conn, ep)
-        return state(conn, episode_id)
-    set_next_action(conn, ep["mrn"], "Follow-up: better; the doctor confirms closure" if value == "BETTER"
-                    else f"Follow-up: {value.lower()}; Doctor on Duty to call back by {_hhmm(fields['callback_due_at'])}")
-    return state(conn, episode_id)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1511,13 +1363,11 @@ def _deadlines(ep: dict, task: dict | None, cfg: dict) -> list[dict]:
         add(ep["call_due_at"], "Automated call", "ai")
     tier = ep["tier"]
     if tier == "TIER_1_RED":
-        if _nurse_asked(ep) and not ep["nurse_callback"]:
-            add(ep["callback_due_at"], "Nurse callback", "nurse")
-        if task and task["status"] == "open":
-            add(task["due_at_demo"], "Call the family", "coordinator")
+        if _callback_asked(ep) and not ep["nurse_callback"]:
+            add(ep["callback_due_at"], "Coordinator call back (15 minutes)", "coordinator")
     elif tier == "TIER_2_AMBER" and _reaching(ep):
         add(ep["callback_due_at"], "Staff call: reach her", "coordinator")
-    elif tier == "TIER_2_AMBER" and not ep["doctor_outcome"]:
+    elif tier == "TIER_2_AMBER":
         start = _sla_start(ep)
         if not ep["coord_ack_by"] and start:
             add(start + timedelta(minutes=cfg["doctor_reminder_minutes"]), "Doctor: acknowledge", "doctor")
@@ -1526,83 +1376,77 @@ def _deadlines(ep: dict, task: dict | None, cfg: dict) -> list[dict]:
                 last = datetime.fromisoformat(ep["doctor_calls"][-1]["at"])
                 add(last + timedelta(minutes=cfg["doctor_retry_minutes"]), "Doctor: second call attempt", "doctor")
             add(ep["callback_due_at"], "Doctor callback (2 hours)", "doctor")
-    elif tier == "TIER_3_GREEN" and not ep["digest_ack_by"]:
-        add(_digest_due(ep, cfg), "Acknowledge the digest", "coordinator")
-    if ep["followup_due_on"] and not ep["followup"] and tier != "TIER_1_RED":
-        add(_at(ep["followup_due_on"]), "Follow-up call", "ai")
+    elif tier == "TIER_3_GREEN":
+        add(_digest_due(ep, cfg), "Review and close", "coordinator")
     return sorted(out, key=lambda d: d["at"])
 
 
+def _review_text(ep: dict) -> str | None:
+    r = ep["review"]
+    if not r:
+        return None
+    return {"CONFIRMED": f"Confirmed by {_name(r['by'])}",
+            "FLAGGED": f"Flagged as wrong by {_name(r['by'])}: “{r['reason']}”",
+            "RAISED": f"Raised by {_name(r['by'])}: “{r['reason']}”"}[r["action"]]
+
+
 def _next_actions(ep: dict, task: dict | None, cfg: dict, open_types=frozenset()) -> dict:
-    """One card per role (AI, doctor, nurse, coordinator): what is due, or done, for this colour. Facts only."""
+    """One card per role (AI, doctor, coordinator): what is due, or done, for this colour. Facts only. Triage v3: two
+    people roles; the coordinator reviews (not a gate), the Doctor on Duty closes Red and Amber."""
     none = {"text": "Nothing", "done": True}
     card = lambda text, done=False, due=None: {"text": text, "done": done, "due_at": due}  # noqa: E731
     tier, doc = ep["tier"], _name(cfg["doctor_on_duty"]) or "The Doctor on Duty"
-    out = {"ai": none, "doctor": none, "nurse": none, "coordinator": none}
+    out = {"ai": none, "doctor": none, "coordinator": none}
     if tier is None:
         n = len((ep["plan"] or {}).get("question_ids") or TR.FALLBACK)
         out["ai"] = card(f"Call her by {_hhmm(ep['call_due_at'])} ({n} questions in her language)"
                          if ep["call_status"] == "due" else "On the call now", due=ep["call_due_at"])
         return out
-    fu = ep["followup"]
-    followup = (f"Follow-up call: {fu['answer'].lower()} ({fu['at'][11:16]})" if fu else
-                f"Calls again on {ep['followup_due_on']:%d %b}" if ep["followup_due_on"] else None)
+    if ep["status"] == "closed":
+        closer = USERS_BY_ID.get(ep["closed_by"] or "", {}).get("role")
+        done = card(f"Closed by {_name(ep['closed_by'])}: “{ep['close_note']}”", True)
+        out["doctor" if closer == "oncologist" else "coordinator"] = done
+        return out
+    review = _review_text(ep)
+    coord = [] if review or tier == "TIER_3_GREEN" else ["Review the AI's triage: Confirm, Raise tier or Flag as wrong"]
+    coord_due = None
     if tier == "TIER_1_RED":
         out["ai"] = card(f"Sent the family the message and PDF and wrote the doctor note at {_hhmm(ep['package_sent_at'])}",
                          True) if ep["package_sent_at"] else card(
-            "No family message: the answers are unconfirmed. A person may send the package")
-        er = _name(cfg['er_doctor']).replace(' (ER doctor)', '')
-        out["doctor"] = card(f"Closed by {_name(ep['closed_by'])}" if ep["status"] == "closed" else
-                             f"Logged by {_name(ep['er_log']['by'])}: “{ep['er_log']['note']}”. The ER doctor ({er}) "
-                             "closes the case" if ep["er_log"] else
-                             f"Record what was done. Only the ER doctor ({er}) can close a Red case",
-                             ep["status"] == "closed")
-        nurse = []
-        if not ep["er_ack_by"]:
-            nurse.append("Acknowledge the alert")
-        if _nurse_asked(ep) and not ep["nurse_callback"]:
-            nurse.append(f"call her back by {_hhmm(ep['callback_due_at'])} (unconfirmed)")
-        out["nurse"] = card("; ".join(nurse).capitalize(), due=ep["callback_due_at"] if _nurse_asked(ep) else None)             if nurse else card(f"Acknowledged by {_name(ep['er_ack_by'])}" +
-                               (f"; called back ({_name(ep['nurse_callback']['by'])})" if ep["nurse_callback"] else ""),
-                               True)
-        if task and task["status"] == "open":
-            out["coordinator"] = card(f"Call the family by {_hhmm(task['due_at_demo'])} and record REACHED, NOT YET, "
-                                      "REFUSED or NOT REACHABLE", due=task["due_at_demo"])
-        elif ep["ed_outcome"]:
-            out["coordinator"] = card(f"Family call: {ep['ed_outcome'].replace('_', ' ')}"
-                                      f"{' (' + ep['ed_calls'][-1]['hospital'] + ')' if ep['ed_calls'][-1].get('hospital') else ''}",
-                                      True)
-        elif not ep["package_sent_at"]:
-            out["coordinator"] = card("Nothing until the package is sent", True)
+            "No family message: the answers are unconfirmed. The coordinator calls her back; a person may send the "
+            "package")
+        steps = ([] if ep["coord_ack_by"] else ["acknowledge"]) + ["record your recommendation and close"]
+        if _callback_asked(ep) and not ep["package_sent_at"]:
+            steps.append("or send the emergency package")
+        text = "; ".join(steps)
+        out["doctor"] = card(f"{doc}: {text[0].upper()}{text[1:]}")
+        if _callback_asked(ep) and not ep["nurse_callback"]:
+            coord.insert(0, f"Call her back by {_hhmm(ep['callback_due_at'])} (unconfirmed) and record what you found"
+                         + ("; send the emergency package if needed" if not ep["package_sent_at"] else ""))
+            coord_due = ep["callback_due_at"]
+        elif ep["nurse_callback"]:
+            coord.append(f"Called back ({_name(ep['nurse_callback']['by'])}): “{ep['nurse_callback']['note']}”")
     elif tier == "TIER_2_AMBER" and _reaching(ep):
         missed = sum(1 for c in ep["reach_calls"] if c["outcome"] == "NOT_REACHABLE")
         out["ai"] = card("Her message had no words and two automated calls were not answered. Told her on WhatsApp "
                          "that hospital staff will call within 15 minutes; no family message yet", True)
-        out["coordinator"] = card(f"Call her by {_hhmm(ep['callback_due_at'])}" +
-                                  (" (second try; the first was not reachable)" if missed else "") +
-                                  ". Reached: close the ticket, or escalate to the doctor. Not reachable twice: her "
-                                  "family gets the standard message with the PDF", due=ep["callback_due_at"])
-        out["nurse"] = card("Or the ER Desk makes the call and logs it")
+        coord = [f"Call her by {_hhmm(ep['callback_due_at'])}" +
+                 (" (second try; the first was not reachable)" if missed else "") +
+                 ". Reached: close the ticket, or escalate to the doctor. Not reachable twice: her family gets the "
+                 "standard message with the PDF"]
+        coord_due = ep["callback_due_at"]
     elif tier == "TIER_2_AMBER":
-        # Amber workflow v2: the duty doctor owns the ticket; the coordinator books and calls the attender
-        orders, outcome, misses = _orders(ep), ep["doctor_outcome"], _misses(ep)
+        orders, misses = _orders(ep), _misses(ep)
         staff = next((c for c in ep["reach_calls"] if c["outcome"] == "REACHED"), None)
-        out["ai"] = card((f"Empty message, calls not answered; {_name(staff['by'])} reached her and escalated to the "
-                          "doctor" if staff else "Told her a doctor will call within 2 hours, with the emergency line; calls "
-                          "again 24 hours after the outcome if the doctor asks")
-                         + (f". {followup}" if followup else ""),
-                         bool(fu) or not (outcome and outcome["close"] == "FOLLOWUP"))
+        out["ai"] = card(f"Empty message, calls not answered; {_name(staff['by'])} reached her and escalated to the "
+                         "doctor" if staff else "Told her a doctor will call within 2 hours, with the emergency line",
+                         True)
         late = "OVERDUE. " if ep["overdue_at"] and not ep["doctor_calls"] else ""
-        if outcome:
-            out["doctor"] = card("Follow-up: better. Confirm closure" if ticket_state(ep) == "CLOSURE_PROPOSED" else
-                                 f"Outcome logged by {_name(outcome['by'])}: “{outcome['note']}”. "
-                                 + ("Closed" if outcome["close"] == "NOW" else "Closure after the follow-up call"),
-                                 ticket_state(ep) != "CLOSURE_PROPOSED")
-        elif _reached(ep):
+        if _reached(ep):
             out["doctor"] = card(late + ("Record the orders (physiotherapy, blood tests, medication, visit or none), "
-                                         "then the outcome" if not orders else
+                                         "then close with your recommendation and the summary" if not orders else
                                          "Ordered: " + ", ".join(ORDER_LABELS[o["order"]] for o in orders) +
-                                         ". Log the outcome: close now, or after the 24-hour follow-up call"))
+                                         ". Close with your recommendation and the summary"))
         else:
             steps = ([] if ep["coord_ack_by"] else ["acknowledge"]) + (
                 [f"call her by {_hhmm(ep['callback_due_at'])}"] if misses == 0 else
@@ -1614,41 +1458,30 @@ def _next_actions(ep: dict, task: dict | None, cfg: dict, open_types=frozenset()
                                  due=ep["callback_due_at"])
         bookings = [ORDER_LABELS[o["order"]].lower() for o in orders if ORDERS.get(o["order"])]
         if "call_attender" in open_types:
-            out["coordinator"] = card(f"Call her attender ({ep.get('caregiver_name') or 'family'}) before "
-                                      f"{_hhmm(ep['callback_due_at'])}; record reached or not reachable",
-                                      due=ep["callback_due_at"])
-        elif "followup_no_answer" in open_types:
-            out["coordinator"] = card("The follow-up call was not answered: call her and record better, the same or "
-                                      "worse")
+            coord.insert(0, f"Call her attender ({ep.get('caregiver_name') or 'family'}) before "
+                            f"{_hhmm(ep['callback_due_at'])}; record reached or not reachable")
+            coord_due = ep["callback_due_at"]
         elif ep["overdue_at"] and not ep["doctor_calls"]:
-            out["coordinator"] = card("OVERDUE: no doctor's call in 2 hours. The backup doctor and the Senior "
-                                      "Oncologist were alerted; make sure one of them calls her")
-        elif bookings:
-            out["coordinator"] = card(f"Book the {', '.join(bookings)} (task for {_name(cfg['coordinator'])})")
-
+            coord.insert(0, "OVERDUE: no doctor's call in 2 hours. The backup doctor and the Senior Oncologist were "
+                            "alerted; make sure one of them calls her")
+        if bookings:
+            coord.append(f"Book the {', '.join(bookings)} (task for {_name(cfg['coordinator'])})")
     else:
         r = ep["result"] or {}
         out["ai"] = card(("Repeated the doctor's signed sentence; " if r.get("repeat_advice") else "") +
-                         "added a digest line" + (f"; {followup[0].lower() + followup[1:]}" if followup else ""),
-                         bool(fu))
+                         "added a digest line for the coordinator", True)
         due = _digest_due(ep, cfg)
-        out["coordinator"] = card(f"Acknowledged the digest ({_name(ep['digest_ack_by'])}, {_hhmm(ep['digest_ack_at'])})",
-                                  True) if ep["digest_ack_by"] else card(
-            f"Acknowledge the digest by {due:%a %d %b %H:%M} (or raise it to Amber to reopen)", due=due)
+        coord = [f"Review and close by {due:%a %d %b %H:%M} (or raise it to Amber for the doctor)"]
+        coord_due = due
+    if coord:
+        out["coordinator"] = card("; ".join(coord), due=coord_due)
+    elif review:
+        out["coordinator"] = card(review, True)
     return out
 
 
 def _proposed(ep: dict) -> str | None:
-    """The AI only proposes; a named person closes."""
-    if ep["status"] != "open" or ep["tier"] is None:
-        return None
-    fu = (ep["followup"] or {}).get("answer")
-    if ep["tier"] == "TIER_1_RED" and ep["ed_outcome"] == "REACHED":
-        return "Proposed: she reached an emergency department; the ER doctor may close the case"
-    if ep["tier"] == "TIER_2_AMBER" and ep["doctor_outcome"] and fu == "BETTER":
-        return "Proposed: close (outcome logged, follow-up better); the doctor confirms"
-    if ep["tier"] == "TIER_3_GREEN" and fu == "BETTER" and not ep["digest_ack_by"]:
-        return "Proposed: close into the digest once the coordinator acknowledges it"
+    """Triage v3: nothing is proposed for closing any more (no follow-up call); a named person closes."""
     return None
 
 
@@ -1712,82 +1545,36 @@ def _plan_view(ep: dict) -> dict | None:
             "not_asked": TR.not_asked(p)}
 
 
-def _owner(ep: dict, task: dict | None, cfg: dict, open_types=frozenset()) -> str | None:
-    """Who the ticket waits on now (the list's Owner column)."""
-    st = ticket_state(ep)
-    if st == "CLOSED":
-        return None
-    if ep["tier"] == "TIER_1_RED":
-        if not ep["er_ack_by"] or _nurse_asked(ep) and not ep["nurse_callback"]:
-            return "Nurse (ER Desk)"
-        if task and task["status"] == "open":
-            return _name(cfg["coordinator"])
-        return _name(cfg["er_doctor"])
-    if ep["tier"] == "TIER_2_AMBER":
-        if _reaching(ep):
-            return f"{_name(cfg['coordinator'])} or the ER Desk"
-        doc = _name(cfg["doctor_on_duty"])
-        if "call_attender" in open_types or "followup_no_answer" in open_types:
-            return _name(cfg["coordinator"])
-        if ep["doctor_outcome"]:
-            return doc if st == "CLOSURE_PROPOSED" else "CarePilot (follow-up call)"
-        if ep["overdue_at"] and not ep["doctor_calls"]:
-            backup = _name(cfg["backup_doctor"] or cfg["senior_oncologist"])
-            return f"{backup} (backup; {doc} overdue)"
-        return doc
-    if ep["tier"] == "TIER_3_GREEN":
-        return _name(cfg["coordinator"]) if not ep["digest_ack_by"] else "CarePilot (follow-up call)"
-    return "CarePilot (the call)"
-
-
 def _pending(ep: dict, task: dict | None, cfg: dict, open_types, nxt: dict) -> list[dict]:
     """Testing round 2 Nov: who the ticket waits on, as persona and name ({persona, user_id, name, what, view}), so a
-    tester can switch to that persona. While CarePilot AI waits (the call, the follow-up), the switch goes to the
-    coordinator, who runs the phone simulator."""
-    if ticket_state(ep) == "CLOSED":
+    tester can switch to that persona. While CarePilot AI waits (the call), the switch goes to the coordinator, who
+    runs the phone simulator. Triage v3: two people roles (the Senior Oncologist only as the overdue backup)."""
+    if ep["status"] == "closed":
         return []
-    coord, doc, senior, er = cfg["coordinator"], cfg["doctor_on_duty"], cfg["senior_oncologist"], cfg["er_doctor"]
-    nurse = next((u for u, x in USERS_BY_ID.items() if x.get("role") == "er_desk" and u != er), None)
+    coord, doc, senior = cfg["coordinator"], cfg["doctor_on_duty"], cfg["senior_oncologist"]
 
     def who(persona, uid, view):
         return {"persona": persona, "user_id": uid, "name": _name(uid) if uid else persona, "view": view,
                 "what": (nxt.get(view) or {}).get("text")}
 
-    def ai(what):
-        return {"persona": "CarePilot AI", "user_id": coord, "name": "automated assistant", "view": "ai", "ai": True,
-                "what": what}
-
-    tier, fu = ep["tier"], (ep["followup"] or {}).get("answer")
-    followup = (f"Follow-up call on {ep['followup_due_on']:%d %b} at 09:00" if ep["followup_due_on"] and not fu
-                else None)
+    tier = ep["tier"]
     if tier is None:
-        return [ai(nxt["ai"]["text"])]
-    if tier == "TIER_1_RED":
-        out = []
-        if not ep["er_ack_by"] or _nurse_asked(ep) and not ep["nurse_callback"]:
-            out.append(who("Nurse (ER Desk)", nurse, "nurse"))
-        if task and task["status"] == "open":
-            out.append(who("Care coordinator", coord, "coordinator"))
-        return out or [who("ER doctor", er, "doctor")]
-    if tier == "TIER_2_AMBER":
-        if _reaching(ep):
-            return [who("Care coordinator", coord, "coordinator"), who("Nurse (ER Desk)", nurse, "nurse")]
-        if open_types & {"call_attender", "followup_no_answer"}:
-            return [who("Care coordinator", coord, "coordinator")]
-        if ep["doctor_outcome"]:
-            return [who("Duty doctor", doc, "doctor")] if ticket_state(ep) == "CLOSURE_PROPOSED" else \
-                [ai(followup or nxt["ai"]["text"])]
-        if ep["overdue_at"] and not ep["doctor_calls"]:
-            backup = cfg["backup_doctor"] or senior
-            return [who("Senior Oncologist (backup)" if backup == senior else "Backup doctor", backup, "doctor"),
-                    who("Care coordinator", coord, "coordinator")]
-        return [who("Duty doctor", doc, "doctor")]
-    if not ep["digest_ack_by"]:
-        return [who("Care coordinator", coord, "coordinator")]
-    if fu and fu != "BETTER":
-        return [{**who("Care coordinator", coord, "coordinator"),
-                 "what": f"Follow-up said {fu.lower()}: review, and reopen as Amber if needed"}]
-    return [ai(followup or nxt["ai"]["text"])]
+        return [{"persona": "CarePilot AI", "user_id": coord, "name": "automated assistant", "view": "ai", "ai": True,
+                 "what": nxt["ai"]["text"]}]
+    coordinator = who("Care coordinator", coord, "coordinator")
+    coord_waits = not nxt["coordinator"]["done"]
+    if tier == "TIER_3_GREEN":
+        return [coordinator]
+    if tier == "TIER_2_AMBER" and _reaching(ep):
+        return [coordinator]
+    doctor = who("Doctor on Duty", doc, "doctor")
+    if tier == "TIER_2_AMBER" and ep["overdue_at"] and not ep["doctor_calls"]:
+        backup = cfg["backup_doctor"] or senior
+        doctor = who("Senior Oncologist (backup)" if backup == senior else "Backup doctor", backup, "doctor")
+    first_coord = coord_waits and (
+        open_types & {"call_attender"} or (_callback_asked(ep) and not ep["nurse_callback"]))
+    out = [coordinator, doctor] if first_coord else [doctor] + ([coordinator] if coord_waits else [])
+    return out
 
 
 def _summary(conn, ep: dict, now: datetime) -> dict:
@@ -1803,6 +1590,7 @@ def _summary(conn, ep: dict, now: datetime) -> dict:
     doc = conn.execute("SELECT doc_id FROM triage_document WHERE episode_id = %s ORDER BY doc_id DESC LIMIT 1",
                        (ep["episode_id"],)).fetchone()
     nxt = _next_actions({**ep, "caregiver_name": p["caregiver_name"]}, task, cfg, open_types)
+    pending = _pending(ep, task, cfg, open_types, nxt)
     return {
         **{k: ep[k] for k in ("episode_id", "ticket_id", "digest_ack_by", "digest_ack_at", "cover_alerted_at", "mrn", "inbound_id", "patient_words", "translation", "opened_at",
                               "call_status", "call_due_at", "attempts", "tier", "red_kind", "result_at",
@@ -1814,21 +1602,19 @@ def _summary(conn, ep: dict, now: datetime) -> dict:
         "tier_label": TIERS.get(ep["tier"]), "result": ep["result"], "facts": R.facts_text(ep["answers"]),
         "history": history(conn, ep["mrn"]),
         "callback_overdue": bool(ep["callback_due_at"] and now > ep["callback_due_at"] and ep["status"] == "open"
-                                 and not ep["doctor_outcome"] and not _reached(ep) and not ep["nurse_callback"]),
-        "followup_due": bool(ep["followup_due_on"] and not ep["followup"] and now.date() >= ep["followup_due_on"]
-                             and ep["status"] == "open"),
+                                 and not _reached(ep) and not ep["nurse_callback"]),
         "task": task, "task_overdue": bool(task and task["status"] == "open" and task["due_at_demo"]
                                            and now > task["due_at_demo"]),
         "pdf_doc_id": doc["doc_id"] if doc else None,
         "has_call": any(t["who"] == "agent" for t in ep["turns"]),  # a call took place: there is a recording
         "deadlines": deadlines, "due": deadlines[0] if deadlines else None,
-        "next": nxt, "pending": _pending(ep, task, cfg, open_types, nxt),
-        "proposed": _proposed(ep), "tier_set_by": _set_by(ep), "open_tasks": sorted(open_types),
+        "next": nxt, "pending": pending, "owner": pending[0]["name"] if pending else None,
+        "proposed": None, "tier_set_by": _set_by(ep), "open_tasks": sorted(open_types),
+        "review": ep["review"], "review_text": _review_text(ep), "closing": ep["closing"],
         "orders": _orders(ep), "reached": _reached(ep), "overdue": bool(ep["overdue_at"] and ep["status"] == "open" and not ep["doctor_calls"]),
-        "nurse_asked": _nurse_asked(ep), "state": ticket_state(ep), "state_label": STATE_LABELS[ticket_state(ep)],
-        "er_log": ep["er_log"], "reopened_at": ep["reopened_at"], "owner": _owner(ep, task, cfg, open_types),
-        **{k: ep[k] for k in ("doctor_calls", "attender_calls", "doctor_outcome", "sla_start", "reminded_at",
-                              "overdue_at", "rounds")},
+        "callback_asked": _callback_asked(ep), "state": ticket_state(ep), "state_label": STATE_LABELS[ticket_state(ep)],
+        "reopened_at": ep["reopened_at"],
+        **{k: ep[k] for k in ("doctor_calls", "attender_calls", "sla_start", "reminded_at", "overdue_at", "rounds")},
         "plan": _plan_view(ep),
         "reach_calls": ep["reach_calls"], "reaching": _reaching(ep), "empty_message": _empty(ep),
         "now": now,
@@ -1926,8 +1712,11 @@ def episode_summary(ep: dict, h: dict | None) -> dict:
         details.append(f"Emergency package sent to the family at {_hhmm(ep['package_sent_at'])}")
     if ep["ed_outcome"]:
         details.append(f"Family call: {ep['ed_outcome'].replace('_', ' ').lower()}")
+    if ep.get("review"):
+        details.append(_review_text(ep))
     if ep["nurse_callback"]:
-        details.append(f"Nurse called back: “{ep['nurse_callback'].get('note') or 'done'}”")
+        details.append(f"{_name(ep['nurse_callback']['by'])} called her back: "
+                       f"“{ep['nurse_callback'].get('note') or 'done'}”")
     for r in ep.get("rounds") or []:
         details.append(f"Earlier round reopened ({r['why'].lower()})")
     for c in ep.get("doctor_calls") or []:
@@ -1938,10 +1727,10 @@ def episode_summary(ep: dict, h: dict | None) -> dict:
     for o in _orders(ep):
         text = o.get("text") or o.get("note")
         details.append(f"Doctor's order: {ORDER_LABELS[o['order']]} by {_name(o['by'])}" + (f" (“{text}”)" if text else ""))
-    if ep.get("doctor_outcome"):
-        o = ep["doctor_outcome"]
-        details.append(f"Outcome by {_name(o['by'])}: “{o['note']}” ("
-                       + ("closed at once" if o["close"] == "NOW" else "close after the follow-up call") + ")")
+    if ep.get("closing") and ep["closing"].get("recommendation"):
+        c = ep["closing"]
+        details.append(f"Recommendation by {_name(c['by'])}" + (f" (contacted by {_contact_line(c)})" if c.get("contact")
+                                                              else "") + f": “{c['recommendation']}”")
     if ep["followup"]:
         details.append(f"Follow-up call: {ep['followup']['answer'].lower()}")
     for c in ep["tier_changes"] or []:
@@ -1968,7 +1757,7 @@ def question_bank() -> dict:
     module_of = {q: m for m, qs in groups for q in qs}
     labels = {"core": "Danger core (always asked, first)", "history_arm": "Her record: left-arm baseline",
               "chest_or_breathing": "Chest or breathing (in the danger core)",
-              "other_symptom": "Other symptom (no questions: a nurse calls)",
+              "other_symptom": "Other symptom (no questions: the duty doctor calls)",
               **{k: v[:1].upper() + v[1:] for k, v in TR.MODULE_LABELS.items()}}
     skips = {"Q_HEAD_SCORE": "Skipped if she has no headache today",
              "Q_HEAD_WORSE": "Skipped if she has no headache today",
@@ -2144,8 +1933,8 @@ def brief(conn, mrn: str, days: int = 90) -> dict:
         if ep["package_sent_at"]:
             doc = conn.execute("SELECT doc_id FROM triage_document WHERE episode_id = %s", (eid,)).fetchone()
             lines.append({"at": ep["package_sent_at"].isoformat(timespec="minutes"), "kind": "red", "episode_id": eid,
-                          "text": "Emergency package: family message with the summary PDF; ER Desk, Doctor on Duty "
-                                  "and Senior Oncologist alerted; coordinator asked to confirm the emergency visit.",
+                          "text": "Emergency package: family message with the summary PDF; Doctor on Duty and "
+                                  "Senior Oncologist alerted.",
                           "sources": [{"kind": "pdf", "label": "Emergency summary PDF", "doc_id": doc["doc_id"]},
                                       {"kind": "note", "label": "Doctor note", "episode_id": eid}]})
         for c in ep["ed_calls"]:
@@ -2155,7 +1944,7 @@ def brief(conn, mrn: str, days: int = 90) -> dict:
         if ep["nurse_callback"]:
             n = ep["nurse_callback"]
             lines.append({"at": n["at"], "kind": "person", "episode_id": eid,
-                          "text": f"Nurse callback by {_name(n['by'])}: {n['note']}", "sources": []})
+                          "text": f"Call back by {_name(n['by'])}: {n['note']}", "sources": []})
         for o in _orders(ep):
             text = o.get("text") or o.get("note")
             lines.append({"at": o["at"], "kind": "person", "episode_id": eid,

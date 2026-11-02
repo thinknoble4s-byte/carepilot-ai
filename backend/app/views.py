@@ -86,7 +86,7 @@ def patient_detail(conn, mrn: str) -> dict:
 def patient_card(conn, mrn: str) -> dict:
     """The pop-up behind a patient's name (testing round 31 Oct, defect 2): who she is, how to reach her and her
     family, her plan and next due items, open tasks, and her triage tickets. Read only; staff in Voice Triage
-    (including the ER Desk) see it."""
+    see it."""
     p = conn.execute(
         """SELECT mrn, full_name, phone, caregiver_name, caregiver_phone, preferred_language, status, agent_on,
                   next_planned_action, coordinator, pause_until, pause_reason

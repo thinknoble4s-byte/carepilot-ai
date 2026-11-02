@@ -237,3 +237,5 @@ button.wa-tap:hover { background: #f5f6f6; }
 .vt-state.s-ACKNOWLEDGED, .vt-state.s-OUTCOME_LOGGED { background: #fef3c7; color: #92400e; }
 .vt-state.s-CLOSURE_PROPOSED { background: #e0f2fe; color: #075985; }
 .vt-state.s-CLOSED, .vt-state.s-IN_DIGEST { background: #dcfce7; color: #166534; }
+.vt-close { margin-top: 6px; }
+.vt-summary { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }

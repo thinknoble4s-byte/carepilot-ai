@@ -351,7 +351,7 @@ MESSAGE_TEXT = {
         "repeat": "Sorry, I did not hear that clearly. Please say it again.",
         "red": "Thank you. Your answers include a warning sign. Please go to the nearest emergency department now. "
                "Do not wait. We are telling your family and our care team.",
-        "red_unconfirmed": "Thank you. We could not confirm your answers. A nurse will call you within 15 minutes. "
+        "red_unconfirmed": "Thank you. We could not confirm your answers. A member of hospital staff will call you within 15 minutes. "
                            "If you feel worse, go to the nearest emergency department.",
         "nurse": "All right. A nurse will call you within 15 minutes. If you feel worse, go to the nearest emergency "
                  "department.",
@@ -375,8 +375,8 @@ MESSAGE_TEXT = {
         "repeat": "மன்னிக்கவும், எனக்குச் சரியாகக் கேட்கவில்லை. மீண்டும் சொல்லுங்கள்.",
         "red": "நன்றி. உங்கள் பதில்களில் எச்சரிக்கை அறிகுறி உள்ளது. உடனே அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்குச் செல்லுங்கள். "
                "காத்திருக்க வேண்டாம். உங்கள் குடும்பத்தினருக்கும் எங்கள் பராமரிப்புக் குழுவுக்கும் தெரிவிக்கிறோம்.",
-        "red_unconfirmed": "நன்றி. உங்கள் பதில்களை உறுதிப்படுத்த முடியவில்லை. ஒரு செவிலியர் 15 நிமிடங்களுக்குள் உங்களை "
-                           "அழைப்பார். உடல்நிலை மோசமானால் அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்குச் செல்லுங்கள்.",
+        "red_unconfirmed": "நன்றி. உங்கள் பதில்களை உறுதிப்படுத்த முடியவில்லை. மருத்துவமனை ஊழியர் ஒருவர் 15 நிமிடங்களுக்குள் "
+                           "உங்களை அழைப்பார். உடல்நிலை மோசமானால் அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்குச் செல்லுங்கள்.",
         "nurse": "சரி. ஒரு செவிலியர் 15 நிமிடங்களுக்குள் உங்களை அழைப்பார். உடல்நிலை மோசமானால் அருகிலுள்ள அவசர சிகிச்சைப் "
                  "பிரிவுக்குச் செல்லுங்கள்.",
         "nurse_other": "நன்றி. ஒரு செவிலியர் 15 நிமிடங்களுக்குள் உங்களை அழைப்பார். உடல்நிலை மோசமானால் அருகிலுள்ள அவசர "
@@ -400,7 +400,7 @@ MESSAGE_TEXT = {
         "repeat": "माफ़ कीजिए, मुझे ठीक से सुनाई नहीं दिया। कृपया फिर से बताइए।",
         "red": "धन्यवाद। आपके जवाबों में एक खतरे का संकेत है। कृपया अभी नज़दीकी आपातकालीन विभाग में जाइए। इंतज़ार मत "
                "कीजिए। हम आपके परिवार और हमारी देखभाल टीम को बता रहे हैं।",
-        "red_unconfirmed": "धन्यवाद। हम आपके जवाबों की पुष्टि नहीं कर सके। एक नर्स 15 मिनट के अंदर आपको कॉल करेगी। अगर "
+        "red_unconfirmed": "धन्यवाद। हम आपके जवाबों की पुष्टि नहीं कर सके। अस्पताल का एक कर्मचारी 15 मिनट के अंदर आपको कॉल करेगा। अगर "
                            "तबीयत ज़्यादा खराब लगे, तो नज़दीकी आपातकालीन विभाग में जाइए।",
         "nurse": "ठीक है। एक नर्स 15 मिनट के अंदर आपको कॉल करेगी। अगर तबीयत ज़्यादा खराब लगे, तो नज़दीकी आपातकालीन विभाग "
                  "में जाइए।",
@@ -423,7 +423,7 @@ MESSAGE_TEXT = {
         "repeat": "క్షమించండి, నాకు సరిగ్గా వినిపించలేదు. దయచేసి మళ్ళీ చెప్పండి.",
         "red": "ధన్యవాదాలు. మీ జవాబుల్లో ఒక ప్రమాద సంకేతం ఉంది. దయచేసి ఇప్పుడే దగ్గరలోని అత్యవసర విభాగానికి వెళ్లండి. "
                "ఆలస్యం చేయవద్దు. మీ కుటుంబానికి మరియు మా సంరక్షణ బృందానికి తెలియజేస్తున్నాము.",
-        "red_unconfirmed": "ధన్యవాదాలు. మీ జవాబులను నిర్ధారించలేకపోయాము. ఒక నర్స్ 15 నిమిషాల్లో మీకు ఫోన్ చేస్తారు. "
+        "red_unconfirmed": "ధన్యవాదాలు. మీ జవాబులను నిర్ధారించలేకపోయాము. ఆసుపత్రి సిబ్బందిలో ఒకరు 15 నిమిషాల్లో మీకు ఫోన్ చేస్తారు. "
                            "ఆరోగ్యం మరింత బాగోలేకపోతే, దగ్గరలోని అత్యవసర విభాగానికి వెళ్లండి.",
         "nurse": "సరే. ఒక నర్స్ 15 నిమిషాల్లో మీకు ఫోన్ చేస్తారు. ఆరోగ్యం మరింత బాగోలేకపోతే, దగ్గరలోని అత్యవసర విభాగానికి "
                  "వెళ్లండి.",
@@ -580,11 +580,11 @@ def triage(a: dict, h: dict, today: date, *, nurse: bool = False, fault: bool = 
                 "message": None, "patient_template_id": TEMPLATE_IDS["unreached"], "response_minutes": 15}
     if no_answer and staff_unreached:
         return {**base, "tier": "TIER_1_RED", "reason_codes": ["RED_NOT_REACHED_AFTER_EMPTY_MESSAGE"],
-                "confirmed_danger": False, "red_kind": "NO_ANSWER", "action_code": "ALERT_NURSE_AND_CALL_CAREGIVER",
+                "confirmed_danger": False, "red_kind": "NO_ANSWER", "action_code": "RED_PACKAGE_NO_ANSWER",
                 "message": None, "patient_template_id": TEMPLATE_IDS["no_answer"], "response_minutes": 0}
     if no_answer:
         return {**base, "tier": "TIER_1_RED", "reason_codes": ["RED_NO_ANSWER_2X"], "confirmed_danger": False,
-                "red_kind": "NO_ANSWER", "action_code": "ALERT_NURSE_AND_CALL_CAREGIVER", "message": None,
+                "red_kind": "NO_ANSWER", "action_code": "RED_PACKAGE_NO_ANSWER", "message": None,
                 "patient_template_id": TEMPLATE_IDS["no_answer"], "response_minutes": 0}
     reds = red_codes(a)
     confirmed = bool(reds)
@@ -596,7 +596,7 @@ def triage(a: dict, h: dict, today: date, *, nurse: bool = False, fault: bool = 
         message = "red" if confirmed else "red_unconfirmed"
         return {**base, "tier": "TIER_1_RED", "reason_codes": reds, "confirmed_danger": confirmed,
                 "red_kind": "CONFIRMED" if confirmed else "UNCONFIRMED",
-                "action_code": "ER_DESK_HANDOFF_SIMULATED" if confirmed else "NURSE_CALLBACK_15_MIN",
+                "action_code": "RED_PACKAGE_AND_DUTY_DOCTOR" if confirmed else "STAFF_CALLBACK_15_MIN",
                 "message": message, "patient_template_id": TEMPLATE_IDS[message],
                 "response_minutes": 0 if confirmed else 15}
 

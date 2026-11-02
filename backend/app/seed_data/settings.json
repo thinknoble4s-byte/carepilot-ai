@@ -150,7 +150,6 @@
     "enabled": true,
     "doctor_on_duty": "u_kavita",
     "senior_oncologist": "u_anand",
-    "er_doctor": "u_er_doctor",
     "coordinator": "u_priya",
     "cover": "u_meera",
     "cover_alert_minutes": 90,

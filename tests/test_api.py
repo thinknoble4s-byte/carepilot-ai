@@ -28,8 +28,8 @@ def test_start_database_button(client, monkeypatch):
 def test_users_listed_without_db(client):
     users = client.get("/users").json()
     assert [u["id"] for u in users] == ["u_priya", "u_meera", "u_anand", "u_kavita", "u_suresh",
-                                        "u_anita", "u_ravi", "u_sekhar", "u_ananya", "u_er_nurse", "u_er_doctor"]
-    assert {u["role"] for u in users} == {"coordinator", "oncologist", "chief", "er_desk"}
+                                        "u_anita", "u_ravi", "u_sekhar", "u_ananya"]
+    assert {u["role"] for u in users} == {"coordinator", "oncologist", "chief"}
 
 
 def test_unknown_or_missing_user_is_401_without_db(client):

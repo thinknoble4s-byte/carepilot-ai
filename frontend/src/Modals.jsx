@@ -360,13 +360,13 @@ function handledNote(m) {
   if (m.ep_ticket) {
     if (handling.includes('episode_updated')) return `${lead} → added to the open triage ticket ${m.ep_ticket}`;
     if (!m.ep_tier) return `${lead} → triage ticket ${m.ep_ticket}: automated call within 2 minutes`;
-    const nurse = m.ep_red_kind === 'UNCONFIRMED' || m.ep_action === 'NURSE_CALLBACK_15_MIN';
+    const unconfirmed = m.ep_red_kind === 'UNCONFIRMED';
     // Testing round 1 Nov (Worksheet2): nobody answered the calls after an empty message
     if (m.ep_action === 'STAFF_CALL_15_MIN' && m.ep_tier === 'TIER_2_AMBER') return `${lead} → ${m.ep_ticket}: two calls not answered; hospital staff will call her within 15 minutes`;
     if (m.ep_red_kind === 'NO_ANSWER') return `${lead} → ${m.ep_ticket} Red: she could not be reached; her family was sent the emergency message with the PDF`;
-    if (m.ep_tier === 'TIER_3_GREEN') return `${lead} → ${m.ep_ticket} Green: no doctor's call needed; follow-up call tomorrow`;
-    if (nurse) return `${lead} → ${m.ep_ticket} handed to a Hospital Care Coordinator; a hospital nurse will call within 15 minutes`;
-    if (m.ep_tier === 'TIER_1_RED') return `${lead} → ${m.ep_ticket} Red: go to the nearest emergency department now; handed to a Hospital Care Coordinator, hospital staff will call within 10 minutes`;
+    if (m.ep_tier === 'TIER_3_GREEN') return `${lead} → ${m.ep_ticket} Green: no doctor's call needed; the coordinator reviews it`;
+    if (unconfirmed) return `${lead} → ${m.ep_ticket} Red (unconfirmed): the care coordinator will call her within 15 minutes`;
+    if (m.ep_tier === 'TIER_1_RED') return `${lead} → ${m.ep_ticket} Red: go to the nearest emergency department now; her family was sent the message with the PDF; the Doctor on Duty is alerted`;
     return `${lead} → ${m.ep_ticket} Amber: handed to the duty doctor, who will call within 2 hours`;
   }
   return m.ai_flag === 'yes' ? `${lead} → handed to a Hospital Care Coordinator` : 'CarePilot: no health mention → proposal for the coordinator';

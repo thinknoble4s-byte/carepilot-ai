@@ -388,15 +388,15 @@
   },
   {
     "template_id": "triage_outcome_nurse",
-    "version": "1.0",
+    "version": "2.0",
     "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
-    "note": "Testing round 31 Oct (defects 10, 11): the WhatsApp outcome when a nurse calls back (Red unconfirmed, or a symptom no question covers): within 15 minutes, with the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
+    "note": "Triage v3 (2 Nov, two people roles): the WhatsApp outcome for Red (unconfirmed): hospital staff (the care coordinator) call back within 15 minutes, with the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
     "buttons": [],
     "text": {
-      "English": "Thank you for answering our questions. Your case has been handed to a Hospital Care Coordinator. A hospital nurse will call you within 15 minutes. To be safe: if hospital staff or the care coordinator cannot reach you within this time, go to the nearest hospital before you get connected with your treating doctor.",
-      "Tamil": "எங்கள் கேள்விகளுக்குப் பதிலளித்ததற்கு நன்றி. உங்கள் விவரங்கள் மருத்துவமனை பராமரிப்பு ஒருங்கிணைப்பாளரிடம் ஒப்படைக்கப்பட்டுள்ளன. மருத்துவமனை செவிலியர் ஒருவர் 15 நிமிடங்களுக்குள் உங்களை அழைப்பார். பாதுகாப்பிற்காக: இந்த நேரத்திற்குள் மருத்துவமனை ஊழியர்களோ பராமரிப்பு ஒருங்கிணைப்பாளரோ உங்களைத் தொடர்பு கொள்ள முடியாவிட்டால், உங்கள் சிகிச்சை மருத்துவருடன் தொடர்பு கிடைக்கும் முன்பே அருகிலுள்ள மருத்துவமனைக்குச் செல்லுங்கள்.",
-      "Telugu": "మా ప్రశ్నలకు జవాబులు ఇచ్చినందుకు ధన్యవాదాలు. మీ కేసును ఆసుపత్రి కేర్ కోఆర్డినేటర్‌కు అప్పగించాము. ఆసుపత్రి నర్స్ ఒకరు 15 నిమిషాల్లో మీకు ఫోన్ చేస్తారు. జాగ్రత్త కోసం: ఈ సమయంలోగా ఆసుపత్రి సిబ్బంది లేదా కేర్ కోఆర్డినేటర్ మిమ్మల్ని సంప్రదించలేకపోతే, మీ చికిత్స చేసే డాక్టర్‌తో మాట్లాడే ముందే దగ్గరలోని ఆసుపత్రికి వెళ్లండి.",
-      "Hindi": "हमारे सवालों के जवाब देने के लिए धन्यवाद। आपका मामला अस्पताल की केयर कोऑर्डिनेटर को सौंप दिया गया है। अस्पताल की एक नर्स 15 मिनट के अंदर आपको कॉल करेगी। सुरक्षा के लिए: अगर अस्पताल के कर्मचारी या केयर कोऑर्डिनेटर इस समय के अंदर आपसे संपर्क न कर पाएँ, तो अपने इलाज करने वाले डॉक्टर से बात होने से पहले ही नज़दीकी अस्पताल चले जाइए।"
+      "English": "Thank you for answering our questions. Your case has been handed to a Hospital Care Coordinator. A member of hospital staff will call you within 15 minutes. To be safe: if hospital staff or the care coordinator cannot reach you within this time, go to the nearest hospital before you get connected with your treating doctor.",
+      "Tamil": "எங்கள் கேள்விகளுக்குப் பதிலளித்ததற்கு நன்றி. உங்கள் விவரங்கள் மருத்துவமனை பராமரிப்பு ஒருங்கிணைப்பாளரிடம் ஒப்படைக்கப்பட்டுள்ளன. மருத்துவமனை ஊழியர் ஒருவர் 15 நிமிடங்களுக்குள் உங்களை அழைப்பார். பாதுகாப்பிற்காக: இந்த நேரத்திற்குள் மருத்துவமனை ஊழியர்களோ பராமரிப்பு ஒருங்கிணைப்பாளரோ உங்களைத் தொடர்பு கொள்ள முடியாவிட்டால், உங்கள் சிகிச்சை மருத்துவருடன் தொடர்பு கிடைக்கும் முன்பே அருகிலுள்ள மருத்துவமனைக்குச் செல்லுங்கள்.",
+      "Telugu": "మా ప్రశ్నలకు జవాబులు ఇచ్చినందుకు ధన్యవాదాలు. మీ కేసును ఆసుపత్రి కేర్ కోఆర్డినేటర్‌కు అప్పగించాము. ఆసుపత్రి సిబ్బందిలో ఒకరు 15 నిమిషాల్లో మీకు ఫోన్ చేస్తారు. జాగ్రత్త కోసం: ఈ సమయంలోగా ఆసుపత్రి సిబ్బంది లేదా కేర్ కోఆర్డినేటర్ మిమ్మల్ని సంప్రదించలేకపోతే, మీ చికిత్స చేసే డాక్టర్‌తో మాట్లాడే ముందే దగ్గరలోని ఆసుపత్రికి వెళ్లండి.",
+      "Hindi": "हमारे सवालों के जवाब देने के लिए धन्यवाद। आपका मामला अस्पताल की केयर कोऑर्डिनेटर को सौंप दिया गया है। अस्पताल का एक कर्मचारी 15 मिनट के अंदर आपको कॉल करेगा। सुरक्षा के लिए: अगर अस्पताल के कर्मचारी या केयर कोऑर्डिनेटर इस समय के अंदर आपसे संपर्क न कर पाएँ, तो अपने इलाज करने वाले डॉक्टर से बात होने से पहले ही नज़दीकी अस्पताल चले जाइए।"
     },
     "effective_from": "2026-10-05"
   },
@@ -416,15 +416,15 @@
   },
   {
     "template_id": "triage_outcome_red",
-    "version": "1.0",
+    "version": "2.0",
     "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead), pending sign-off",
-    "note": "Testing round 31 Oct (defects 10, 11): the WhatsApp outcome after a Red call: go to the nearest emergency department now; hospital staff call within 10 minutes; the guardrail. Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
+    "note": "Triage v3 (2 Nov, two people roles): the WhatsApp outcome after a Red call: go to the nearest emergency department now; the Doctor on Duty has been alerted (no staff call is promised). Tamil, Hindi and Telugu are drafts. [SIGN-OFF]",
     "buttons": [],
     "text": {
-      "English": "Thank you for answering our questions. Your answers include a warning sign. Please go to the nearest emergency department now. Do not wait. Your case has been handed to a Hospital Care Coordinator, and hospital staff will call you within 10 minutes. To be safe: if hospital staff cannot reach you within this time, do not wait for the call; go to the nearest hospital.",
-      "Tamil": "எங்கள் கேள்விகளுக்குப் பதிலளித்ததற்கு நன்றி. உங்கள் பதில்களில் எச்சரிக்கை அறிகுறி உள்ளது. உடனே அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்குச் செல்லுங்கள். காத்திருக்க வேண்டாம். உங்கள் விவரங்கள் மருத்துவமனை பராமரிப்பு ஒருங்கிணைப்பாளரிடம் ஒப்படைக்கப்பட்டுள்ளன; மருத்துவமனை ஊழியர்கள் 10 நிமிடங்களுக்குள் உங்களை அழைப்பார்கள். பாதுகாப்பிற்காக: இந்த நேரத்திற்குள் மருத்துவமனை ஊழியர்கள் உங்களைத் தொடர்பு கொள்ள முடியாவிட்டால், அழைப்புக்காகக் காத்திருக்காமல் அருகிலுள்ள மருத்துவமனைக்குச் செல்லுங்கள்.",
-      "Telugu": "మా ప్రశ్నలకు జవాబులు ఇచ్చినందుకు ధన్యవాదాలు. మీ జవాబుల్లో ఒక ప్రమాద సంకేతం ఉంది. దయచేసి ఇప్పుడే దగ్గరలోని అత్యవసర విభాగానికి వెళ్లండి. ఆలస్యం చేయవద్దు. మీ కేసును ఆసుపత్రి కేర్ కోఆర్డినేటర్‌కు అప్పగించాము, ఆసుపత్రి సిబ్బంది 10 నిమిషాల్లో మీకు ఫోన్ చేస్తారు. జాగ్రత్త కోసం: ఈ సమయంలోగా ఆసుపత్రి సిబ్బంది మిమ్మల్ని సంప్రదించలేకపోతే, ఫోన్ కోసం ఎదురుచూడకుండా దగ్గరలోని ఆసుపత్రికి వెళ్లండి.",
-      "Hindi": "हमारे सवालों के जवाब देने के लिए धन्यवाद। आपके जवाबों में एक खतरे का संकेत है। कृपया अभी नज़दीकी आपातकालीन विभाग में जाइए। इंतज़ार मत कीजिए। आपका मामला अस्पताल की केयर कोऑर्डिनेटर को सौंप दिया गया है, और अस्पताल के कर्मचारी 10 मिनट के अंदर आपको कॉल करेंगे। सुरक्षा के लिए: अगर अस्पताल के कर्मचारी इस समय के अंदर आपसे संपर्क न कर पाएँ, तो कॉल का इंतज़ार मत कीजिए; नज़दीकी अस्पताल चले जाइए।"
+      "English": "Thank you for answering our questions. Your answers include a warning sign. Please go to the nearest emergency department now. Do not wait. The Doctor on Duty has been alerted.",
+      "Tamil": "எங்கள் கேள்விகளுக்குப் பதிலளித்ததற்கு நன்றி. உங்கள் பதில்களில் எச்சரிக்கை அறிகுறி உள்ளது. உடனே அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்குச் செல்லுங்கள். காத்திருக்க வேண்டாம். பணியில் உள்ள மருத்துவருக்குத் தெரிவிக்கப்பட்டுள்ளது.",
+      "Telugu": "మా ప్రశ్నలకు జవాబులు ఇచ్చినందుకు ధన్యవాదాలు. మీ జవాబుల్లో ఒక ప్రమాద సంకేతం ఉంది. దయచేసి ఇప్పుడే దగ్గరలోని అత్యవసర విభాగానికి వెళ్లండి. ఆలస్యం చేయవద్దు. డ్యూటీలో ఉన్న డాక్టర్‌కు సమాచారం ఇచ్చాము.",
+      "Hindi": "हमारे सवालों के जवाब देने के लिए धन्यवाद। आपके जवाबों में एक खतरे का संकेत है। कृपया अभी नज़दीकी आपातकालीन विभाग में जाइए। इंतज़ार मत कीजिए। ड्यूटी पर मौजूद डॉक्टर को सूचित कर दिया गया है।"
     },
     "effective_from": "2026-10-05"
   }
