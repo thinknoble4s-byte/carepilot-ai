@@ -671,14 +671,25 @@ function CloseForm({ ep, doctor }) {
   const [rec, setRec] = useState('');
   const [contact, setContact] = useState('');
   const [summary, setSummary] = useState(null);
-  const [run, error, busy] = useRun();
+  const [drafting, setDrafting] = useState(false);
+  const [draftErr, setDraftErr] = useState('');
+  const [run, runErr, closing] = useRun();
+  const busy = drafting || closing;
+  const error = draftErr || runErr;
   const id = ep.episode_id;
   const ready = !doctor || (rec.trim() && contact);
-  const draft = () => run(async () => {
-    const r = await post(`triage/episodes/${id}/summary-draft`, { recommendation: rec, contact: contact || null });
-    setSummary(r.draft);
-    return r;
-  });
+  // The draft changes nothing on the server, so the screen is not rebuilt (that would lose the draft and the form).
+  const draft = async () => {
+    setDraftErr('');
+    setDrafting(true);
+    try {
+      setSummary((await post(`triage/episodes/${id}/summary-draft`, { recommendation: rec, contact: contact || null })).draft);
+    } catch (e) {
+      setDraftErr(e.message);
+    } finally {
+      setDrafting(false);
+    }
+  };
   return (
     <div className="vt-close">
       {doctor && (
