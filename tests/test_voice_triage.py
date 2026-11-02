@@ -1230,3 +1230,85 @@ def test_the_staff_call_is_only_for_an_empty_message_nobody_answered(vt, client)
     assert (s["tier"], s["red_kind"]) == ("TIER_1_RED", "NO_ANSWER")
     assert reach(client, s["episode_id"], "NOT_REACHABLE").status_code == 409
     assert reach(client, s["episode_id"], "NOT_REACHABLE", headers=ANANYA).status_code == 403
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Testing round 2 Nov: "pain in my left hand" was tagged other_symptom, so the arm questions were never asked.
+# ---------------------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("words", [
+    "இடது கையில வலியும் இருக்கு", "also pain in my left hand", "my hands are also aching", "मेरे हाथ में दर्द है",
+    "నా చేయి నొప్పిగా ఉంది"])
+def test_pain_in_a_hand_or_arm_always_adds_the_arm_questions(words):
+    raw = {"health_related": "YES", "symptoms": ["sleepiness", "other_symptom"], "severity_word": "NONE"}
+    tags = TR.arm_from_words(raw, words)
+    assert tags["symptoms"] == ["sleepiness", "other_symptom", "arm_pain"]  # nothing is removed
+    p = TR.plan(LAKSHMI, tags)
+    assert "arm_pain" in p["modules"] and {"Q_ARM_SCORE", "Q_ARM_SUDDEN"} <= set(p["question_ids"])
+    assert TR.arm_from_words(raw, "I have a headache") == raw
+    assert "arm_pain" in TR.TAG_PROMPT and "கை" in TR.TAG_PROMPT and TR.TAG_PROMPT_VERSION == "triage-tags-v2"
+
+
+def test_lakshmis_left_hand_pain_is_arm_pain_and_green_on_calm_answers(vt, client):
+    text_note(client, "I feel sleepy, I have a headache and pain in my left hand")
+    ep = episode(client)
+    assert "arm_pain" in ep["plan"]["modules"] and ep["plan"]["floors"] == []
+    assert "arm pain" in ep["plan"]["heard"] and "arm pain" not in ep["plan"]["not_asked"]
+    s = play(client, "green", ep["episode_id"])
+    asked = [q["id"] for q in s["table"] if q["asked"]]
+    assert {"Q_ARM_SCORE", "Q_ARM_SUDDEN"} <= set(asked) and s["tier"] == "TIER_3_GREEN"
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Testing round 2 Nov: "Pending with" (persona and name) on every open ticket, and the triage outcome PDF of any
+# episode, opened from the Patient journey.
+# ---------------------------------------------------------------------------------------------------------------
+def pend(s):
+    return [(p["persona"], p["name"], p["user_id"]) for p in s["pending"]]
+
+
+def test_pending_with_names_the_persona_and_the_person_at_every_stage(vt, client):
+    voice_note(client)
+    s = episode(client)
+    assert pend(s) == [("CarePilot AI", "automated assistant", "u_anita")]  # the coordinator runs the call
+    eid = play(client, "amber", s["episode_id"])["episode_id"]
+    s = episode(client)
+    assert pend(s) == [("Duty doctor", "Dr. Ananya", "u_ananya")] and "call her by 12:12" in s["pending"][0]["what"]
+    at(client, "12:12")
+    assert pend(episode(client)) == [("Senior Oncologist (backup)", "Dr. Sekhar", "u_sekhar"),
+                                     ("Care coordinator", "Anita", "u_anita")]
+    close_after_followup(client, eid, "none")
+    s = episode(client)
+    assert pend(s) == [("CarePilot AI", "automated assistant", "u_anita")]
+    assert s["pending"][0]["what"] == "Follow-up call on 28 Oct at 09:00"
+    client.post("/clock/advance", headers=ANITA, json={"days": 1})
+    s = client.post(f"/triage/episodes/{eid}/followup", headers=ANITA, json={"answer": "BETTER"}).json()
+    assert pend(s) == [("Duty doctor", "Dr. Ananya", "u_ananya")]
+    s = client.post(f"/triage/episodes/{eid}/confirm-closure", headers=ANANYA, json={"note": "better"}).json()
+    assert s["pending"] == []
+
+
+def test_pending_with_on_red_and_green(vt, client):
+    voice_note(client)
+    s = play(client, "red")
+    assert pend(s)[0] == ("Nurse (ER Desk)", "Nurse Deepa (duty nurse)", "u_er_nurse")
+    assert ("Care coordinator", "Anita", "u_anita") in pend(s)
+    s = play(client, "green", s["episode_id"])
+    assert pend(s) == [("Care coordinator", "Anita", "u_anita")]
+    s = client.post(f"/triage/episodes/{s['episode_id']}/digest-ack", headers=ANITA).json()
+    assert pend(s) == [("CarePilot AI", "automated assistant", "u_anita")]
+
+
+@pytest.mark.parametrize("scenario,tier", [("green", "Green"), ("amber", "Amber"), ("red", "Red")])
+def test_every_episode_has_a_triage_outcome_pdf_in_the_patient_journey(vt, client, scenario, tier):
+    voice_note(client)
+    eid = play(client, scenario)["episode_id"]
+    r = client.get(f"/triage/episodes/{eid}/outcome.pdf", headers=ANANYA)
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content.startswith(b"%PDF")
+    text = r.content.decode("latin-1")
+    assert f"Triage outcome - CP-20261027-0001 - {tier}" in text and "Staff only" in text
+    assert "What happened" in text and "Lakshmi" in text
+    assert client.get(f"/triage/episodes/{eid}/outcome.pdf", headers=users_header("u_suresh")).status_code == 403
+    ev = next(e for e in client.get(f"/patients/{MRN}/timeline", headers=ANANYA).json()["events"] if e.get("triage"))
+    t = ev["triage"]
+    assert t["episode_id"] == eid and t["ticket_id"] == "CP-20261027-0001" and t["pending"]
+    assert (t["emergency_pdf"] is not None) == (scenario == "red")

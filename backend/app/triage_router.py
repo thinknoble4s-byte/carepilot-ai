@@ -40,13 +40,15 @@ FALLBACK = ["Q_SLURRED", "Q_AWAKE", "Q_CHEST", "Q_ARM_RED", "Q_TEMP", "Q_VOMIT",
             "Q_HEAD_WORSE", "Q_BANGLES", "Q_NAUSEA", "Q_SUPP"]  # the fixed 12, when the tags cannot be trusted
 FLOORS = {"SEVERE": "AMBER_PATIENT_SAYS_SEVERE", "OTHER": "AMBER_OTHER_SYMPTOM_REPORTED"}
 
-TAG_PROMPT_VERSION = "triage-tags-v1"
+TAG_PROMPT_VERSION = "triage-tags-v2"
 TAG_PROMPT = (
     "Read this message from a patient. Return only JSON with three fields:\n"
     "health_related: YES if she mentions how she feels or any symptom, NO if it is clearly about something else "
     "(shopping, travel, greetings), UNSURE if you cannot tell.\n"
     "symptoms: a list using only these words: " + ", ".join(SYMPTOM_TAGS) + ". Use other_symptom for any health "
-    "problem not in the list.\n"
+    "problem not in the list. Pain, ache or weakness in a hand, arm, wrist, fingers or shoulder is arm_pain, not "
+    "other_symptom (in Tamil கை, in Hindi हाथ and in Telugu చేయి mean the hand or the arm). Swelling or redness of a "
+    "hand or arm is arm_swelling_or_redness.\n"
     "severity_word: SEVERE only if she herself uses a word like severe, unbearable, very bad. Else NONE.\n"
     "Do not give advice. Do not decide if it is serious. Do not add anything else."
 )
@@ -76,6 +78,24 @@ def clean_tags(raw) -> dict:
             seen.append(tag)
     return {"valid": True, "health_related": raw["health_related"], "symptoms": seen,
             "severity_word": "SEVERE" if raw.get("severity_word") == "SEVERE" else "NONE"}
+
+
+# Testing round 2 Nov: "pain in my left hand" was tagged other_symptom, so the arm questions were never asked. Her
+# words decide: pain in a hand or arm (in her language, or the English translation) always adds arm_pain.
+ARM_PAIN_WORDS = re.compile(
+    r"\b(pain|ache|aching|hurt|sore)\w*\b[^.]{0,40}?\b(hand|arm|wrist|finger|shoulder)s?\b"
+    r"|\b(hand|arm|wrist|finger|shoulder)s?\b[^.]{0,25}?\b(pain|ache|aching|hurt|sore)"
+    r"|கை\S*\s*(\S+\s+)?வலி|हाथ\S*\s*(\S+\s+)?दर्द|(చేయి|చేతి)\S*\s*(\S+\s+)?నొప్పి", re.I)
+
+
+def arm_from_words(raw, *texts: str | None):
+    """Add arm_pain when her words name pain in a hand or arm and the tags missed it. Nothing is removed: an
+    other_symptom tag stays (the model may mean something else she said)."""
+    if not (isinstance(raw, dict) and isinstance(raw.get("symptoms"), list)) or "arm_pain" in raw["symptoms"]:
+        return raw
+    if not any(t and ARM_PAIN_WORDS.search(t) for t in texts):
+        return raw
+    return {**raw, "symptoms": [*raw["symptoms"], "arm_pain"]}
 
 
 def route(raw) -> dict:

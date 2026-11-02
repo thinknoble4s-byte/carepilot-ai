@@ -154,7 +154,7 @@ FAKE_TAGS = (  # the simulated tagger: English words in the translation -> a tag
     ("nausea_vomiting", re.compile(r"nause|vomit", re.I)),
     ("sleepiness", re.compile(r"sleepy|drowsy|groggy", re.I)),
     ("tiredness", re.compile(r"tired|weak", re.I)),
-    ("arm_pain", re.compile(r"(pain|hurts?|aches?) in my (left )?arm|arm (pain|hurts)", re.I)),
+    ("arm_pain", re.compile(r"(pain|hurts?|aches?) in my (left )?(arm|hand)|(arm|hand) (pain|hurts)", re.I)),
     ("arm_swelling_or_redness", re.compile(r"arm is (swollen|red)|swelling|swollen", re.I)),
     ("fever_chills", re.compile(r"fever|chills|shiver", re.I)),
     ("chest_or_breathing", re.compile(r"chest|breath", re.I)),
@@ -296,7 +296,8 @@ def _understand_tags(conn, *, language, audio, mime, text, clip_id) -> dict:
             "You tag a patient's message from fixed lists. You never give advice and never judge how serious it is.",
             f"{triage_router.TAG_PROMPT}\n\nMessage: {transcript}\n(English translation: {translation})"), errors)
         attempts = max(attempts, n)
-        raw = triage_router.parse_tags(answer) if answer is not None else None
+        raw = triage_router.arm_from_words(triage_router.parse_tags(answer) if answer is not None else None,
+                                           transcript, translation)
         if answer is None:
             failed = True
         elif triage_router.clean_tags(raw)["valid"] is False:

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, post, setUser } from './api.js';
 import AuditTrail from './AuditTrail.jsx';
 import CarePlan from './CarePlan.jsx';
@@ -234,6 +234,8 @@ export default function App() {
     role,
     user,
     name: (id) => users.find((u) => u.id === id)?.person || id,
+    // Testing round 2 Nov: "Pending with" switches to that persona in one click (demo only; no sign-in here)
+    switchTo: (id, screen, mrn) => switchRef.current?.(id, screen, mrn),
   }), [toast, refresh, nav, today, now, role, user, users]);
 
   useEffect(() => {
@@ -278,6 +280,7 @@ export default function App() {
 
   const reloadUsers = () => api('users').then(setUsers).catch(() => {});
 
+  const switchRef = useRef(null);
   const switchUser = (next) => {
     setUserId(next);
     setUser(next);
@@ -290,6 +293,11 @@ export default function App() {
     setModal(null);
     setVersion((v) => v + 1); // same screen for another coordinator (Anita -> Ravi): reload, the lists differ (Use Case 2c)
     if (dbUp) api('session', { method: 'POST' }).catch(() => {});
+  };
+
+  switchRef.current = (id, scr, mrn) => {
+    switchUser(id);
+    if (scr) nav(scr, mrn);
   };
 
   const demo = async (fn, message) => {

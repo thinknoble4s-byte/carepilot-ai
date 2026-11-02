@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
 import { PatientLink } from './PatientCard.jsx';
+import { PendingWith, showTriagePdf } from './Triage.jsx';
 import { fmt, patientStatusPill, Pill, ScreenHead, useUI } from './ui.jsx';
 
 const FILTERS = [['all', 'All events'], ['ms', 'Defining milestones'], ['gaps', 'Gaps'], ['patient', 'Patient-reported']];
@@ -86,7 +87,16 @@ export default function Timeline({ mrn }) {
                     ? <div className="v31-origin">↳ Raised automatically by the morning gap check · <b>rule {e.rule}</b></div>
                     : gap ? <div className="v31-origin gap">No order, request or episode on file explains this item. Not assumed; shown to the care team.</div>
                       : e.origin ? <div className="v31-origin">↳ Origin: <b>{e.origin}</b></div> : null}
-                  {e.triage && <TriageDetails details={e.triage.details} />}
+                  {e.triage && (
+                    <>
+                      <PendingWith pending={e.triage.pending} episodeId={e.triage.episode_id} />
+                      <div className="btn-row">
+                        <button type="button" className="btn sm" onClick={() => showTriagePdf(ui, e.triage.episode_id, e.triage.ticket_id)}>Triage outcome PDF</button>
+                        {e.triage.emergency_pdf && <button type="button" className="btn sm ghost" onClick={() => showTriagePdf(ui, e.triage.episode_id, e.triage.ticket_id, e.triage.emergency_pdf)}>Emergency PDF (sent to the family)</button>}
+                      </div>
+                      <TriageDetails details={e.triage.details} />
+                    </>
+                  )}
                 </div>
               );
             })}

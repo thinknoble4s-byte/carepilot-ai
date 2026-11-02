@@ -98,6 +98,56 @@ async function openPdf(docId) {
   window.open(url, '_blank', 'noopener');
 }
 
+// Testing round 2 Nov: a triage PDF shown in the app (the outcome PDF of any episode, or the Red emergency PDF).
+function PdfView({ path }) {
+  const [url, setUrl] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let u = null;
+    blobUrl(path).then((x) => { u = x; setUrl(x); }).catch((e) => setError(e.message));
+    return () => { if (u) URL.revokeObjectURL(u); };
+  }, [path]);
+  if (error) return <div className="error">{error}</div>;
+  if (!url) return <div className="small-note">Loading the PDF…</div>;
+  return (
+    <>
+      <iframe className="vt-pdf" title="Triage PDF" src={url} />
+      <div className="btn-row"><a className="btn sm ghost" href={url} target="_blank" rel="noopener noreferrer">Open in a new tab</a></div>
+    </>
+  );
+}
+
+export function showTriagePdf(ui, episodeId, ticketId, docId) {
+  const path = docId ? `triage/documents/${docId}` : `triage/episodes/${episodeId}/outcome.pdf`;
+  ui.showModal(docId ? `Emergency summary PDF · ${ticketId}` : `Triage outcome · ${ticketId}`,
+    docId ? 'The PDF sent to her family with the Red message.' : 'Built from the triage record when opened. Staff only; never sent.',
+    <PdfView path={path} />, true);
+}
+
+// Testing round 2 Nov: who the ticket waits on, persona and name, with a one-click switch to that persona (demo).
+export function PendingWith({ pending, episodeId, compact }) {
+  const ui = useUI();
+  if (!pending?.length) return null;
+  const go = (p) => { room.carry = episodeId; ui.switchTo(p.user_id, 'triage'); };
+  return (
+    <div className={`vt-pending ${compact ? 'compact' : ''}`}>
+      {!compact && <span className="small-note">Pending with</span>}
+      {pending.map((p, i) => {
+        const me = p.user_id && p.user_id === ui.user?.id;
+        return (
+          <span key={i} className="vt-pend">
+            <b>{p.persona}</b>{p.ai ? '' : <> · {p.name}</>}
+            {!compact && p.what && <span className="small-note"> — {p.what}</span>}
+            {p.user_id && (me ? <span className="small-note"> (you)</span>
+              : <button type="button" className="btn sm ghost" title={p.ai ? 'The coordinator runs the phone simulator' : `Switch to ${p.name}`}
+                onClick={(e) => { e.stopPropagation(); go(p); }}>{p.ai ? 'Switch to coordinator' : 'Switch'}</button>)}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export function WhyPanel({ ep }) {
   if (!ep?.result) return null;
   const r = ep.result;
@@ -979,7 +1029,9 @@ function Ticket({ id, view, cfg }) {
           {' '}<span className={`vt-state s-${ep.state}`}>{ep.state_label}</span></div>
         <Countdown ep={ep} />
       </div>
-      {ep.owner && <div className="small-note">Waiting on: <b>{ep.owner}</b>{ep.state === 'REOPENED' ? ` · reopened ${when(ep.reopened_at)}` : ''}</div>}
+      <PendingWith pending={ep.pending} episodeId={ep.episode_id} />
+      {ep.state === 'REOPENED' && <div className="small-note">Reopened {when(ep.reopened_at)}</div>}
+      <div className="btn-row"><button type="button" className="btn sm ghost" onClick={() => showTriagePdf(ui, ep.episode_id, ep.ticket_id)}>Triage outcome PDF</button></div>
       <PlanChips ep={ep} />
       <Previous ep={ep} />
       {ep.status === 'closed' && <div className="small-note">Closed by {ui.name(ep.closed_by)} {when(ep.closed_at)}: “{ep.close_note}”</div>}
@@ -1087,7 +1139,9 @@ export function TriageRoom() {
   useEffect(() => { api('demo/settings').then((s) => setCfg(s.voice_triage)).catch(() => {}); }, []);
   // The countdowns follow the demo clock: look again now and then.
   useEffect(() => { const t = setInterval(reload, 15000); return () => clearInterval(t); }, [reload]);
-  if (room.user !== ui.user?.id) Object.assign(room, { user: ui.user?.id, open: null, view: null, tab: 'needs' });
+  if (room.user !== ui.user?.id) {  // another persona: start fresh, or open the ticket "Switch" came from
+    Object.assign(room, { user: ui.user?.id, open: room.carry || null, view: null, tab: room.carry ? 'open' : 'needs', carry: null });
+  }
   const mine = myView(ui.role, ui.user?.id, cfg);
   const [view, setViewState] = useState(room.view);
   const [tab, setTabState] = useState(room.tab);
@@ -1148,7 +1202,7 @@ export function TriageRoom() {
         <div className="card vt-room">
           {rows.length === 0 ? <div className="empty">{tab === 'needs' ? `Nothing waiting for the ${viewLabel.toLowerCase()}.` : 'No tickets.'}</div> : (
             <table className="vt-table vt-rows">
-              <thead><tr><th>Ticket</th><th>Patient</th><th>Time</th><th>Tier · state</th><th>Due</th><th>Owner</th><th>Next action · {viewLabel}</th></tr></thead>
+              <thead><tr><th>Ticket</th><th>Patient</th><th>Time</th><th>Tier · state</th><th>Due</th><th>Pending with</th><th>Next action · {viewLabel}</th></tr></thead>
               <tbody>
                 {rows.map((e) => (
                   <React.Fragment key={e.episode_id}>
@@ -1159,7 +1213,7 @@ export function TriageRoom() {
                       <td>{hm(e.result_at || e.opened_at)}<div className="small-note">{fmt(String(e.opened_at).slice(0, 10))}</div></td>
                       <td className="vt-chipbig">{e.tier ? <TierPill ep={e} /> : <Pill tone="brand">Call</Pill>}<div className={`vt-state s-${e.state}`}>{e.state_label}</div></td>
                       <td>{e.status === 'closed' ? <span className="small-note">Closed {when(e.closed_at)}</span> : <Countdown ep={e} />}</td>
-                      <td className="small-note">{e.owner || '—'}</td>
+                      <td>{e.pending?.length ? <PendingWith pending={e.pending} episodeId={e.episode_id} compact /> : <span className="small-note">—</span>}</td>
                       <td>{e.status === 'closed' ? <span className="small-note">{e.close_note}</span>
                         : ['due', 'in_call'].includes(e.call_status) && shown === 'coordinator' ? 'Run the call in the phone simulator'
                           : e.next?.[shown]?.text}</td>

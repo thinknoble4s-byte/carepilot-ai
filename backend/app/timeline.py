@@ -259,7 +259,13 @@ def build(conn, mrn: str) -> dict:
         events.append({**_ev(ep["opened_at"].date(), f"Triage episode {s['summary']} — {state}", "milestone",
                              "carepilot", f"Triage ticket {ep['ticket_id']}",
                              f"Her message #{ep['inbound_id']}" if ep["inbound_id"] else "Voice Triage"),
-                       "triage": {"tier": ep["tier"], "status": ep["status"], "details": s["details"]}})
+                       "triage": {"tier": ep["tier"], "status": ep["status"], "details": s["details"],
+                                  "episode_id": ep["episode_id"], "ticket_id": ep["ticket_id"],
+                                  "emergency_pdf": (conn.execute(
+                                      "SELECT doc_id FROM triage_document WHERE episode_id = %s ORDER BY doc_id DESC "
+                                      "LIMIT 1", (ep["episode_id"],)).fetchone() or {}).get("doc_id"),
+                                  "pending": triage.state(conn, ep["episode_id"])["pending"]
+                                  if ep["status"] == "open" else []}})
     events.sort(key=lambda e: (e["date"], e["kind"] != "milestone"))
     routine = [e for e in events if e["kind"] == "routine"]
     return {"mrn": mrn, "full_name": p["full_name"], "status": p["status"],

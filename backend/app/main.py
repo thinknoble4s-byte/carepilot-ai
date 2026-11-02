@@ -975,6 +975,14 @@ def triage_document(doc_id: int, _user: dict = Depends(require_role(*TRIAGE_VIEW
                     headers={"Content-Disposition": f'inline; filename="{doc["file_name"]}"'})
 
 
+@app.get("/triage/episodes/{episode_id}/outcome.pdf")
+def triage_outcome_pdf(episode_id: int, _user: dict = Depends(require_role(*TRIAGE_VIEW))):
+    """Testing round 2 Nov: the triage outcome PDF for any episode (staff only; built from the record when opened)."""
+    pdf = in_tx(triage.outcome_pdf, episode_id)
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="triage-outcome-{episode_id}.pdf"'})
+
+
 class FollowupIn(BaseModel):
     answer: str | None = None  # BETTER, SAME or WORSE (on-screen button); NO_ANSWER: nobody picked up
     text: str | None = None
