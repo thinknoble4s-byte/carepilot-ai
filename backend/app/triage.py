@@ -562,6 +562,7 @@ def send_package(conn, episode_id: int, user: dict | None) -> dict:
         raise Conflict("This package goes out by itself")
     if ep["status"] != "open":
         raise Conflict("The episode is closed")
+    _gate(ep, user)
     cfg, now = config(conn), clock.get_now(conn)
     h, patient = history(conn, ep["mrn"]), _patient(conn, ep["mrn"])
     kind = ep["red_kind"]
@@ -803,6 +804,21 @@ def _ack(conn, ep: dict, user: dict, now: datetime, how: str = "button") -> dict
     return ep
 
 
+REVIEW_FIRST = "Waiting for the coordinator's review (Confirm, Raise tier or Flag as wrong)"
+
+
+def _awaits_review(ep: dict) -> bool:
+    """Red and Amber reach the doctor only after the coordinator's review (no time limit). A staff call that reached
+    her and escalated counts as the review."""
+    return (ep["status"] == "open" and ep["tier"] in ("TIER_1_RED", "TIER_2_AMBER") and not ep["review"]
+            and not _reaching(ep))
+
+
+def _gate(ep: dict, user: dict | None) -> None:
+    if user is not None and user["role"] == "oncologist" and _awaits_review(ep):
+        raise Conflict(REVIEW_FIRST)
+
+
 def _auto_ack(conn, ep: dict, user: dict) -> dict:
     """A person who logs an outcome on an unacknowledged ticket acknowledges it too (when the role may)."""
     tier = ep["tier"]
@@ -825,6 +841,7 @@ def acknowledge(conn, episode_id: int, user: dict) -> dict:
         raise Conflict("The Doctor on Duty acknowledges a Red or Amber ticket; the coordinator reviews it")
     if ep[ACK_FIELD[tier]]:
         raise Conflict(f"Already acknowledged by {_name(ep[ACK_FIELD[tier]])}")
+    _gate(ep, user)
     _ack(conn, ep, user, clock.get_now(conn))
     return state(conn, episode_id)
 
@@ -897,7 +914,9 @@ def reach_call(conn, episode_id: int, user: dict, outcome: str, next_step: str |
     if outcome == "REACHED":
         done("Reached her; escalated to the Doctor on Duty")
         due = now + timedelta(minutes=cfg["amber_callback_minutes"])
-        ep = _update(conn, ep, callback_due_at=due, sla_start=now)
+        ep = _update(conn, ep, callback_due_at=due, sla_start=now,
+                     review={"action": "ESCALATED", "by": user["user_id"], "at": now.isoformat(timespec="minutes"),
+                             "reason": note})
         doc = _name(cfg["doctor_on_duty"]) or "Doctor on duty"
         _audit(conn, ep, "sbar_card_created", outcome="ESCALATED_AFTER_STAFF_CALL",
                details={"to": [doc, _name(cfg["coordinator"])], "callback_due": _hhmm(due), "note": note})
@@ -927,9 +946,9 @@ def reach_call(conn, episode_id: int, user: dict, outcome: str, next_step: str |
 
 
 def review(conn, episode_id: int, user: dict, action: str, reason: str | None = None) -> dict:
-    """Triage v3: the coordinator reviews the AI's Red or Amber triage: Confirm, or Flag as wrong (with why). It is not
-    a gate: the doctor sees the ticket at once, and a flagged ticket still goes to the doctor for a clinical decision.
-    Raise tier (change_tier) counts as a review too."""
+    """Triage v3: the coordinator reviews the AI's Red or Amber triage: Confirm, or Flag as wrong (with why). It is the
+    gate before the doctor (no time limit): the doctor acts only after it, and a flagged ticket still goes to the doctor
+    for a clinical decision. Raise tier (change_tier) counts as a review too."""
     ep = _load(conn, episode_id)
     _open(ep)
     if action not in REVIEW_ACTIONS:
@@ -961,6 +980,7 @@ def summary_draft(conn, episode_id: int, user: dict, recommendation: str | None 
     answers, the tier and why) and the closer's recommendation word for word. Not written by a model; the person who
     closes edits it and submits it."""
     ep = _load(conn, episode_id)
+    _gate(ep, user)
     return {"draft": _draft(conn, ep, user, (recommendation or "").strip(), contact)}
 
 
@@ -1007,6 +1027,7 @@ def close(conn, episode_id: int, user: dict, *, summary: str | None, recommendat
     if tier in ("TIER_1_RED", "TIER_2_AMBER"):
         if user["role"] != "oncologist":
             raise Conflict("Only the Doctor on Duty closes a Red or Amber ticket")
+        _gate(ep, user)
         if not recommendation:
             raise Invalid("Write your recommendation")
         if contact not in CONTACT_METHODS:
@@ -1083,6 +1104,7 @@ def doctor_call(conn, episode_id: int, user: dict, outcome: str, note: str | Non
         raise Conflict("She has been reached: record the orders, then close with your recommendation")
     if outcome == "NO_ANSWER" and _misses(ep) >= 2:
         raise Conflict("Two attempts are logged: the coordinator is calling her attender")
+    _gate(ep, user)
     ep = _auto_ack(conn, ep, user)
     cfg, now = config(conn), clock.get_now(conn)
     calls = list(ep["doctor_calls"]) + [{"at": now.isoformat(timespec="minutes"), "by": user["user_id"],
@@ -1158,6 +1180,7 @@ def doctor_order(conn, episode_id: int, user: dict, order: str, note: str | None
         raise Invalid("order must be one of: " + ", ".join(ORDERS))
     if ep["tier"] != "TIER_2_AMBER":
         raise Conflict("Orders are recorded on an Amber card")
+    _gate(ep, user)
     if _reaching(ep):
         raise Conflict("Hospital staff have not reached her yet")
     if not _reached(ep):
@@ -1218,12 +1241,12 @@ def doctor_order(conn, episode_id: int, user: dict, order: str, note: str | None
 
 RANK = {"TIER_3_GREEN": 0, "TIER_2_AMBER": 1, "TIER_1_RED": 2}
 TIER_RULE = ("The coordinator can only raise the tier (that counts as her review). Only the Doctor on Duty can lower "
-             "it. A reason is always needed.")
+             "it, after the review. A reason is always needed.")
 
 
 def change_tier(conn, episode_id: int, user: dict, tier: str, reason: str | None) -> dict:
     """The rules set the tier; a person may change it, always with a reason. The coordinator may only raise it (her
-    review: it goes to the doctor at once); only the Doctor on Duty lowers it. Raised to Red by hand it is Red
+    review: it then goes to the doctor); only the Doctor on Duty lowers it, after the review. Raised to Red by hand it is Red
     (unconfirmed): the coordinator calls back within 15 minutes; the family message goes only when a person sends it."""
     ep = _load(conn, episode_id)
     _open(ep)
@@ -1235,6 +1258,7 @@ def change_tier(conn, episode_id: int, user: dict, tier: str, reason: str | None
         raise Conflict(f"The tier is already {TIERS[tier]}")
     if not (reason or "").strip():
         raise Invalid("Changing the tier needs a reason")
+    _gate(ep, user)
     cfg, now = config(conn), clock.get_now(conn)
     raising = RANK[tier] > RANK[ep["tier"]]
     if not raising and user["role"] != "oncologist":
@@ -1387,7 +1411,8 @@ def _review_text(ep: dict) -> str | None:
         return None
     return {"CONFIRMED": f"Confirmed by {_name(r['by'])}",
             "FLAGGED": f"Flagged as wrong by {_name(r['by'])}: “{r['reason']}”",
-            "RAISED": f"Raised by {_name(r['by'])}: “{r['reason']}”"}[r["action"]]
+            "RAISED": f"Raised by {_name(r['by'])}: “{r['reason']}”",
+            "ESCALATED": f"Escalated by {_name(r['by'])} after her call: “{r['reason']}”"}[r["action"]]
 
 
 def _next_actions(ep: dict, task: dict | None, cfg: dict, open_types=frozenset()) -> dict:
@@ -1408,7 +1433,8 @@ def _next_actions(ep: dict, task: dict | None, cfg: dict, open_types=frozenset()
         out["doctor" if closer == "oncologist" else "coordinator"] = done
         return out
     review = _review_text(ep)
-    coord = [] if review or tier == "TIER_3_GREEN" else ["Review the AI's triage: Confirm, Raise tier or Flag as wrong"]
+    coord = [] if review or tier == "TIER_3_GREEN" or _reaching(ep) else [
+        "Review the AI's triage: Confirm, Raise tier or Flag as wrong (the doctor acts after your review)"]
     coord_due = None
     if tier == "TIER_1_RED":
         out["ai"] = card(f"Sent the family the message and PDF and wrote the doctor note at {_hhmm(ep['package_sent_at'])}",
@@ -1477,6 +1503,9 @@ def _next_actions(ep: dict, task: dict | None, cfg: dict, open_types=frozenset()
         out["coordinator"] = card("; ".join(coord), due=coord_due)
     elif review:
         out["coordinator"] = card(review, True)
+    if _awaits_review(ep):  # the gate: the doctor's steps wait (her card says so; it does not ask her to act)
+        out["doctor"] = {"text": f"{doc}: {REVIEW_FIRST[0].lower()}{REVIEW_FIRST[1:]}", "done": False, "due_at": None,
+                         "waiting": True}
     return out
 
 
@@ -1571,6 +1600,8 @@ def _pending(ep: dict, task: dict | None, cfg: dict, open_types, nxt: dict) -> l
     if tier == "TIER_2_AMBER" and ep["overdue_at"] and not ep["doctor_calls"]:
         backup = cfg["backup_doctor"] or senior
         doctor = who("Senior Oncologist (backup)" if backup == senior else "Backup doctor", backup, "doctor")
+    if _awaits_review(ep):  # the coordinator's review comes first
+        return [coordinator]
     first_coord = coord_waits and (
         open_types & {"call_attender"} or (_callback_asked(ep) and not ep["nurse_callback"]))
     out = [coordinator, doctor] if first_coord else [doctor] + ([coordinator] if coord_waits else [])
@@ -1611,6 +1642,7 @@ def _summary(conn, ep: dict, now: datetime) -> dict:
         "next": nxt, "pending": pending, "owner": pending[0]["name"] if pending else None,
         "proposed": None, "tier_set_by": _set_by(ep), "open_tasks": sorted(open_types),
         "review": ep["review"], "review_text": _review_text(ep), "closing": ep["closing"],
+        "awaits_review": _awaits_review(ep),
         "orders": _orders(ep), "reached": _reached(ep), "overdue": bool(ep["overdue_at"] and ep["status"] == "open" and not ep["doctor_calls"]),
         "callback_asked": _callback_asked(ep), "state": ticket_state(ep), "state_label": STATE_LABELS[ticket_state(ep)],
         "reopened_at": ep["reopened_at"],

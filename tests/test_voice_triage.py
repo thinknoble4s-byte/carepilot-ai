@@ -252,6 +252,20 @@ def play(client, scenario: str, eid: int | None = None) -> dict:
     return r.json()
 
 
+def confirm(client, eid: int, who=ANITA) -> dict:
+    """The coordinator's review: Confirm. On Red and Amber the doctor acts only after it (triage v3.1)."""
+    r = client.post(f"/triage/episodes/{eid}/review", headers=who, json={"action": "CONFIRM"})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def amber(client) -> int:
+    """The Amber call, confirmed by the coordinator: with the duty doctor."""
+    eid = play(client, "amber")["episode_id"]
+    confirm(client, eid)
+    return eid
+
+
 def sent(mrn=MRN) -> list[dict]:
     from conftest import outbox
 
@@ -314,6 +328,9 @@ def test_amber_call_question_by_question_then_the_doctors_physio_order(vt, clien
     # booking message. The medication order goes to her word for word; the AI writes nothing.
     assert client.post(f"/triage/episodes/{eid}/order", headers=ANITA, json={"order": "physio"}).status_code == 403
     r = client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "physio"})
+    assert r.status_code == 409 and r.json()["detail"] == "Waiting for the coordinator's review (Confirm, Raise tier or Flag as wrong)"  # the coordinator's review comes first
+    confirm(client, eid)
+    r = client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "physio"})
     assert r.status_code == 409 and "before an order" in r.json()["detail"]
     s = doctor_call(client, eid, "PICKED_UP").json()
     assert (s["state"], s["coord_ack_by"], s["reached"]) == ("ACKNOWLEDGED", "u_ananya", True)  # acknowledged with it
@@ -363,10 +380,14 @@ def test_red_package_message_pdf_note_and_no_family_call_task(vt, client):
     assert "Dr. Ananya records the outcome and closes the ticket" in s["doctor_note"]
     # Triage v3: no family "confirm the emergency visit" call; the Doctor on Duty has the ticket at once.
     assert s["task"] is None and scalar("SELECT count(*) FROM coordinator_task") == 0
-    assert [p["persona"] for p in s["pending"]] == ["Doctor on Duty", "Care coordinator"]
+    assert [p["persona"] for p in s["pending"]] == ["Care coordinator"] and s["awaits_review"]  # the review first
+    assert s["next"]["doctor"]["waiting"] is True
     eid = s["episode_id"]
+    r = client.post(f"/triage/episodes/{eid}/acknowledge", headers=ANANYA)
+    assert r.status_code == 409 and r.json()["detail"] == "Waiting for the coordinator's review (Confirm, Raise tier or Flag as wrong)"
     # The coordinator reviews but cannot close a Red; the doctor closes with her recommendation.
-    assert client.post(f"/triage/episodes/{eid}/review", headers=ANITA, json={"action": "CONFIRM"}).status_code == 200
+    s = confirm(client, eid)
+    assert [p["persona"] for p in s["pending"]] == ["Doctor on Duty"] and not s["awaits_review"]
     r = client.post(f"/triage/episodes/{eid}/close", headers=ANITA, json={"summary": "x"})
     assert r.status_code == 409 and r.json()["detail"] == "Only the Doctor on Duty closes a Red or Amber ticket"
     r = client.post(f"/triage/episodes/{eid}/close", headers=ANANYA, json={"summary": "x", "contact": "PHONE"})
@@ -400,7 +421,8 @@ def test_unconfirmed_red_the_coordinator_calls_back_then_a_person_sends_the_pack
     assert not [m for m in sent() if m["template_id"] == "triage_red_caregiver"]
     assert s["callback_due_at"][11:16] == "10:27" and s["due"]["what"] == "Coordinator call back (15 minutes)"
     assert s["next"]["coordinator"]["text"].startswith("Call her back by 10:27 (unconfirmed)")
-    assert [p["persona"] for p in s["pending"]] == ["Care coordinator", "Doctor on Duty"]  # the call back first
+    assert [p["persona"] for p in s["pending"]] == ["Care coordinator"]  # the call back and the review first
+    assert client.post(f"/triage/episodes/{eid}/send-package", headers=ANANYA).status_code == 409  # after the review
     assert client.post(f"/triage/episodes/{eid}/callback", headers=ANANYA, json={"note": "x"}).status_code == 403
     assert client.post(f"/triage/episodes/{eid}/callback", headers=ANITA, json={"note": ""}).status_code == 422
     s = client.post(f"/triage/episodes/{eid}/callback", headers=ANITA,
@@ -619,14 +641,19 @@ def test_ticket_has_an_id_a_countdown_and_one_next_action_per_role(vt, client):
     assert ep["due"]["what"] == "Automated call" and ep["due"]["at"][11:16] == "10:14"
     s = play(client, "amber", ep["episode_id"])
     assert s["tier_set_by"] == "Rules (ROUTED, protocol v1.2, DRAFT_UNSIGNED)"
-    assert "Only the Doctor on Duty can lower it" in s["tier_rule"] and s["owner"] == "Dr. Ananya"
+    assert "Only the Doctor on Duty can lower it" in s["tier_rule"] and s["owner"] == "Anita"  # her review first
+    assert s["next"]["coordinator"]["text"].startswith("Review the AI's triage: Confirm, Raise tier")
+    assert s["next"]["doctor"] == {"text": "Dr. Ananya: waiting for the coordinator's review (Confirm, Raise tier or "
+                                           "Flag as wrong)", "done": False, "due_at": None, "waiting": True}
+    s = confirm(client, s["episode_id"])
+    assert s["owner"] == "Dr. Ananya"
     # The countdown shows the nearest deadline: acknowledge by 90 minutes, before the 2-hour callback.
     assert [(d["what"], d["at"][11:16]) for d in s["deadlines"]] == [("Doctor: acknowledge", "11:42"),
                                                                      ("Doctor callback (2 hours)", "12:12")]
     assert s["due"]["what"] == "Doctor: acknowledge"
     nxt = s["next"]
     assert nxt["doctor"]["text"].startswith("Dr. Ananya: Acknowledge; call her by 12:12")
-    assert "nurse" not in nxt and nxt["coordinator"]["text"].startswith("Review the AI's triage: Confirm, Raise tier")
+    assert "nurse" not in nxt and nxt["coordinator"] == {"text": "Confirmed by Anita", "done": True, "due_at": None}
     assert "a doctor will call within 2 hours" in nxt["ai"]["text"]
     # The summary: one line per answer, each linked to the turn where she said it; then the record.
     lines = s["summary"]
@@ -703,7 +730,7 @@ def test_amber_reminds_the_duty_doctor_at_90_minutes_and_is_overdue_at_120(vt, c
     from conftest import scalar
 
     voice_note(client)
-    eid = play(client, "amber")["episode_id"]
+    eid = amber(client)
     at(client, "11:41")
     assert episode(client)["reminded_at"] is None
     at(client, "11:42")
@@ -735,7 +762,7 @@ def test_amber_picked_up_ordered_and_closed_with_the_summary(vt, client):
     from conftest import scalar
 
     voice_note(client)
-    eid = play(client, "amber")["episode_id"]
+    eid = amber(client)
     r = client.post(f"/triage/episodes/{eid}/acknowledge", headers=ANITA)
     assert r.status_code == 409 and "the coordinator reviews it" in r.json()["detail"]
     s = client.post(f"/triage/episodes/{eid}/acknowledge", headers=ANANYA).json()
@@ -762,7 +789,7 @@ def test_amber_not_reached_goes_to_the_attender_then_red_unconfirmed(vt, client)
     from conftest import scalar
 
     voice_note(client)
-    eid = play(client, "amber")["episode_id"]
+    eid = amber(client)
     s = doctor_call(client, eid, "NO_ANSWER").json()
     assert ("Doctor: second call attempt", "10:22") in [(d["what"], d["at"][11:16]) for d in s["deadlines"]]
     assert "Call again" in s["next"]["doctor"]["text"]
@@ -783,6 +810,7 @@ def test_amber_not_reached_goes_to_the_attender_then_red_unconfirmed(vt, client)
     assert s["tier_changes"][-1]["reason"].startswith("Not reached by the end of the 2-hour callback")
     assert not [m for m in sent() if m["template_id"] == "triage_red_caregiver"]  # a person decides
     assert scalar("SELECT count(*) FROM coordinator_task WHERE task_type = 'triage_overdue'") == 0
+    assert s["awaits_review"] is False  # reviewed as Amber: the doctor goes on (no second review)
     r = client.post(f"/triage/episodes/{eid}/send-package", headers=ANANYA)
     assert r.status_code == 200, r.text
     assert r.json()["package_sent_by"] == "u_ananya"
@@ -791,7 +819,7 @@ def test_amber_not_reached_goes_to_the_attender_then_red_unconfirmed(vt, client)
 
 def test_amber_attender_reached_then_the_doctor_orders(vt, client):
     voice_note(client)
-    eid = play(client, "amber")["episode_id"]
+    eid = amber(client)
     doctor_call(client, eid, "NO_ANSWER")
     doctor_call(client, eid, "NO_ANSWER")
     r = client.post(f"/triage/episodes/{eid}/attender-call", headers=ANITA, json={"outcome": "REACHED"})
@@ -850,13 +878,14 @@ def test_a_rash_gets_six_questions_and_the_duty_doctor(vt, client):
     assert len(ep["table"]) == 6 and ep["plan"]["floors"] == ["AMBER_OTHER_SYMPTOM_REPORTED"]
     s = play(client, "green", ep["episode_id"])
     assert (s["tier"], s["result"]["action_code"], s["callback_asked"]) == ("TIER_2_AMBER", "DOCTOR_CALLBACK_2H", False)
-    assert set(s["next"]) == {"ai", "doctor", "coordinator"} and s["owner"] == "Dr. Ananya"
+    assert set(s["next"]) == {"ai", "doctor", "coordinator"} and s["owner"] == "Anita"  # her review first
+    assert confirm(client, s["episode_id"])["owner"] == "Dr. Ananya"
     assert s["callback_due_at"][11:16] == "12:12"
 
 
 def test_amber_ticket_states_and_who_may_move_them(vt, client):
     voice_note(client)
-    eid = play(client, "amber")["episode_id"]
+    eid = amber(client)
     assert episode(client)["state"] == "OPEN"
     r = client.post(f"/triage/episodes/{eid}/acknowledge", headers=RAVI)  # the coordinator reviews, not acknowledges
     assert r.status_code == 409
@@ -893,6 +922,7 @@ def test_red_the_doctor_acknowledges_and_closes(vt, client):
     eid = play(client, "red")["episode_id"]
     r = client.post(f"/triage/episodes/{eid}/acknowledge", headers=ANITA)
     assert r.status_code == 409 and "Doctor on Duty acknowledges" in r.json()["detail"]
+    confirm(client, eid)
     s = client.post(f"/triage/episodes/{eid}/acknowledge", headers=ANANYA).json()
     assert s["state"] == "ACKNOWLEDGED" and s["next"]["doctor"]["text"] == "Dr. Ananya: Record your recommendation and close"
     s = client.post(f"/triage/episodes/{eid}/close", headers=ANANYA,
@@ -1066,7 +1096,7 @@ def test_d10_hybrid_shopping_and_tired_hands_aching_is_triaged_not_the_standard_
 
 def test_d6_d8_taps_name_the_order_and_a_closed_episode_is_cleared_from_the_chat(vt, client):
     voice_note(client)
-    eid = play(client, "amber")["episode_id"]
+    eid = amber(client)
     doctor_call(client, eid, "PICKED_UP")
     client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "physio"})
     booking = next(m for m in thread(client) if m["template_id"] == "instruction_booking")
@@ -1241,10 +1271,10 @@ def test_pending_with_names_the_persona_and_the_person_at_every_stage(vt, client
     assert pend(s) == [("CarePilot AI", "automated assistant", "u_anita")]  # the coordinator runs the call
     eid = play(client, "amber", s["episode_id"])["episode_id"]
     s = episode(client)
-    assert pend(s) == [("Doctor on Duty", "Dr. Ananya", "u_ananya"), ("Care coordinator", "Anita", "u_anita")]
-    assert "call her by 12:12" in s["pending"][0]["what"] and "Review" in s["pending"][1]["what"]
+    assert pend(s) == [("Care coordinator", "Anita", "u_anita")] and "Review" in s["pending"][0]["what"]
     client.post(f"/triage/episodes/{eid}/review", headers=ANITA, json={"action": "CONFIRM"})
-    assert pend(episode(client)) == [("Doctor on Duty", "Dr. Ananya", "u_ananya")]
+    s = episode(client)
+    assert pend(s) == [("Doctor on Duty", "Dr. Ananya", "u_ananya")] and "call her by 12:12" in s["pending"][0]["what"]
     at(client, "12:12")
     assert pend(episode(client)) == [("Senior Oncologist (backup)", "Dr. Sekhar", "u_sekhar"),
                                      ("Care coordinator", "Anita", "u_anita")]
@@ -1255,7 +1285,8 @@ def test_pending_with_names_the_persona_and_the_person_at_every_stage(vt, client
 def test_pending_with_on_red_and_green(vt, client):
     voice_note(client)
     s = play(client, "red")
-    assert pend(s) == [("Doctor on Duty", "Dr. Ananya", "u_ananya"), ("Care coordinator", "Anita", "u_anita")]
+    assert pend(s) == [("Care coordinator", "Anita", "u_anita")]  # the review first
+    assert pend(confirm(client, s["episode_id"])) == [("Doctor on Duty", "Dr. Ananya", "u_ananya")]
     s = play(client, "green", s["episode_id"])
     assert pend(s) == [("Care coordinator", "Anita", "u_anita")]
     assert s["pending"][0]["what"].startswith("Review and close by")
@@ -1278,13 +1309,17 @@ def test_every_episode_has_a_triage_outcome_pdf_in_the_patient_journey(vt, clien
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# Triage v3 (2 Nov): the coordinator's review (not a gate) and the closing summary
+# Triage v3 (2 Nov): the coordinator's review (the gate before the doctor, no time limit) and the closing summary
 # ---------------------------------------------------------------------------------------------------------------
-def test_the_coordinators_review_confirms_or_flags_and_never_holds_up_the_doctor(vt, client):
+def test_the_coordinators_review_is_the_gate_before_the_doctor(vt, client):
     voice_note(client)
     eid = play(client, "amber")["episode_id"]
-    # Not a gate: the doctor acts before any review
-    assert doctor_call(client, eid, "PICKED_UP").status_code == 200
+    # The gate: the doctor's steps wait for the review (no time limit)
+    for path, body in (("acknowledge", None), ("doctor-call", {"outcome": "PICKED_UP"}),
+                       ("tier", {"tier": "TIER_3_GREEN", "reason": "x"}),
+                       ("summary-draft", {}), ("close", {"summary": "s", "recommendation": "r", "contact": "PHONE"})):
+        r = client.post(f"/triage/episodes/{eid}/{path}", headers=ANANYA, json=body)
+        assert r.status_code == 409 and r.json()["detail"] == "Waiting for the coordinator's review (Confirm, Raise tier or Flag as wrong)", path
     review = lambda body, who=ANITA: client.post(f"/triage/episodes/{eid}/review", headers=who, json=body)  # noqa: E731
     assert review({"action": "CONFIRM"}, ANANYA).status_code == 403
     assert review({"action": "MAYBE"}).status_code == 422
@@ -1292,9 +1327,10 @@ def test_the_coordinators_review_confirms_or_flags_and_never_holds_up_the_doctor
     assert r.status_code == 422 and r.json()["detail"] == "Say why the AI's triage is wrong"
     s = review({"action": "FLAG", "reason": "Drowsy is her usual after the night shift"}).json()
     assert s["review"]["action"] == "FLAGGED" and s["tier"] == "TIER_2_AMBER" and s["status"] == "open"
+    assert doctor_call(client, eid, "PICKED_UP").status_code == 200  # flagged: still to the doctor
     assert s["review_text"] == "Flagged as wrong by Anita: “Drowsy is her usual after the night shift”"
     assert s["next"]["coordinator"] == {"text": s["review_text"], "done": True, "due_at": None}
-    assert [p["persona"] for p in s["pending"]] == ["Doctor on Duty"]  # still with the doctor
+    assert [p["persona"] for p in s["pending"]] == ["Doctor on Duty"]  # with the doctor
     assert review({"action": "CONFIRM"}, RAVI).status_code == 409  # one review per ticket
     rows = client.get("/audit", headers=ANITA, params={"mrn": MRN, "limit": 100}).json()["entries"]
     assert next(x for x in rows if x["action"] == "triage_reviewed")["outcome"] == "FLAGGED"
@@ -1312,7 +1348,7 @@ def test_a_green_ticket_has_no_review(vt, client):
 
 def test_the_closing_summary_is_drafted_from_the_record_and_quotes_the_doctor(vt, client):
     voice_note(client)
-    eid = play(client, "amber")["episode_id"]
+    eid = amber(client)
     doctor_call(client, eid, "PICKED_UP")
     client.post(f"/triage/episodes/{eid}/order", headers=ANANYA, json={"order": "physio"})
     rec = "Arm ache from carrying water; physio this week and pause Neurobion Forte for 5 days"
@@ -1329,3 +1365,19 @@ def test_the_closing_summary_is_drafted_from_the_record_and_quotes_the_doctor(vt
     assert s["close_note"] == d and s["closing"]["draft"] == d and s["closing"]["edited"] is False
     text = client.get(f"/triage/episodes/{eid}/outcome.pdf", headers=ANITA).content.decode("latin-1")
     assert "Closing summary" in text and "CarePilot asked 16 questions" in text
+
+
+def test_raising_the_tier_is_the_review(vt, client):
+    voice_note(client)
+    eid = play(client, "green")["episode_id"]
+    s = tier(client, eid, ANITA, "TIER_2_AMBER", "she sounded breathless").json()
+    assert not s["awaits_review"] and doctor_call(client, eid, "PICKED_UP").status_code == 200
+
+
+def test_a_staff_call_that_escalates_counts_as_the_review(vt, client):
+    empty_note(client)
+    eid = unanswered(client)["episode_id"]
+    s = reach(client, eid, "REACHED", "ESCALATE", "She has a fever since morning").json()
+    assert s["review"]["action"] == "ESCALATED" and not s["awaits_review"]
+    assert s["review_text"] == "Escalated by Anita after her call: “She has a fever since morning”"
+    assert doctor_call(client, eid, "PICKED_UP").status_code == 200

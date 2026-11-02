@@ -642,7 +642,7 @@ function Simple({ label, path, ep, done, tone = '', disabled, title }) {
   );
 }
 
-// Triage v3: the coordinator's review of a Red or Amber ticket (not a gate: the doctor already has it).
+// Triage v3: the coordinator's review of a Red or Amber ticket: the gate before the doctor (no time limit).
 function ReviewForm({ ep }) {
   const [reason, setReason] = useState('');
   const [run, error, busy] = useRun();
@@ -653,12 +653,12 @@ function ReviewForm({ ep }) {
     <>
       <div className="btn-row">
         <button type="button" className="btn sm primary" disabled={busy}
-          onClick={() => run(() => post(`triage/episodes/${id}/review`, { action: 'CONFIRM' }), 'Confirmed: with the Doctor on Duty')}>Confirm</button>
+          onClick={() => run(() => post(`triage/episodes/${id}/review`, { action: 'CONFIRM' }), 'Confirmed: now with the Doctor on Duty')}>Confirm</button>
         <input className="v3-in" style={{ flex: 1, minWidth: 160 }} placeholder="Why the AI's triage is wrong (to flag)" value={reason} onChange={(e) => setReason(e.target.value)} />
         <button type="button" className="btn sm warn" disabled={busy || !reason.trim()}
           onClick={() => run(() => post(`triage/episodes/${id}/review`, { action: 'FLAG', reason }), 'Flagged as wrong: still with the Doctor on Duty for a clinical decision')}>Flag as wrong</button>
       </div>
-      <div className="small-note">To raise the tier, use “Change tier” (it counts as your review).</div>
+      <div className="small-note">The doctor acts after your review. To raise the tier, use “Change tier” (it counts as your review).</div>
       {error && <div className="error">{error}</div>}
     </>
   );
@@ -825,7 +825,7 @@ export function waitsOn(ep, view) {
   if (ep.status !== 'open') return false;
   if (view === 'coordinator' && ['due', 'in_call'].includes(ep.call_status)) return true;
   const c = ep.next?.[view];
-  return !!c && !c.done && c.text !== 'Nothing';
+  return !!c && !c.done && !c.waiting && c.text !== 'Nothing';
 }
 
 function countdown(ep) {
@@ -854,6 +854,9 @@ function TierChange({ ep, cfg }) {
   const [reason, setReason] = useState('');
   const [run, error, busy] = useRun();
   if (!['coordinator', 'oncologist'].includes(ui.role)) return null;
+  if (ui.role === 'oncologist' && ep.awaits_review) {
+    return <div className="vt-tierchg small-note"><b>Changing the tier:</b> after the coordinator's review.</div>;
+  }
   const canLower = ui.role === 'oncologist';
   const options = Object.keys(TIER).filter((t) => t !== ep.tier && (RANKS[t] > RANKS[ep.tier] || canLower));
   return (
@@ -889,7 +892,7 @@ function NextCard({ k, label, ep, cfg, selected, view }) {
   if (open && k === 'ai' && role === 'coordinator' && ['due', 'in_call'].includes(ep.call_status)) {
     actions = <div className="btn-row"><button type="button" className="btn sm primary" onClick={() => openMessages(ui, ep)}>Open the phone simulator</button></div>;
   }
-  if (open && k === 'doctor' && role === 'oncologist' && ep.tier) {
+  if (open && k === 'doctor' && role === 'oncologist' && ep.tier && !ep.awaits_review) {
     actions = (
       <>
         {!green && <div className="btn-row"><Ack ep={ep} /></div>}
@@ -927,7 +930,7 @@ function NextCard({ k, label, ep, cfg, selected, view }) {
   return (
     <div className={`vt-ncard ${selected ? 'mine' : ''} ${c.done && !nothing ? 'done' : ''}`}>
       <div className="vt-nrole">{label}</div>
-      <div className={nothing ? 'small-note' : ''}>{c.done && !nothing ? '✓ ' : ''}{c.text}</div>
+      <div className={nothing || c.waiting ? 'small-note' : ''}>{c.done && !nothing ? '✓ ' : c.waiting ? '⏸ ' : ''}{c.text}</div>
       {c.due_at && !c.done && <div className="small-note">Due {hm(c.due_at)}</div>}
       {actions}
     </div>
