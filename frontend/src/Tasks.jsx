@@ -126,7 +126,7 @@ function UrgentPanel({ task }) {
         ui.toast(`Call attempt ${attempts.length + 1} logged: no answer — the task stays open`);
         return;
       }
-      ui.toast(`Patient reached — task Done, time to call ${r.minutes_to_call} minutes${date ? ', visit Booked (confirmed by coordinator)' : ''}`);
+      ui.toast(`Patient reached — task Done, time to call ${r.minutes_to_call} minutes${date ? ', visit Booked' : ''}`);
       ui.closeModal();
       ui.refresh();
     } catch (e) {
@@ -244,7 +244,7 @@ function TaskPanel({ task, reasons, need }) {
       await post(`tasks/${task.task_id}/result`, {
         result, note: note || null, appointment_date: date || null, appointment_time: time || null, reason_code: code || null,
       });
-      ui.toast(`${task.label}: ${RESULT_LABEL[result]} — task closed${['booked', 'rebooked'].includes(result) ? (task.card_type === 'test' ? ', test Booked (confirmed by coordinator)' : ', card Booked (confirmed by coordinator)') : ''}`);
+      ui.toast(`${task.label}: ${RESULT_LABEL[result]} — task closed${['booked', 'rebooked'].includes(result) ? (task.card_type === 'test' ? ', test Booked' : ', card Booked') : ''}`);
       ui.closeModal();
       ui.refresh();
     } catch (e) {

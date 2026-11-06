@@ -9,7 +9,8 @@ VISIT_FLOW = {"Due": {"Booked"}, "Booked": {"Attended"}, "Attended": set()}
 #   specimen-based (blood test):  Due -> Booked -> Completed -> Report received -> Report verified
 #   non-specimen (imaging, echo): Due -> Booked -> Completed -> Verified (the doctor); done at an outside centre:
 #                                 Completed -> Report received (the uploaded report, checked) -> Verified (the doctor)
-# Booked needs a source (the patient's tap, a person, or the appointment list) but not a date. Completed comes from
+# Booked needs a source (the patient's tap: Booked, Booked elsewhere or a slot she chose; a person; or the
+# appointment list). A tap books it for the day of the tap, a slot for its date and time. Completed comes from
 # the appointment list (Due -> Completed is a walk-in), or, for a lab test, from the patient's tap "Done at an outside
 # lab" (source patient_outside). An outside document that passes the check (name, MRN and test match, score 95+)
 # moves the card -> Report received -> Report verified by the system; one a coordinator verifies does the same.
@@ -43,11 +44,13 @@ def check_transition(card_type: str, from_state: str, to_state: str, **ctx) -> N
         raise IllegalTransition(f"A {card_type} card cannot move from {from_state} to {to_state}")
     move = (card_type, from_state, to_state)
     source = ctx.get("source")
-    if move == ("visit", "Due", "Booked") and source not in ("patient_button", "button_tap", "coordinator"):
+    if move == ("visit", "Due", "Booked") and source not in ("patient_button", "button_tap", "patient_slot",
+                                                              "coordinator"):
         raise IllegalTransition("A booking is recorded from a patient button or by a coordinator")
     if move == ("visit", "Booked", "Attended") and source not in ("appointment_list", "hospital_feed"):
         raise IllegalTransition("Attendance comes only from the appointment list or a hospital feed, never a reply")
-    if move == ("test", "Due", "Booked") and source not in ("patient_button", "coordinator", "appointment_list"):
+    if move == ("test", "Due", "Booked") and source not in ("patient_button", "patient_elsewhere", "patient_slot",
+                                                             "coordinator", "appointment_list"):
         raise IllegalTransition("A test is Booked from the patient's tap, by a person, or from the appointment list")
     specimen = ctx.get("specimen", True) is not False
     if card_type == "test" and to_state == "Completed" and \

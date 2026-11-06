@@ -1,7 +1,8 @@
 // R5 — Intake & verification (prototype v7.2 scrIntake): upload → preview → apply; exceptions.
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post, upload } from './api.js';
-import { Placeholder, ScreenHead, useUI } from './ui.jsx';
+import { PatientLink } from './PatientCard.jsx';
+import { fmt, Placeholder, ScreenHead, useUI } from './ui.jsx';
 
 const TABS = [['docs', 'Documents'], ['appt', 'Appointment list'], ['reg', 'Follow-up register']];
 const REGISTER_COLUMNS = [['mrn', 'MRN (unique key, SYN-0000)'], ['full_name', 'Name'], ['phone', 'Phone (+91…)'],
@@ -59,6 +60,36 @@ function Upload({ source }) {
   );
 }
 
+// How each appointment reached the list (5 Nov: patients book from the WhatsApp reminder too).
+const APPT_SOURCE = { appointment_list: 'Hospital appointment list', patient_button: 'Patient tapped Booked',
+  patient_elsewhere: 'Patient tapped Booked elsewhere', patient_slot: 'Patient chose a slot on WhatsApp' };
+
+function Appointments({ items }) {
+  return (
+    <div className="card">
+      <div className="card-title">Booked appointments ({items.length})</div>
+      <div className="card-desc">Every appointment on the list: rows from the hospital's list, and bookings patients made from the WhatsApp reminder. Booked and Booked elsewhere are dated the day of the tap; a slot the patient chose carries its date and time.</div>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="v4-table">
+          <thead><tr><th>Patient</th><th>Appointment</th><th>Date</th><th>Time</th><th>How it was booked</th></tr></thead>
+          <tbody>
+            {items.map((a) => (
+              <tr key={a.appointment_id}>
+                <td><PatientLink mrn={a.mrn} name={a.full_name} /> <span className="small-note">{a.mrn}</span></td>
+                <td>{a.item || a.department}{a.source === 'patient_elsewhere' ? <span className="small-note"> · outside</span> : null}</td>
+                <td>{fmt(a.appointment_date)}</td>
+                <td>{a.appointment_time ? String(a.appointment_time).slice(0, 5) : '—'}</td>
+                <td>{APPT_SOURCE[a.source] || a.source}{a.batch_id ? <span className="small-note"> · batch #{a.batch_id}</span> : null}</td>
+              </tr>
+            ))}
+            {!items.length && <tr><td colSpan={5} className="small-note">No appointments yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function Exceptions({ items }) {
   const ui = useUI();
   const dismiss = async (id) => {
@@ -99,8 +130,10 @@ export default function Intake() {
   const [tab, setTab] = useState('appt');
   const [exceptions, setExceptions] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [appointments, setAppointments] = useState([]);
   const load = useCallback(() => {
     api('exceptions').then(setExceptions).catch(() => {});
+    api('appointments').then(setAppointments).catch(() => {});
     api('summary').then(setSummary).catch(() => {});
   }, []);
   useEffect(() => load(), [load]);
@@ -130,6 +163,7 @@ export default function Intake() {
             <div className="card-desc">Upload the day's list (CSV export of the OPD register). Matched rows are stored; only unmatched rows need a person. You see a preview first and nothing is saved until you apply it.</div>
             <Upload source="appointments" />
           </div>
+          <Appointments items={appointments} />
           <div className="card">
             <div className="card-title">Columns expected</div>
             <table className="v4-table"><thead><tr><th>Column</th><th>Meaning</th></tr></thead>

@@ -122,8 +122,19 @@ const MARKS = {
 
 // The patient's reply buttons, as the patient sees them (English labels of the approved template).
 export const BUTTON_LABEL = { booked: 'Booked', help_book: 'Please help me book', cant_come: "I can't come",
-  done_outside: 'Done at an outside lab', done_hospital: 'Done at the hospital', not_done: 'Not done yet' };
+  booked_elsewhere: 'Booked elsewhere', done_outside: 'Done at an outside lab', done_hospital: 'Done at the hospital',
+  not_done: 'Not done yet' };
 export const buttonLabel = (id) => BUTTON_LABEL[id] || id.replaceAll('_', ' ');
+// A reply in a thread: an appointment slot is named by the time it offered (5 Nov), any other button by its label.
+export const tapLabel = (m, thread) => (m.button?.startsWith('slot_')
+  && thread.find((x) => x.direction === 'out' && x.id === m.reply_to)?.buttons?.find((b) => b.id === m.button)?.label_en)
+  || buttonLabel(m.button);
+
+// A booked card shows only "Booked" (or "Booked outside") with its date and time (5 Nov); how it was booked is a detail.
+export const BOOKED_VIA = { patient_button: 'the patient tapped Booked', patient_elsewhere: 'the patient tapped Booked elsewhere',
+  patient_slot: 'the patient chose a slot on WhatsApp', coordinator: 'the coordinator', appointment_list: 'the appointment list' };
+export const bookedLabel = (c) => `${c.booking_source === 'patient_elsewhere' ? 'Booked outside' : 'Booked'}`
+  + `${c.appointment_date ? ` ${fmt(c.appointment_date)}` : ''}${c.appointment_time ? ` ${String(c.appointment_time).slice(0, 5)}` : ''}`;
 
 export function Marks({ marks }) {
   return (marks || []).map((m) => <React.Fragment key={m}> <span className={`tag ${MARKS[m]?.[1] || ''}`}>{MARKS[m]?.[0] || m}</span></React.Fragment>);

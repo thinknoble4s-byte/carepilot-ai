@@ -37,5 +37,5 @@ def test_telugu_test_reminder_with_four_buttons(demo_seed, client):
     assert bt["language"] == "Telugu" and bt["body"].startswith("నమస్తే Nirmala గారు")
     assert [(b["id"], b["label"]) for b in bt["buttons"]] == [
         ("booked", "రక్త పరీక్ష బుక్ చేశాను"), ("help_book", "బుక్ చేయడానికి సహాయం చేయండి"),
-        ("cant_come", "రాలేను"), ("done_outside", "బయటి ల్యాబ్‌లో చేయించాను")]
+        ("cant_come", "రాలేను"), ("booked_elsewhere", "వేరే చోట బుక్ చేశాను")]
     assert bt["buttons"][0]["label_en"] == "Blood test booked"

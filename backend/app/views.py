@@ -278,12 +278,22 @@ def handover_detail(conn, handover_id: int) -> dict:
     ).fetchall()}
 
 
+def appointments(conn) -> list[dict]:
+    """The appointment list on Intake & verification: rows imported from the hospital's list and the bookings
+    patients made on WhatsApp (Booked, Booked elsewhere, or a slot they chose), with the order card each books."""
+    return conn.execute(
+        """SELECT a.appointment_id, a.mrn, p.full_name, a.appointment_date, a.appointment_time, a.department,
+                  coalesce(a.item, c.name) AS item, a.source, a.batch_id, c.item_code, c.state AS card_state
+           FROM appointment a JOIN patient p USING (mrn) LEFT JOIN order_card c USING (card_id)
+           ORDER BY a.appointment_date, a.appointment_time NULLS FIRST, p.full_name""").fetchall()
+
+
 def all_cards(conn) -> list[dict]:
     """Every order card across patients, with its latest gap (state and reason): the Workspace card list."""
     return conn.execute(
         """
         SELECT c.card_id, c.mrn, p.full_name, c.item_code, c.card_type, c.name, c.due_date, c.state, c.booking_source,
-               c.owner_name, c.cover_name, c.origin, g.rule AS gap_rule, g.status AS gap_status,
+               c.appointment_date, c.appointment_time, c.owner_name, c.cover_name, c.origin, g.rule AS gap_rule, g.status AS gap_status,
                g.blocked_reason AS gap_reason
         FROM order_card c JOIN patient p USING (mrn)
         LEFT JOIN LATERAL (SELECT * FROM gap_event WHERE card_id = c.card_id ORDER BY gap_id DESC LIMIT 1) g ON true

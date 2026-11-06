@@ -50,10 +50,12 @@ def build(conn, mrn: str) -> dict:
 
     appts = conn.execute("SELECT * FROM appointment WHERE mrn = %s ORDER BY appointment_date", (mrn,)).fetchall()
     for a in appts:
-        match = next((c for c in cards if c["department"] == a["department"]
-                      and abs((c["due_date"] - a["appointment_date"]).days) <= 30), None)
-        events.append(_ev(a["appointment_date"], f"Appointment: {a['department']}", "routine", "hosp",
-                          f"Appointment list (batch #{a['batch_id']})",
+        match = next((c for c in cards if c["card_id"] == a["card_id"]), None) if a["card_id"] else next(
+            (c for c in cards if c["department"] == a["department"]
+             and abs((c["due_date"] - a["appointment_date"]).days) <= 30), None)
+        events.append(_ev(a["appointment_date"], f"Appointment: {a['item'] or a['department']}", "routine", "hosp",
+                          f"Appointment list (batch #{a['batch_id']})" if a["batch_id"]
+                          else "Booked by the patient on WhatsApp",
                           f"Order card {match['item_code']}" if match else None))
 
     for g in conn.execute(

@@ -1,0 +1,2694 @@
+[
+  {
+    "clip": "TA-R01",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_CHEST_PAIN"
+    ],
+    "why": [
+      "Chest pain or hard to breathe reported"
+    ],
+    "heard": [
+      "chest or breathing",
+      "other symptom",
+      "“severe”"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST"
+    ],
+    "translation": "What is this, my chest hurts terribly in the middle. I can't even breathe. My hands and legs are all sweaty. I'm feeling restless. Please do something quickly.",
+    "transcript": "என்னப்பா இது நெஞ்சு நடுவுல பயங்கரமா வலிக்குது. மூச்சு வாங்கவே முடியல. கை காலெல்லாம் வேர்த்து விட்டது. பேஜாரா கீதுவா. சீக்கிரம் ஏதாச்சும் பண்ணுங்க.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported chest or breathing, other symptom; CarePilot asked 6 questions and found Red: chest pain or hard to breathe reported. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.9,
+    "unheard": false
+  },
+  {
+    "clip": "TA-R02",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_CANNOT_STAY_AWAKE"
+    ],
+    "why": [
+      "Reported as so sleepy she cannot keep her eyes open"
+    ],
+    "heard": [
+      "sleepy",
+      "other symptom"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE"
+    ],
+    "translation": "What is it? My mother has been feeling very sleepy since morning. She can't even open her eyes. Even when I call her, she doesn't give a proper answer. I don't know what to do.",
+    "transcript": "ஏனுங்க எங்க அம்மாவுக்கு காலையிலிருந்து நெம்பத் தூக்கமாவே இருக்குதுங்க. கண்ணையே திறக்க முடியலைங்க. கூப்பிட்டாலும் சரியா பதில் சொல்ல மாட்டேங்கிறாங்க. என்ன பண்றதுன்னே தெரியலைங்க.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported sleepy, other symptom; CarePilot asked 7 questions and found Red: reported as so sleepy she cannot keep her eyes open. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 4.2,
+    "unheard": false
+  },
+  {
+    "clip": "TA-R03",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_ARM_RED_OR_HOT"
+    ],
+    "why": [
+      "Left arm reported as red or hot to touch"
+    ],
+    "heard": [
+      "arm swelling",
+      "arm pain",
+      "other symptom"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED"
+    ],
+    "translation": "My left hand is completely red. When I touch it, it feels like fire, and I can't bear the pain; I'm scared. I don't know what to do.",
+    "transcript": "இலை இடது கை முழுக்க சிவந்து போச்சுலே, தொட்டா நெருப்பா சுடுது வலியும் தாங்க முடியல பயமா இருக்குதேன், என்ன செய்யன்னு தெரியலை.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported arm swelling, arm pain, other symptom; CarePilot asked 10 questions and found Red: left arm reported as red or hot to touch. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.9,
+    "unheard": false
+  },
+  {
+    "clip": "TA-R04",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_FEVER_100_4F_PLUS"
+    ],
+    "why": [
+      "Temperature reported as 100.4 F (38.0 C) or more"
+    ],
+    "heard": [
+      "fever or chills"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP"
+    ],
+    "translation": "I have been having a fever since last night, and my whole body is shivering. My blanket is also cold, and the thermometer shows above 101.",
+    "transcript": "ராத்திரியிலிருந்து ஜுரம் அடிக்குது, உடம்பெல்லாம் நடுங்குது, போர்வை போத்தியும் குளிருது, தெர்மாமீட்டர்ல நூற்றி ஒன்னுக்கு மேல காட்டுது.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported fever or chills; CarePilot asked 8 questions and found Red: temperature reported as 100.4 F (38.0 C) or more. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.0,
+    "unheard": false
+  },
+  {
+    "clip": "TA-R05",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_VOMITING_6_PLUS"
+    ],
+    "why": [
+      "Vomiting reported 6 or more times since yesterday"
+    ],
+    "heard": [
+      "nausea",
+      "tired"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_NAUSEA",
+      "Q_VOMIT"
+    ],
+    "translation": "Sir, my mother has vomited seven or eight times since morning. Even after drinking water, she vomits immediately and feels very tired. Please tell me what to do, sir.",
+    "transcript": "சார், எங்க அம்மா காலையில இருந்து ஏழு எட்டு தடவை வாந்தி எடுத்துட்டாங்க. தண்ணி குடிச்சாலும் உடனே வந்துருது, ரொம்ப டயர்டாக்கிறாங்க. என்ன பண்றதுன்னு சொல்லுங்க சார்.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported nausea, tired; CarePilot asked 12 questions and found Red: vomiting reported 6 or more times since yesterday. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.1,
+    "unheard": false
+  },
+  {
+    "clip": "TA-A01",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_BANGLES_TIGHTER_THAN_BASELINE",
+      "AMBER_ARM_SWOLLEN",
+      "AMBER_OTHER_SYMPTOM_REPORTED"
+    ],
+    "why": [
+      "Left arm: no swelling and loose bangles on 10 October. Today: bangles tighter.",
+      "She says the left arm looks swollen or feels heavy.",
+      "She mentioned a problem we have no questions for, so the duty doctor calls her."
+    ],
+    "heard": [
+      "arm swelling",
+      "arm pain",
+      "other symptom"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_ARM_SCORE",
+      "Q_ARM_SUDDEN",
+      "Q_SWOLLEN",
+      "Q_SKIN"
+    ],
+    "translation": "Oh my god! Oh no! For two days, this left hand has been swollen and swollen, and the veins have become tight. I can't even remove it; it hurts a little. I'm so scared. Doctor, I don't know what to do.",
+    "transcript": "ஆத்தாடி ஆ ஐயோ ரெண்டு நாளா இந்த இடது கை இம்புட்டு வீங்கிப் போயி கிடக்குயா வலையெல்லாம் இருகிப் போச்சு கழட்டவே இயலலையால லேசா வலிக்குதுயா எனக்கு அம்புட்டு பயமா இருக்கு டாக்டர் அம்மா என்னத்த பண்றதுன்னே தெரியலையே",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported arm swelling, arm pain, other symptom; CarePilot asked 10 questions and found Amber: left arm: no swelling and loose bangles on 10 October. Today: bangles tighter; she says the left arm looks swollen or feels heavy; she mentioned a problem we have no questions for, so the duty doctor calls her. Dr. Kavita Menon recommended after contacting her by phone: “Keep the left arm raised; physiotherapy this week; come in if the redness or swelling increases” (orders: physiotherapy referral).",
+    "orders": [
+      "physio"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: physio"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 4.1,
+    "unheard": false
+  },
+  {
+    "clip": "TA-A02",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"
+    ],
+    "why": [
+      "She says the headache is worse than on 19 October."
+    ],
+    "heard": [
+      "headache"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_HEADACHE",
+      "Q_HEAD_SCORE",
+      "Q_HEAD_WORSE"
+    ],
+    "translation": "Why, for three days my headache has increased a lot. It is more now than what I said last time. I didn't even ask for medicine.",
+    "transcript": "ஏனுங்க மூணு நாளா தலைவலி நெம்ப அதிகமாயிருச்சுங்க போன தடவை சொன்னதை விட இப்போ கூடுதலா இருக்குதுங்க மாத்திரை போட்டும் கேட்கலிங்க",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported headache; CarePilot asked 9 questions and found Amber: she says the headache is worse than on 19 October. Dr. Kavita Menon recommended after contacting her by phone: “Blood tests brought forward; paracetamol as before; call again if the headache gets worse” (orders: blood tests brought forward).",
+    "orders": [
+      "bloods"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: bloods"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.7,
+    "unheard": false
+  },
+  {
+    "clip": "TA-A03",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_ARM_PAIN_SUDDEN_ONSET"
+    ],
+    "why": [
+      "She says the arm pain started suddenly."
+    ],
+    "heard": [
+      "arm pain"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_ARM_SCORE",
+      "Q_ARM_SUDDEN"
+    ],
+    "translation": "Yesterday evening, suddenly, I felt a sharp pain in my left hand. Since then, I have been afraid to move my hand.",
+    "transcript": "நேத்து சாயங்காலம் விடீர்னு இடது கையில் சுளிர்னு வலி வந்துச்சுப்பா, அப்போலேருந்து கையை அசைக்கவே பயமாக்கிது.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported arm pain; CarePilot asked 8 questions and found Amber: she says the arm pain started suddenly. Dr. Kavita Menon recommended after contacting her by phone: “Rest the arm; physiotherapy referral; come in if the pain spreads or the arm swells” (orders: physiotherapy referral).",
+    "orders": [
+      "physio"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: physio"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.4,
+    "unheard": false
+  },
+  {
+    "clip": "TA-A04",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_TIREDNESS_7_DAYS_PLUS"
+    ],
+    "why": [
+      "Tired for 9 days."
+    ],
+    "heard": [
+      "tired"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_TIRED_DAYS",
+      "Q_TIRED_WORSE"
+    ],
+    "translation": "It has been more than a week. My body feels very tired. I am unable to get up. Even my appetite is not properly reduced.",
+    "transcript": "ஒரு வாரத்துக்கு மேல் ஆச்சு. உடம்பு அசதியாகவே இருக்குலே, எந்திரிக்கவே முடியல. சோறு கூட சரியா இறங்கல.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported tired; CarePilot asked 8 questions and found Amber: tired for 9 days. Dr. Kavita Menon recommended after contacting her by phone: “Blood tests for the tiredness; rest and fluids; review with the results” (orders: blood tests brought forward).",
+    "orders": [
+      "bloods"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: bloods"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.9,
+    "unheard": false
+  },
+  {
+    "clip": "TA-A05",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_PATIENT_SAYS_SEVERE"
+    ],
+    "why": [
+      "She described her problem as severe in her own message."
+    ],
+    "heard": [
+      "arm pain",
+      "“severe”"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_ARM_SCORE",
+      "Q_ARM_SUDDEN"
+    ],
+    "translation": "They are saying that Amma has a very severe pain in her left hand and she is unable to bear it. I am their son Karthik speaking.",
+    "transcript": "அம்மாவுக்கு இட கையில ரொம்ப கடுமையான வீடு. தாங்கவே முடியலன்னு சொல்றாங்க. நான் அவங்க பையன் கார்த்திக் பேசுறேன்.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported arm pain; CarePilot asked 8 questions and found Amber: she described her problem as severe in her own message. Dr. Kavita Menon recommended after contacting her by phone: “Come in for a visit today so we can examine the arm” (orders: advise visit).",
+    "orders": [
+      "visit"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: visit"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 5.3,
+    "unheard": false
+  },
+  {
+    "clip": "TA-A06",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_OTHER_SYMPTOM_REPORTED"
+    ],
+    "why": [
+      "She mentioned a problem we have no questions for, so the duty doctor calls her."
+    ],
+    "heard": [
+      "other symptom"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES"
+    ],
+    "translation": "There is redness and swelling in the back, and I cannot bear the itching. I couldn't sleep at all last night.",
+    "transcript": "முதுகுல எல்லாம் சிவப்பா தடிப்பு தடிப்பா வந்துருச்சுயா அரிப்பு தாங்க முடியல ராத்திரி தூக்கமே இல்ல",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Lakshmi reported other symptom; CarePilot asked 6 questions and found Amber: she mentioned a problem we have no questions for, so the duty doctor calls her. Dr. Kavita Menon recommended after contacting her by phone: “Come in for a visit to look at it; no change to the medicines” (orders: advise visit).",
+    "orders": [
+      "visit"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: visit"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.2,
+    "unheard": false
+  },
+  {
+    "clip": "TA-G01",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+    ],
+    "heard": [
+      "headache"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_HEADACHE",
+      "Q_HEAD_SCORE",
+      "Q_HEAD_WORSE"
+    ],
+    "translation": "I had a slight headache in the morning. Now I am a little better. I sent a message saying I would tell you once.",
+    "transcript": "காலையில லேசா தலைவலி இருந்துச்சு. இப்போ கொஞ்சம் பரவாயில்லை. ஒரு தடவை சொல்லிடலாம்னு மெசேஜ் போட்டேன்.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Lakshmi reported headache; CarePilot asked 9 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.0,
+    "unheard": false
+  },
+  {
+    "clip": "TA-G02",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO"
+    ],
+    "heard": [
+      "tired"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_TIRED_DAYS",
+      "Q_TIRED_WORSE"
+    ],
+    "translation": "I have been feeling a little tired for two days. There is nothing else. I am resting well after eating.",
+    "transcript": "ரெண்டு நாளா கொஞ்சம் சோர்வா இருக்குதுங்க. வேற ஒன்னும் இல்லைங்க. சாப்பிட்டு நல்லா ரெஸ்ட் எடுக்குறேனுங்க.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Lakshmi reported tired; CarePilot asked 8 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.7,
+    "unheard": false
+  },
+  {
+    "clip": "TA-G03",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO"
+    ],
+    "heard": [
+      "arm pain"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_ARM_SCORE",
+      "Q_ARM_SUDDEN"
+    ],
+    "translation": "My hand hurts a little while cooking, not too much, just a little. Otherwise, I am fine.",
+    "transcript": "சமையல் பண்ணும்போது கை கொஞ்சம் வலிக்குதே, ரொம்ப இல்லை, லேசாத்தான், மற்றபடி நல்லா இருக்கேன்.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Lakshmi reported arm pain; CarePilot asked 8 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.6,
+    "unheard": false
+  },
+  {
+    "clip": "TA-G04",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO"
+    ],
+    "heard": [
+      "nausea"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_NAUSEA",
+      "Q_VOMIT",
+      "Q_LIQUIDS",
+      "Q_SUPP"
+    ],
+    "translation": "I felt a slight nausea after taking the medicine. I don't have vomiting. I am eating well.",
+    "transcript": "மாத்திரை போட்டதும் லேசா குமிட்டது. வாந்தி எல்லாம் இல்லப்பா. சாப்பாடு நல்லா சாப்பிடுறேன்.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Lakshmi reported nausea; CarePilot asked 10 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 14.1,
+    "unheard": false
+  },
+  {
+    "clip": "TA-G05",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+    ],
+    "heard": [
+      "headache"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_HEADACHE",
+      "Q_HEAD_SCORE",
+      "Q_HEAD_WORSE"
+    ],
+    "translation": "Tomorrow is my granddaughter's ear piercing ceremony, so I need to leave. It's been a bit uncomfortable since yesterday, and my head is also aching slightly. It's just a minor issue.",
+    "transcript": "நாளைக்கு எங்க பேத்திக்கு காது குத்து விசேஷம்யா, அதுக்கு கிளம்பணும். நேத்திலிருந்து கொஞ்சம் வசதியா இருக்கு, லேசா தலையும் வலிக்குது, அம்புட்டுதான்.",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Lakshmi reported headache; CarePilot asked 9 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 4.1,
+    "unheard": false
+  },
+  {
+    "clip": "HI-R01",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_CHEST_PAIN"
+    ],
+    "why": [
+      "Chest pain or hard to breathe reported"
+    ],
+    "heard": [
+      "chest or breathing",
+      "other symptom"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST"
+    ],
+    "translation": "Ram Ram, there is a lot of pain in the chest, who is breathing, is there sweat coming out, what should I do, understand, who was there?",
+    "transcript": "राम राम, छाती में बहुत दर्द हो रहा है, सांस कोन्या आ रही, पसीना छूट रहा है, क्या करूँ समझ कोन्या आता?",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported chest or breathing, other symptom; CarePilot asked 6 questions and found Red: chest pain or hard to breathe reported. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.9,
+    "unheard": false
+  },
+  {
+    "clip": "HI-R02",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_CANNOT_STAY_AWAKE"
+    ],
+    "why": [
+      "Reported as so sleepy she cannot keep her eyes open"
+    ],
+    "heard": [
+      "other symptom"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE"
+    ],
+    "translation": "Brother, my mother has been completely unconscious since morning. She can't even open her eyes properly, and she can't even respond properly to calls.",
+    "transcript": "भैया, हमार माई सवेरे से एकदम बेहोश, जैसम सुतल बाड़ी आँखिए ना खुलत बा, बोलावे पर भी ठीक से जवाब ना देत बाड़ी।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported other symptom; CarePilot asked 6 questions and found Red: reported as so sleepy she cannot keep her eyes open. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 4.8,
+    "unheard": false
+  },
+  {
+    "clip": "HI-R03",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_ARM_RED_OR_HOT"
+    ],
+    "why": [
+      "Left arm reported as red or hot to touch"
+    ],
+    "heard": [
+      "arm swelling",
+      "arm pain"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED"
+    ],
+    "translation": "Oh, my left hand has become completely red. It feels hot when I touch it, and there's a lot of pain too. I'm in trouble now.",
+    "transcript": "अरे बाएँ हाथ पे एकदम लाल लाल हो गया है, छूने पे गरम लगता है, दर्द भी बहुत है, वाट लग गई है अपुन की।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported arm swelling, arm pain; CarePilot asked 10 questions and found Red: left arm reported as red or hot to touch. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.8,
+    "unheard": false
+  },
+  {
+    "clip": "HI-R04",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_FEVER_100_4F_PLUS"
+    ],
+    "why": [
+      "Temperature reported as 100.4 F (38.0 C) or more"
+    ],
+    "heard": [
+      "fever or chills"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP"
+    ],
+    "translation": "I have had a high fever since last night, my whole body is shivering. I am feeling cold even after covering myself with a blanket. The thermometer shows 102.",
+    "transcript": "कल रात से तेज बुखार है, पूरा शरीर कांप रहा है, कंबल ओढ़ के भी ठंड लग रही है, थर्मामीटर में 102 दिखा रहा है।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported fever or chills; CarePilot asked 8 questions and found Red: temperature reported as 100.4 F (38.0 C) or more. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.7,
+    "unheard": false
+  },
+  {
+    "clip": "HI-R05",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Red",
+    "red_kind": "CONFIRMED",
+    "reasons": [
+      "RED_VOMITING_6_PLUS"
+    ],
+    "why": [
+      "Vomiting reported 6 or more times since yesterday"
+    ],
+    "heard": [
+      "nausea",
+      "tired"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_NAUSEA",
+      "Q_VOMIT"
+    ],
+    "translation": "I have vomited six to seven times since morning. When I drink water, it also comes out. I feel very weak.",
+    "transcript": "हमका सुबह से छह सात बार उल्टी होई गई है, पानी पीयत हैं तो ऊ भी निकल जात हैं, बहुत कमजोरी लागत हैं।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported nausea, tired; CarePilot asked 12 questions and found Red: vomiting reported 6 or more times since yesterday. Dr. Kavita Menon recommended after contacting her by phone: “Go to the nearest emergency department now; the family was told and is taking her”.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (RED_PACKAGE_AND_DUTY_DOCTOR)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "raised the Red alert"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "wrote the doctor note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the family the emergency message with the summary PDF"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 4.0,
+    "unheard": false
+  },
+  {
+    "clip": "HI-A01",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_BANGLES_TIGHTER_THAN_BASELINE",
+      "AMBER_ARM_SWOLLEN"
+    ],
+    "why": [
+      "Left arm: no swelling and loose bangles on 20 October. Today: bangles tighter.",
+      "She says the left arm looks swollen or feels heavy."
+    ],
+    "heard": [
+      "arm swelling",
+      "arm pain"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_ARM_SCORE",
+      "Q_ARM_SUDDEN",
+      "Q_SWOLLEN",
+      "Q_SKIN"
+    ],
+    "translation": "Oh Ram, my left hand has been swollen for two days, and the bangle is so tight that it doesn't even move, and I'm also feeling a little bit of pain, I'm feeling scared.",
+    "transcript": "हाय राम, दू दिन से बाया हाथ सूज गईल बा चूड़ी, इतना कस गईल कि कल ते नईखे, त तनी तनी दर्द भी बा, डर लागत बा।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported arm swelling, arm pain; CarePilot asked 10 questions and found Amber: left arm: no swelling and loose bangles on 20 October. Today: bangles tighter; she says the left arm looks swollen or feels heavy. Dr. Kavita Menon recommended after contacting her by phone: “Keep the left arm raised; physiotherapy this week; come in if the redness or swelling increases” (orders: physiotherapy referral).",
+    "orders": [
+      "physio"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: physio"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.5,
+    "unheard": false
+  },
+  {
+    "clip": "HI-A02",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"
+    ],
+    "why": [
+      "She says the headache is worse than on 26 October."
+    ],
+    "heard": [
+      "headache"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_HEADACHE",
+      "Q_HEAD_SCORE",
+      "Q_HEAD_WORSE"
+    ],
+    "translation": "I have been experiencing a headache for three days. It's worse than what I described last time, and I'm not getting any relief even with medication.",
+    "transcript": "3 दिन से सिर का दर्द बढ़ता जा रहा है, पिछली बार जो बताया था उससे ज़्यादा है, दवाई से भी आराम नहीं।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported headache; CarePilot asked 9 questions and found Amber: she says the headache is worse than on 26 October. Dr. Kavita Menon recommended after contacting her by phone: “Blood tests brought forward; paracetamol as before; call again if the headache gets worse” (orders: blood tests brought forward).",
+    "orders": [
+      "bloods"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: bloods"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.4,
+    "unheard": false
+  },
+  {
+    "clip": "HI-A03",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_ARM_PAIN_SUDDEN_ONSET"
+    ],
+    "why": [
+      "She says the arm pain started suddenly."
+    ],
+    "heard": [
+      "arm pain"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_ARM_SCORE",
+      "Q_ARM_SUDDEN"
+    ],
+    "translation": "Yesterday evening, suddenly there was a sharp pain in my left hand, then I felt scared while moving my hand.",
+    "transcript": "कल शाम में अचानक बाएँ हाथ में ज़ोर का दर्द उठ गया था, तब ते हाथ हिलाते हुए डर लगे से।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported arm pain; CarePilot asked 8 questions and found Amber: she says the arm pain started suddenly. Dr. Kavita Menon recommended after contacting her by phone: “Rest the arm; physiotherapy referral; come in if the pain spreads or the arm swells” (orders: physiotherapy referral).",
+    "orders": [
+      "physio"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: physio"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.3,
+    "unheard": false
+  },
+  {
+    "clip": "HI-A04",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_TIREDNESS_7_DAYS_PLUS",
+      "AMBER_OTHER_SYMPTOM_REPORTED"
+    ],
+    "why": [
+      "Tired for 9 days.",
+      "She mentioned a problem we have no questions for, so the duty doctor calls her."
+    ],
+    "heard": [
+      "tired",
+      "other symptom"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_TIRED_DAYS",
+      "Q_TIRED_WORSE"
+    ],
+    "translation": "It's been more than a week. I feel very tired, and I don't feel like getting up. I can't even eat properly.",
+    "transcript": "एक हफ़्ते से ज़्यादा हो गया, एकदम थकान लगती है, उठने का मन नहीं करता, खाना भी बराबर नहीं जाता।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported tired, other symptom; CarePilot asked 8 questions and found Amber: tired for 9 days; she mentioned a problem we have no questions for, so the duty doctor calls her. Dr. Kavita Menon recommended after contacting her by phone: “Blood tests for the tiredness; rest and fluids; review with the results” (orders: blood tests brought forward).",
+    "orders": [
+      "bloods"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: bloods"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.4,
+    "unheard": false
+  },
+  {
+    "clip": "HI-A05",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_PATIENT_SAYS_SEVERE"
+    ],
+    "why": [
+      "She described her problem as severe in her own message."
+    ],
+    "heard": [
+      "arm pain",
+      "“severe”"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_ARM_SCORE",
+      "Q_ARM_SUDDEN"
+    ],
+    "translation": "Hello, I am Savitri ji's son speaking. My mother has a very severe pain in her left hand. It feels very serious.",
+    "transcript": "नमस्ते, मैं सावित्री जी का बेटा बोल रहा हूँ। माँ के बाएँ हाथ में बहुत ज़्यादा तेज़ दर्द है, बहुत गंभीर लग रहा है।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported arm pain; CarePilot asked 8 questions and found Amber: she described her problem as severe in her own message. Dr. Kavita Menon recommended after contacting her by phone: “Come in for a visit today so we can examine the arm” (orders: advise visit).",
+    "orders": [
+      "visit"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: visit"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.7,
+    "unheard": false
+  },
+  {
+    "clip": "HI-A06",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Amber",
+    "red_kind": null,
+    "reasons": [
+      "AMBER_OTHER_SYMPTOM_REPORTED"
+    ],
+    "why": [
+      "She mentioned a problem we have no questions for, so the duty doctor calls her."
+    ],
+    "heard": [
+      "other symptom"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES"
+    ],
+    "translation": "I have been having a cough for four days, it keeps making a 'kho-kho' sound all night, and I am also passing phlegm.",
+    "transcript": "चार दिन से खांसी आवत है, रात भर खों खों करत रहीत है, बलगम भी निकलत है।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Doctor on Duty · Dr. Kavita Menon",
+    "summary": "Savitri reported other symptom; CarePilot asked 6 questions and found Amber: she mentioned a problem we have no questions for, so the duty doctor calls her. Dr. Kavita Menon recommended after contacting her by phone: “Come in for a visit to look at it; no change to the medicines” (orders: advise visit).",
+    "orders": [
+      "visit"
+    ],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (DOCTOR_CALLBACK_2H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "sent the SBAR card to the Doctor on Duty (2-hour callback)"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "reviewed the AI's triage: confirmed"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "acknowledged the ticket"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "called her: picked up"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "recorded an order: visit"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Doctor on Duty · Dr. Kavita Menon",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.8,
+    "unheard": false
+  },
+  {
+    "clip": "HI-G01",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+    ],
+    "heard": [
+      "headache"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_HEADACHE",
+      "Q_HEAD_SCORE",
+      "Q_HEAD_WORSE"
+    ],
+    "translation": "In the morning, there was pain in my head, now it's fine, just didn't message to tell.",
+    "transcript": "सवेरे तनी मुड़ी में दर्द रहल, अब ठीक बा, बस बतावे खातिर मैसेज कई नी।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Savitri reported headache; CarePilot asked 9 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.9,
+    "unheard": false
+  },
+  {
+    "clip": "HI-G02",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO"
+    ],
+    "heard": [
+      "tired"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_TIRED_DAYS",
+      "Q_TIRED_WORSE"
+    ],
+    "translation": "For two days, I felt a little tired and some pain. Food and drink were fine.",
+    "transcript": "दो दिन तक थोड़ी थकान सी है और कुछ कोनिया खाना पीना ठीक है।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Savitri reported tired; CarePilot asked 8 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 2.9,
+    "unheard": false
+  },
+  {
+    "clip": "HI-G03",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO"
+    ],
+    "heard": [
+      "arm pain"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_ARM_SCORE",
+      "Q_ARM_SUDDEN"
+    ],
+    "translation": "My hand hurts a little while cooking. Not much, just a little. Otherwise, everything is perfectly fine.",
+    "transcript": "खाना बनाते टाइम हाथ थोड़ा दुखता है, ज़्यादा नहीं बस हल्का सा, बाकी सब एकदम मस्त है।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Savitri reported arm pain; CarePilot asked 8 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.0,
+    "unheard": false
+  },
+  {
+    "clip": "HI-G04",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO"
+    ],
+    "heard": [
+      "nausea"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_NAUSEA",
+      "Q_VOMIT",
+      "Q_LIQUIDS",
+      "Q_SUPP"
+    ],
+    "translation": "After taking the pill, I feel a little nauseous, I didn't vomit. I am eating properly.",
+    "transcript": "गोली खाने के बाद थोड़ा जी मिचलाता है, उल्टी नहीं हुई, खाना ठीक से खा रही हूँ।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Savitri reported nausea; CarePilot asked 10 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 3.1,
+    "unheard": false
+  },
+  {
+    "clip": "HI-G05",
+    "handling": [
+      "ai_flag_yes",
+      "triage_call_due:episode_1"
+    ],
+    "episode_id": 1,
+    "health": "Health",
+    "tier": "Green",
+    "red_kind": null,
+    "reasons": [],
+    "why": [
+      "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO; Tired for (days): 1; Tiredness worse than last week: NO"
+    ],
+    "heard": [
+      "tired",
+      "headache"
+    ],
+    "asked": [
+      "Q_SLURRED",
+      "Q_AWAKE",
+      "Q_CHEST",
+      "Q_ARM_RED",
+      "Q_TEMP",
+      "Q_BANGLES",
+      "Q_HEADACHE",
+      "Q_HEAD_SCORE",
+      "Q_HEAD_WORSE",
+      "Q_TIRED_DAYS",
+      "Q_TIRED_WORSE"
+    ],
+    "translation": "The day after tomorrow is the daughter-in-law's head-shaving ceremony, she is busy with preparations, she is a little tired since yesterday, and a slight headache, that's all.",
+    "transcript": "परसों पोती का मुंडन है, ओकरें तैयारी में लगी हैं, कल से तनिक थकान है और हल्का सिर दर्द, बस इतना ही।",
+    "ticket": "CP-20261102-0001",
+    "status": "closed",
+    "closed_by": "Care coordinator · Priya Nair",
+    "summary": "Savitri reported tired, headache; CarePilot asked 11 questions and found Green, with no warning signs (Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO; Tired for (days): 1; Tiredness worse than last week: NO). Reviewed by Priya Nair: no doctor's call needed.",
+    "orders": [],
+    "actions": [
+      {
+        "persona": "Patient",
+        "action": "sent a WhatsApp voice note"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "heard the voice note (speech-to-text, translation, tags)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "opened a triage ticket; automated call due in 2 minutes"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "called her; she answered"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "set the tier from her answers (GREEN_COACH_AND_FOLLOWUP_24H)"
+      },
+      {
+        "persona": "CarePilot AI",
+        "action": "added the Green digest line for the coordinator"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "submitted the closing summary"
+      },
+      {
+        "persona": "Care coordinator · Priya Nair",
+        "action": "closed the ticket"
+      }
+    ],
+    "seconds": 4.3,
+    "unheard": false
+  }
+]

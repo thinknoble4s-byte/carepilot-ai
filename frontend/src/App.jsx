@@ -118,7 +118,7 @@ function ResetChoice({ onReset }) {
         <div className="card-title">Use Case 2T — test cycle</div>
         <div className="small-note" style={{ lineHeight: 1.7 }}>Meena (TP001), Kavita (TP004), Lakshmi (TP005), Farida (TP006),
           Rekha (TP007), Geeta (TP008), Shobha (TP009) and Asha (TP010); clock D0, Mon 2 Nov. Test reminders, the report check
-          after the due date, Done at an outside lab (the test becomes Completed), the SIMULATED appointment list and lab,
+          after the due date (Done at an outside lab there makes the test Completed), the SIMULATED appointment list and lab,
           outside-lab files checked by AI and plain rules (name, MRN and test match and 95 or more: verified by the system,
           Live mode), and the doctor's "Report ready for review".</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('uc2t')}>Reset to Use Case 2T</button></div>

@@ -52,7 +52,6 @@ OPEN_TEST = ("Due", "Booked")
 CHECK_BUTTONS = ("done_outside", "done_hospital", "not_done")
 CHECK_LABEL = {"done_outside": "Patient says done at outside lab (report awaited)",
                "done_hospital": "Patient says done at hospital", "not_done": "Patient says not done yet"}
-BOOKED_BY_PATIENT = "Patient says booked (no date)"
 BOOKED_BY_COORDINATOR = "Booked (confirmed by coordinator)"
 VERIFIED_BY_COORDINATOR = "Outside report (verified by coordinator)"
 DOCTOR_TO_VERIFY = " — doctor to verify"
@@ -183,24 +182,6 @@ def _exception(conn, batch_id: int, source_type: str, row_number: int, raw: str,
 # ---------------------------------------------------------------------------------------------------------------
 # Buttons and booking (REQ-05, REQ-06)
 # ---------------------------------------------------------------------------------------------------------------
-def tap_booked(conn, card: dict, inbound_id: int, actor: str) -> str:
-    """REQ-05: the tap moves the card Due -> Booked with no date (source patient), label "Patient says booked
-    (no date)", and closes its G0 gap so no further reminder goes. No task. A person may add the date later."""
-    states.transition_card(conn, card["card_id"], "Booked", "system", actor, source="patient_button",
-                           inbound_id=inbound_id)
-    conn.execute("UPDATE order_card SET patient_says_booked = true, label = %s WHERE card_id = %s",
-                 (BOOKED_BY_PATIENT, card["card_id"]))
-    closed = conn.execute("UPDATE gap_event SET status = 'resolved', outcome = 'patient_says_booked' "
-                          "WHERE card_id = %s AND status <> 'resolved' RETURNING gap_id", (card["card_id"],)).fetchall()
-    audit.append(conn, actor_type="system", actor_name=actor, action="card_label_set", entity_type="order_card",
-                 entity_id=str(card["card_id"]), mrn=card["mrn"], reason_code="patient_says_booked",
-                 details={"label": BOOKED_BY_PATIENT, "state": "Booked", "inbound_id": inbound_id,
-                          "gaps_closed": [g["gap_id"] for g in closed], "task": None})
-    set_next_action(conn, card["mrn"], f"{card['name']}: patient says booked (no date); waiting for the appointment "
-                                       "list or the report")
-    return "test_booked_by_patient"
-
-
 def schedule_by_coordinator(conn, card: dict, day: date, at: time | None, user_id: str) -> None:
     """REQ-06: Record booking on a test card needs a date and time: Due -> Booked (source coordinator), or the date
     is added to a card already Booked from a tap. The card shows "Booked (confirmed by coordinator)"."""
@@ -961,7 +942,7 @@ def flag_copy(conn, copy_id: int, user_id: str, reason: str | None) -> dict:
     states.transition_card(conn, card["card_id"], back, "person", user_id, source="flagged_wrong",
                            report_id=r["report_id"], reason=reason)
     conn.execute("UPDATE order_card SET label = %s, report_road = NULL WHERE card_id = %s",
-                 (BOOKED_BY_PATIENT if back == "Booked" and card["booking_source"] == "patient_button" else None,
+                 ("Booked outside" if back == "Booked" and card["booking_source"] == "patient_elsewhere" else None,
                   card["card_id"]))
     conn.execute("""UPDATE test_report SET status = 'flagged', card_id = NULL, flagged_by = %s, flag_reason = %s,
                     flagged_at_demo = %s WHERE report_id = %s""", (user_id, reason, now, r["report_id"]))

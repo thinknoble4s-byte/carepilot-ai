@@ -13,7 +13,7 @@ from .agent import AGENT, set_next_action
 from .errors import Conflict, Invalid, NotFound
 
 SYSTEM = "CarePilot"
-# confirm_test_booking: the patient tapped Booked on a test reminder (no date): the coordinator records the
+# confirm_test_booking (not raised since 5 Nov: a Booked tap books the card for that day): the coordinator records the
 # booking with its date (the test becomes Booked, confirmed by coordinator).
 # Use Case 2T v1.4: the report-check tasks (find the hospital report, call about the test, call the patient to
 # resend a report) are calls too: attempts, then one result with a remarks note.

@@ -30,13 +30,13 @@
         "Telugu": "రాలేను"
       },
       {
-        "id": "done_outside",
+        "id": "booked_elsewhere",
         "only": "test",
-        "English": "Done at an outside lab",
-        "Hindi": "बाहर की लैब में करवाई",
-        "Kannada": "ಹೊರಗಿನ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದೆ",
-        "Tamil": "வெளி ஆய்வகத்தில் செய்தேன்",
-        "Telugu": "బయటి ల్యాబ్‌లో చేయించాను"
+        "English": "Booked elsewhere",
+        "Hindi": "कहीं और बुक कर लिया",
+        "Kannada": "ಬೇರೆಡೆ ಬುಕ್ ಮಾಡಿದ್ದೇನೆ",
+        "Tamil": "வேறு இடத்தில் முன்பதிவு செய்தேன்",
+        "Telugu": "వేరే చోట బుక్ చేశాను"
       }
     ],
     "text": {
@@ -79,13 +79,13 @@
         "Telugu": "రాలేను"
       },
       {
-        "id": "done_outside",
+        "id": "booked_elsewhere",
         "only": "test",
-        "English": "Done at an outside lab",
-        "Hindi": "बाहर की लैब में करवाई",
-        "Kannada": "ಹೊರಗಿನ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದೆ",
-        "Tamil": "வெளி ஆய்வகத்தில் செய்தேன்",
-        "Telugu": "బయటి ల్యాబ్‌లో చేయించాను"
+        "English": "Booked elsewhere",
+        "Hindi": "कहीं और बुक कर लिया",
+        "Kannada": "ಬೇರೆಡೆ ಬುಕ್ ಮಾಡಿದ್ದೇನೆ",
+        "Tamil": "வேறு இடத்தில் முன்பதிவு செய்தேன்",
+        "Telugu": "వేరే చోట బుక్ చేశాను"
       }
     ],
     "text": {
@@ -183,13 +183,13 @@
         "Telugu": "రాలేను"
       },
       {
-        "id": "done_outside",
+        "id": "booked_elsewhere",
         "only": "test",
-        "English": "Done at an outside lab",
-        "Hindi": "बाहर की लैब में करवाई",
-        "Kannada": "ಹೊರಗಿನ ಲ್ಯಾಬ್‌ನಲ್ಲಿ ಮಾಡಿಸಿದೆ",
-        "Tamil": "வெளி ஆய்வகத்தில் செய்தேன்",
-        "Telugu": "బయటి ల్యాబ్‌లో చేయించాను"
+        "English": "Booked elsewhere",
+        "Hindi": "कहीं और बुक कर लिया",
+        "Kannada": "ಬೇರೆಡೆ ಬುಕ್ ಮಾಡಿದ್ದೇನೆ",
+        "Tamil": "வேறு இடத்தில் முன்பதிவு செய்தேன்",
+        "Telugu": "వేరే చోట బుక్ చేశాను"
       }
     ],
     "text": {
@@ -425,6 +425,36 @@
       "Tamil": "எங்கள் கேள்விகளுக்குப் பதிலளித்ததற்கு நன்றி. உங்கள் பதில்களில் எச்சரிக்கை அறிகுறி உள்ளது. உடனே அருகிலுள்ள அவசர சிகிச்சைப் பிரிவுக்குச் செல்லுங்கள். காத்திருக்க வேண்டாம். பணியில் உள்ள மருத்துவருக்குத் தெரிவிக்கப்பட்டுள்ளது.",
       "Telugu": "మా ప్రశ్నలకు జవాబులు ఇచ్చినందుకు ధన్యవాదాలు. మీ జవాబుల్లో ఒక ప్రమాద సంకేతం ఉంది. దయచేసి ఇప్పుడే దగ్గరలోని అత్యవసర విభాగానికి వెళ్లండి. ఆలస్యం చేయవద్దు. డ్యూటీలో ఉన్న డాక్టర్‌కు సమాచారం ఇచ్చాము.",
       "Hindi": "हमारे सवालों के जवाब देने के लिए धन्यवाद। आपके जवाबों में एक खतरे का संकेत है। कृपया अभी नज़दीकी आपातकालीन विभाग में जाइए। इंतज़ार मत कीजिए। ड्यूटी पर मौजूद डॉक्टर को सूचित कर दिया गया है।"
+    },
+    "effective_from": "2026-10-05"
+  },
+  {
+    "template_id": "booking_slots",
+    "version": "1.0",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "note": "Patient self-booking (5 Nov): sent after \"Please help me book\"; the four slot buttons are added at send time. Kannada, Hindi, Tamil and Telugu are drafts, to be checked by a native speaker.",
+    "buttons": [],
+    "text": {
+      "English": "Namaste {first_name}. Please choose a time for your {item}. Tap one of the times below. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। कृपया अपनी {item} के लिए समय चुनें। नीचे दिए किसी एक समय पर टैप करें। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನಿಮ್ಮ {item} ಗಾಗಿ ಸಮಯವನ್ನು ಆಯ್ಕೆ ಮಾಡಿ. ಕೆಳಗಿನ ಒಂದು ಸಮಯವನ್ನು ಒತ್ತಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
+      "Tamil": "வணக்கம் {first_name}. உங்கள் {item} க்கான நேரத்தைத் தேர்ந்தெடுக்கவும். கீழே உள்ள ஒரு நேரத்தைத் தட்டுங்கள். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
+      "Telugu": "నమస్తే {first_name} గారు. మీ {item} కోసం సమయం ఎంచుకోండి. కింద ఉన్న ఒక సమయాన్ని నొక్కండి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
+    },
+    "effective_from": "2026-10-05"
+  },
+  {
+    "template_id": "booking_confirmed",
+    "version": "1.0",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "note": "Patient self-booking (5 Nov): sent when the patient taps a slot. Kannada, Hindi, Tamil and Telugu are drafts, to be checked by a native speaker.",
+    "buttons": [],
+    "text": {
+      "English": "Namaste {first_name}. Your appointment for your {item} has been booked successfully: {appointment}. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। आपकी {item} का अपॉइंटमेंट सफलतापूर्वक बुक हो गया है: {appointment}। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನಿಮ್ಮ {item} ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಯಶಸ್ವಿಯಾಗಿ ಬುಕ್ ಆಗಿದೆ: {appointment}. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
+      "Tamil": "வணக்கம் {first_name}. உங்கள் {item} சந்திப்பு வெற்றிகரமாக முன்பதிவு செய்யப்பட்டது: {appointment}. — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
+      "Telugu": "నమస్తే {first_name} గారు. మీ {item} అపాయింట్‌మెంట్ విజయవంతంగా బుక్ అయింది: {appointment}. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
     },
     "effective_from": "2026-10-05"
   }

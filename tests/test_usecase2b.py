@@ -17,10 +17,10 @@ def db():
     return _db.connect()
 
 
-def reminder(mrn):
+def reminder(mrn, template="booking_reminder"):
     with db() as c:
-        return c.execute("SELECT * FROM outbox_message WHERE mrn = %s AND template_id = 'booking_reminder'",
-                         (mrn,)).fetchone()
+        return c.execute("SELECT * FROM outbox_message WHERE mrn = %s AND template_id = %s ORDER BY message_id DESC",
+                         (mrn, template)).fetchone()
 
 
 def reply(client, mrn, **body):
@@ -79,34 +79,22 @@ def test_seed(uc2b, client):
 
 
 def test_uc2b_t1_help_booking(uc2b, client):
+    """5 Nov: Please help me book offers four slots; the slot she taps books the visit and she is told; no task."""
     r = reply(client, "TP001", button="help_book")
-    assert r["handling"] == ["button_help_book:help_booking_created"]
+    assert r["handling"] == ["button_help_book:slots_offered"]
     assert rv(client, "TP001")["state"] == "Due" and ai_entries("TP001") == 0
-    [t] = help_tasks(client, "TP001")
-    assert (t["task_type"], t["owner_name"], t["cover_name"], t["due_date"], t["state"]) == \
-        ("help_booking", "Anita", "Ravi", "2026-11-11", "Open")
-    assert tasks(client, "TP001")["hold"] is True
-    row = next(p for p in client.get("/worklist", headers=ANITA).json()["patients"] if p["mrn"] == "TP001")
-    assert any("task_help_booking" in x["marks"] for x in row["reasons"])
-    activity = client.get("/worklist", headers=ANITA).json()["feed"]
-    assert any("Escalated: help booking" in a["text"] for a in activity)
-    assert sent("TP001") == ["booking_reminder"]  # nothing sent to the patient (REQ-14)
-
-    set_clock(client, "2026-11-10", "10:00")
-    assert result(client, t["task_id"], result="booked", note="Booked by phone").status_code == 422  # date required
-    assert result(client, t["task_id"], result="booked", appointment_date="2026-11-13").status_code == 422  # time too
-    done = result(client, t["task_id"], result="booked", appointment_date="2026-11-13", appointment_time="10:30",
-                  note="Booked by phone for Friday morning")
-    assert done.status_code == 200, done.text
+    assert help_tasks(client, "TP001") == [] and tasks(client, "TP001")["hold"] is False
+    assert sent("TP001") == ["booking_reminder", "booking_slots"]
+    offer = reminder("TP001", "booking_slots")
+    slot = offer["buttons"][0]
+    r = reply(client, "TP001", button="slot_1", in_reply_to=offer["message_id"])
+    assert r["handling"] == ["button_slot_1:card_booked_slot"]
     card = rv(client, "TP001")
-    assert (card["state"], card["booking_source"], card["appointment_date"]) == ("Booked", "coordinator", "2026-11-13")
-    [t] = help_tasks(client, "TP001")
-    assert (t["state"], t["result"], t["done_by"], t["done_note"]) == ("Done", "booked", "u_anita", "Booked by phone for Friday morning")
-    assert tasks(client, "TP001")["hold"] is False
-    assert sent("TP001") == ["booking_reminder"]
-    # A later patient tap never overwrites the coordinator's booking (REQ-12).
-    reply(client, "TP001", button="booked")
-    assert rv(client, "TP001")["booking_source"] == "coordinator"
+    assert (card["state"], card["booking_source"], card["appointment_date"], card["appointment_time"]) == \
+        ("Booked", "patient_slot", slot["date"], f"{slot['time']}:00")
+    assert sent("TP001") == ["booking_reminder", "booking_slots", "booking_confirmed"]
+    # A later patient tap does not move it again.
+    assert reply(client, "TP001", button="booked")["handling"] == ["button_booked:already_progressed"]
 
 
 def test_uc2b_t2_cant_come(uc2b, client):
@@ -163,7 +151,7 @@ def test_uc2b_t4_negative_case(uc2b, client):
 def test_uc2b_t5_hold(uc2b, client):
     from app import agent, messaging
 
-    reply(client, "TP001", button="help_book")
+    reply(client, "TP001", button="cant_come")
     with db() as c:
         m = messaging.send_message(c, mrn="TP001", template_id="booking_reminder", actor_type="person",
                                    actor="u_anita", reason_code="test")
@@ -171,7 +159,7 @@ def test_uc2b_t5_hold(uc2b, client):
         assert agent.select_action(c, {"mrn": "TP001", "rule": "G0"})["reason_code"] == "held_open_task"
     assert scalar("SELECT count(*) FROM audit_ledger WHERE action = 'message_blocked' AND reason_code = 'held_open_task'") == 1
     [t] = help_tasks(client, "TP001")
-    result(client, t["task_id"], result="could_not_book", note="No slots this week; will call again")
+    result(client, t["task_id"], result="reason_recorded", reason_code="transport", note="Needs transport")
     assert rv(client, "TP001")["state"] == "Due"
     with db() as c:
         m = messaging.send_message(c, mrn="TP001", template_id="booking_reminder", actor_type="person",
@@ -180,11 +168,11 @@ def test_uc2b_t5_hold(uc2b, client):
 
 
 def test_uc2b_t6_no_duplicates(uc2b, client):
-    first = reply(client, "TP001", button="help_book", event_id="wa-1")
-    second = reply(client, "TP001", button="help_book", event_id="wa-2")
-    replay = reply(client, "TP001", button="help_book", event_id="wa-2")
-    assert first["handling"] == ["button_help_book:help_booking_created"]
-    assert second["handling"] == ["button_help_book:help_booking_already_open"]
+    first = reply(client, "TP001", button="cant_come", event_id="wa-1")
+    second = reply(client, "TP001", button="cant_come", event_id="wa-2")
+    replay = reply(client, "TP001", button="cant_come", event_id="wa-2")
+    assert first["handling"] == ["button_cant_come:cant_come_created"]
+    assert second["handling"] == ["button_cant_come:cant_come_already_open"]
     assert replay["handling"] == ["duplicate_ignored"]
     assert len(help_tasks(client, "TP001")) == 1
     assert scalar("SELECT count(*) FROM inbound_message WHERE mrn = 'TP001'") == 2
@@ -227,22 +215,23 @@ def test_uc2b_t9_voice_note_is_not_a_keyword(uc2b, client):
 
 
 def test_help_task_closes_only_with_a_result(uc2b, client):
-    reply(client, "TP001", button="help_book")
+    reply(client, "TP001", button="cant_come")
     [t] = help_tasks(client, "TP001")
     assert client.post(f"/tasks/{t['task_id']}/done", headers=ANITA, json={"note": "done"}).status_code == 422
 
 
 def test_audit_order_help_booking(uc2b, client):
     reply(client, "TP001", button="help_book")
-    [t] = help_tasks(client, "TP001")
-    result(client, t["task_id"], result="booked", appointment_date="2026-11-13", appointment_time="10:30", note="Booked")
+    offer = reminder("TP001", "booking_slots")
+    reply(client, "TP001", button="slot_2", in_reply_to=offer["message_id"])
     with db() as c:
         rows = c.execute("""SELECT action, actor_type, reason_code, demo_time FROM audit_ledger WHERE mrn = 'TP001'
                             AND id > (SELECT max(id) FROM audit_ledger WHERE action = 'reminder_run') ORDER BY id""").fetchall()
     assert [(r["action"], r["actor_type"]) for r in rows] == [
-        ("reply_received", "system"), ("agent_decision", "agent"), ("task_created", "system"),
-        ("task_result_recorded", "person"), ("card_state_changed", "system"), ("task_done", "system")]
-    assert rows[1]["reason_code"] == "patient_asked_help_booking" and all(r["demo_time"] for r in rows)
+        ("reply_received", "system"), ("message_sent", "agent"), ("agent_decision", "agent"),
+        ("reply_received", "system"), ("card_state_changed", "system"), ("appointment_booked", "system"),
+        ("message_sent", "agent")]
+    assert rows[2]["reason_code"] == "patient_asked_help_booking" and all(r["demo_time"] for r in rows)
 
 
 def test_audit_order_help_keyword_has_no_ai(uc2b, client):

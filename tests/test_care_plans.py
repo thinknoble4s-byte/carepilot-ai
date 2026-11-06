@@ -142,14 +142,15 @@ def test_booking_a_test_from_a_task_books_it(her2, client):
 
 
 def test_booked_tap_on_a_test_moves_it_to_booked_then_the_list_adds_the_date(her2, client):
-    """Golden Path (Use Case 2T v1.4 switched on): Booked on a test reminder moves the test Due -> Booked with no date
-    and the label "Patient says booked (no date)", with no task; the appointment list adds the date later."""
-    from app import db, gateway
+    """Golden Path (Use Case 2T v1.4 switched on): Booked on a test reminder moves the test Due -> Booked for the day
+    of the tap (5 Nov: no "no date" state), with no task; the appointment list replaces the date later."""
+    from app import clock, db, gateway
 
     with db.connect() as c:
         gateway._apply_button(c, "SYN-0007", "booked", {"card_id": her2["MG3"]["card_id"]}, None)
+        today = clock.get_today(c).isoformat()
     c = card(client, "MG3")
-    assert (c["state"], c["label"], c["booking_source"], c["appointment_date"]) ==         ("Booked", "Patient says booked (no date)", "patient_button", None)
+    assert (c["state"], c["label"], c["booking_source"], c["appointment_date"]) ==         ("Booked", None, "patient_button", today)
     assert not [t for t in client.get("/patients/SYN-0007/tasks", headers=PRIYA).json()["tasks"]
                 if t["task_type"] == "confirm_test_booking"]
     appointment(client, "MAMMO", "2026-11-05")
@@ -201,12 +202,13 @@ def test_golden_path_report_check_in_kannada_for_savitri(seeded, client):
 
 
 def test_scan_done_at_an_outside_centre(her2, client):
-    """A mammogram done outside (owner's decision, option 1): the reminder offers Done at an outside lab; the tap
-    moves the scan to Completed and asks for the report; a clear report with her name, MRN and test moves it to
-    Report received; the doctor opens it and verifies it (Verified)."""
+    """A mammogram done outside (owner's decision, option 1): the tap on Done at an outside lab moves the scan to
+    Completed and asks for the report; a clear report with her name, MRN and test moves it to Report received; the
+    doctor opens it and verifies it (Verified). Since 5 Nov the reminder offers Booked elsewhere instead; a reminder
+    sent before that still carries Done at an outside lab, and its tap is still honoured."""
     morning(client)
     mg = next(m for m in outbox("SYN-0007") if m["recipient"] == "patient" and m["card_id"] == her2["MG3"]["card_id"])
-    assert [b["id"] for b in mg["buttons"]] == ["booked", "help_book", "cant_come", "done_outside"]
+    assert [b["id"] for b in mg["buttons"]] == ["booked", "help_book", "cant_come", "booked_elsewhere"]
     assert mg["buttons"][0]["label_en"] == "Mammogram booked"
     r = client.post("/simulator/SYN-0007/reply", headers=PRIYA,
                     json={"button": "done_outside", "in_reply_to": mg["message_id"]})

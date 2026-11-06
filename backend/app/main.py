@@ -251,6 +251,11 @@ async def upload(
     return in_tx(go)
 
 
+@app.get("/appointments")
+def appointment_list(_user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(views.appointments)
+
+
 @app.get("/exceptions")
 def exceptions(status: Literal["open", "dismissed", "all"] = "open", batch_id: int | None = None,
                _user: dict = Depends(require_role(*COORDINATOR))):

@@ -390,10 +390,10 @@
           "label_en": "I can't come"
         },
         {
-          "id": "done_outside",
-          "only": "test",
-          "label": "Done at an outside lab",
-          "label_en": "Done at an outside lab"
+          "id": "booked_elsewhere",
+          "label": "Booked elsewhere",
+          "label_en": "Booked elsewhere",
+          "only": "test"
         }
       ]
     },

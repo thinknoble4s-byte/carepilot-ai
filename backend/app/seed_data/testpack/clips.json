@@ -1,0 +1,5503 @@
+{
+  "TA-R01": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Red",
+    "story": "R1",
+    "story_text": "Chest pain or breathless",
+    "dialect": "Chennai (Madras Bashai)",
+    "caller": "patient",
+    "speaker": "roopa",
+    "style": {
+      "pace": 1.25,
+      "noise": "street",
+      "noise_level": 0.4
+    },
+    "text": "இன்னாபா இது… நெஞ்சு நடுவுல பயங்கரமா வலிக்குது, மூச்சு வாங்கவே முடியல… கை காலெல்லாம் வேர்த்து கொட்டுது… பேஜாரா கீதுபா, சீக்கிரம் ஏதாச்சும் பண்ணுங்க…",
+    "meaning": "What is this… a terrible pain in the middle of my chest, I can't catch my breath… I'm sweating all over… it's awful, do something quickly…",
+    "tags": {
+      "symptoms": [
+        "chest_or_breathing"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "YES",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TA-R01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_CHEST_PAIN"
+      ],
+      "why": [
+        "Chest pain or hard to breathe reported"
+      ]
+    },
+    "seconds": 8.7,
+    "heard": {
+      "transcript": "என்னப்பா இது நெஞ்சு நடுவுல பயங்கரமா வலிக்குது. மூச்சு வாங்கவே முடியல. கை காலெல்லாம் வேர்த்து விட்டது. பேஜாரா கீதுவா. சீக்கிரம் ஏதாச்சும் பண்ணுங்க.",
+      "translation": "What is this, my chest hurts terribly in the middle. I can't even breathe. My hands and legs are all sweaty. I'm feeling restless. Please do something quickly.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "chest_or_breathing",
+          "other_symptom"
+        ],
+        "severity_word": "SEVERE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST"
+        ],
+        "floors": [
+          "AMBER_PATIENT_SAYS_SEVERE",
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_CHEST_PAIN"
+        ],
+        "why": [
+          "Chest pain or hard to breathe reported"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-R02": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Red",
+    "story": "R2",
+    "story_text": "So sleepy she cannot keep her eyes open",
+    "dialect": "Kongu (Coimbatore)",
+    "caller": "son",
+    "speaker": "gokul",
+    "style": {
+      "pitch": 0.9,
+      "noise": "room",
+      "noise_level": 0.25
+    },
+    "text": "ஏனுங்க, எங்க அம்மாவுக்கு காலையிலிருந்து நெம்ப தூக்கமாவே இருக்குதுங்க… கண்ணையே தொறக்க முடியலீங்க, கூப்பிட்டாலும் சரியா பதில் சொல்ல மாட்டேங்குறாங்க… என்ன பண்றதுன்னே தெரியலீங்க.",
+    "meaning": "Sir, my mother has been very sleepy since morning… she can't open her eyes, even when we call her she doesn't answer properly… we don't know what to do.",
+    "tags": {
+      "symptoms": [
+        "sleepiness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "YES",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TA-R02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_DROWSY"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_CANNOT_STAY_AWAKE"
+      ],
+      "why": [
+        "Reported as so sleepy she cannot keep her eyes open"
+      ]
+    },
+    "seconds": 13.0,
+    "heard": {
+      "transcript": "ஏனுங்க எங்க அம்மாவுக்கு காலையிலிருந்து நெம்பத் தூக்கமாவே இருக்குதுங்க. கண்ணையே திறக்க முடியலைங்க. கூப்பிட்டாலும் சரியா பதில் சொல்ல மாட்டேங்கிறாங்க. என்ன பண்றதுன்னே தெரியலைங்க.",
+      "translation": "What is it? My mother has been feeling very sleepy since morning. She can't even open her eyes. Even when I call her, she doesn't give a proper answer. I don't know what to do.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "sleepiness"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_DROWSY"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_CANNOT_STAY_AWAKE"
+        ],
+        "why": [
+          "Reported as so sleepy she cannot keep her eyes open"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-R03": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Red",
+    "story": "R3",
+    "story_text": "Left arm red and hot",
+    "dialect": "Tirunelveli",
+    "caller": "patient",
+    "speaker": "rupali",
+    "style": {
+      "pace": 0.9,
+      "pitch": 0.93,
+      "tremble": true
+    },
+    "text": "ஏலே… எடது கை முழுக்க செவந்து போச்சுலே, தொட்டா நெருப்பா சுடுது… வலியும் தாங்க முடியல… பயமா இருக்குதேன், என்ன செய்யன்னு தெரியலயே…",
+    "meaning": "Oh… my whole left arm has gone red, it burns like fire to touch… I can't bear the pain… I'm scared, I don't know what to do…",
+    "tags": {
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "YES",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TA-R03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_ARM_RED_OR_HOT"
+      ],
+      "why": [
+        "Left arm reported as red or hot to touch"
+      ]
+    },
+    "seconds": 10.6,
+    "heard": {
+      "transcript": "இலை இடது கை முழுக்க சிவந்து போச்சுலே, தொட்டா நெருப்பா சுடுது வலியும் தாங்க முடியல பயமா இருக்குதேன், என்ன செய்யன்னு தெரியலை.",
+      "translation": "My left hand is completely red. When I touch it, it feels like fire, and I can't bear the pain; I'm scared. I don't know what to do.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_swelling_or_redness",
+          "arm_pain"
+        ],
+        "severity_word": "SEVERE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED"
+        ],
+        "floors": [
+          "AMBER_PATIENT_SAYS_SEVERE"
+        ],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_ARM_RED_OR_HOT"
+        ],
+        "why": [
+          "Left arm reported as red or hot to touch"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-R04": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Red",
+    "story": "R4",
+    "story_text": "High fever with shivering",
+    "dialect": "Standard",
+    "caller": "patient",
+    "speaker": "ritu",
+    "style": {
+      "pace": 0.9,
+      "muffled": true
+    },
+    "text": "ராத்திரியிலிருந்து ஜுரம் அடிக்குது… உடம்பெல்லாம் நடுங்குது, போர்வை போத்தியும் குளிருது… தெர்மாமீட்டர்ல நூத்தி ஒண்ணுக்கு மேல காட்டுது…",
+    "meaning": "Fever since last night… my whole body is shivering, I feel cold even under a blanket… the thermometer shows over 101…",
+    "tags": {
+      "symptoms": [
+        "fever_chills"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "101.5",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TA-R04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_CHILLS",
+        "Q_FEELS_HOT"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_FEVER_100_4F_PLUS"
+      ],
+      "why": [
+        "Temperature reported as 100.4 F (38.0 C) or more"
+      ]
+    },
+    "seconds": 9.7,
+    "heard": {
+      "transcript": "ராத்திரியிலிருந்து ஜுரம் அடிக்குது, உடம்பெல்லாம் நடுங்குது, போர்வை போத்தியும் குளிருது, தெர்மாமீட்டர்ல நூற்றி ஒன்னுக்கு மேல காட்டுது.",
+      "translation": "I have been having a fever since last night, and my whole body is shivering. My blanket is also cold, and the thermometer shows above 101.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "fever_chills"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_CHILLS",
+          "Q_FEELS_HOT"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_FEVER_100_4F_PLUS"
+        ],
+        "why": [
+          "Temperature reported as 100.4 F (38.0 C) or more"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-R05": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Red",
+    "story": "R5",
+    "story_text": "Vomiting many times, cannot keep water down",
+    "dialect": "Chennai (Madras Bashai)",
+    "caller": "son",
+    "speaker": "vijay",
+    "style": {
+      "pace": 1.2,
+      "noise": "home",
+      "noise_level": 0.3
+    },
+    "text": "சார், எங்க அம்மா காலைலேருந்து ஏழெட்டு தடவ வாந்தி எடுத்துட்டாங்க… தண்ணி குடிச்சாலும் உடனே வந்துருது… ரொம்ப டயர்டா கீறாங்க, இன்னா பண்றதுன்னு சொல்லுங்க சார்.",
+    "meaning": "Sir, my mother has vomited seven or eight times since morning… even water comes right back up… she's very tired, tell us what to do.",
+    "tags": {
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.8",
+      "Q_BANGLES": "NO",
+      "Q_NAUSEA": "YES",
+      "Q_VOMIT": "8"
+    },
+    "file": "audio/TA-R05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_VOMITING_6_PLUS"
+      ],
+      "why": [
+        "Vomiting reported 6 or more times since yesterday"
+      ]
+    },
+    "seconds": 8.8,
+    "heard": {
+      "transcript": "சார், எங்க அம்மா காலையில இருந்து ஏழு எட்டு தடவை வாந்தி எடுத்துட்டாங்க. தண்ணி குடிச்சாலும் உடனே வந்துருது, ரொம்ப டயர்டாக்கிறாங்க. என்ன பண்றதுன்னு சொல்லுங்க சார்.",
+      "translation": "Sir, my mother has vomited seven or eight times since morning. Even after drinking water, she vomits immediately and feels very tired. Please tell me what to do, sir.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "nausea_vomiting",
+          "tiredness"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_VOMITING_6_PLUS"
+        ],
+        "why": [
+          "Vomiting reported 6 or more times since yesterday"
+        ]
+      },
+      "verdict": "safe",
+      "note": "also asked: Q_TIRED_DAYS, Q_TIRED_WORSE"
+    }
+  },
+  "TA-A01": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Amber",
+    "story": "A1",
+    "story_text": "Arm swollen, bangles tight",
+    "dialect": "Madurai",
+    "caller": "patient",
+    "speaker": "kavitha",
+    "style": {
+      "pace": 0.85,
+      "pitch": 0.92,
+      "volume": 0.9,
+      "tremble": true,
+      "noise": "home",
+      "noise_level": 0.35
+    },
+    "text": "ஆத்தாடி… அ-அய்யோ… ரெண்டு நாளா இந்த எடது கை இம்புட்டு வீங்கிப் போயி கெடக்குய்யா… வளையல்லாம் இறுகிப் போச்சு, கழட்டவே ஏலலய்யா… ல-லேசா வலிக்குதுய்யா… எனக்கு அம்புட்டு பயமா இருக்கு டாக்டரம்மா, என்னத்த பண்றதுன்னே தெரியலயே…",
+    "meaning": "Oh mother… oh… for two days this left arm has swollen up this much… the bangles have all gone tight, I just can't take them off… it hurts a little… I'm so scared, doctor-amma, I don't know what to do…",
+    "tags": {
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "YES",
+      "Q_ARM_SCORE": "4",
+      "Q_ARM_SUDDEN": "NO",
+      "Q_SWOLLEN": "YES",
+      "Q_SKIN": "NO"
+    },
+    "file": "audio/TA-A01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_BANGLES_TIGHTER_THAN_BASELINE",
+        "AMBER_ARM_SWOLLEN"
+      ],
+      "why": [
+        "Left arm: no swelling and loose bangles on 10 October. Today: bangles tighter.",
+        "She says the left arm looks swollen or feels heavy."
+      ]
+    },
+    "seconds": 22.6,
+    "heard": {
+      "transcript": "ஆத்தாடி ஆ ஐயோ ரெண்டு நாளா இந்த இடது கை இம்புட்டு வீங்கிப் போயி கிடக்குயா வலையெல்லாம் இருகிப் போச்சு கழட்டவே இயலலையால லேசா வலிக்குதுயா எனக்கு அம்புட்டு பயமா இருக்கு டாக்டர் அம்மா என்னத்த பண்றதுன்னே தெரியலையே",
+      "translation": "Oh my god! Oh no! For two days, this left hand has been swollen and swollen, and the veins have become tight. I can't even remove it; it hurts a little. I'm so scared. Doctor, I don't know what to do.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_swelling_or_redness",
+          "arm_pain",
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_BANGLES_TIGHTER_THAN_BASELINE",
+          "AMBER_ARM_SWOLLEN",
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "Left arm: no swelling and loose bangles on 10 October. Today: bangles tighter.",
+          "She says the left arm looks swollen or feels heavy.",
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-A02": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Amber",
+    "story": "A2",
+    "story_text": "Headache worse than last time",
+    "dialect": "Kongu (Coimbatore)",
+    "caller": "patient",
+    "speaker": "roopa",
+    "style": {
+      "pace": 0.95,
+      "pitch": 0.88
+    },
+    "text": "ஏனுங்க, மூணு நாளா தலைவலி நெம்ப அதிகமாயிருச்சுங்க… போன தடவ சொன்னதைவிட இப்போ கூடுதலா இருக்குதுங்க… மாத்திரை போட்டும் கேக்கலீங்க.",
+    "meaning": "For three days the headache has got much worse… it's more now than when I told you last time… even the tablets don't help.",
+    "tags": {
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "3",
+      "Q_HEAD_WORSE": "YES"
+    },
+    "file": "audio/TA-A02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"
+      ],
+      "why": [
+        "She says the headache is worse than on 19 October."
+      ]
+    },
+    "seconds": 10.0,
+    "heard": {
+      "transcript": "ஏனுங்க மூணு நாளா தலைவலி நெம்ப அதிகமாயிருச்சுங்க போன தடவை சொன்னதை விட இப்போ கூடுதலா இருக்குதுங்க மாத்திரை போட்டும் கேட்கலிங்க",
+      "translation": "Why, for three days my headache has increased a lot. It is more now than what I said last time. I didn't even ask for medicine.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "headache"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"
+        ],
+        "why": [
+          "She says the headache is worse than on 19 October."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-A03": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Amber",
+    "story": "A3",
+    "story_text": "Arm pain started suddenly",
+    "dialect": "Chennai (Madras Bashai)",
+    "caller": "patient",
+    "speaker": "shruti",
+    "style": {
+      "pace": 1.2,
+      "tremble": true
+    },
+    "text": "நே-நேத்து சாயங்காலம் திடீர்னு எடது கையில சுளீர்னு வலி வந்துச்சுபா… அ-அப்போலேருந்து கையை அசைக்கவே பயமா கீது…",
+    "meaning": "Yesterday evening a sharp pain suddenly came in my left arm… since then I'm scared to even move it…",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "5",
+      "Q_ARM_SUDDEN": "YES"
+    },
+    "file": "audio/TA-A03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_ARM_PAIN_SUDDEN_ONSET"
+      ],
+      "why": [
+        "She says the arm pain started suddenly."
+      ]
+    },
+    "seconds": 8.9,
+    "heard": {
+      "transcript": "நேத்து சாயங்காலம் விடீர்னு இடது கையில் சுளிர்னு வலி வந்துச்சுப்பா, அப்போலேருந்து கையை அசைக்கவே பயமாக்கிது.",
+      "translation": "Yesterday evening, suddenly, I felt a sharp pain in my left hand. Since then, I have been afraid to move my hand.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_pain"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_ARM_PAIN_SUDDEN_ONSET"
+        ],
+        "why": [
+          "She says the arm pain started suddenly."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-A04": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Amber",
+    "story": "A4",
+    "story_text": "Tired for more than a week",
+    "dialect": "Tirunelveli",
+    "caller": "patient",
+    "speaker": "kavya",
+    "style": {
+      "pace": 0.85,
+      "pitch": 0.9,
+      "muffled": true
+    },
+    "text": "ஒரு வாரத்துக்கு மேல ஆச்சு, உடம்பு அசதியாவே இருக்குலே… எந்திரிக்கவே முடியல, சோறு கூட சரியா எறங்கல…",
+    "meaning": "It's been more than a week, my body feels exhausted… I can't even get up, even food doesn't go down properly…",
+    "tags": {
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_TIRED_DAYS": "9",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/TA-A04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_TIREDNESS_7_DAYS_PLUS"
+      ],
+      "why": [
+        "Tired for 9 days."
+      ]
+    },
+    "seconds": 9.5,
+    "heard": {
+      "transcript": "ஒரு வாரத்துக்கு மேல் ஆச்சு. உடம்பு அசதியாகவே இருக்குலே, எந்திரிக்கவே முடியல. சோறு கூட சரியா இறங்கல.",
+      "translation": "It has been more than a week. My body feels very tired. I am unable to get up. Even my appetite is not properly reduced.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "tiredness"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_TIREDNESS_7_DAYS_PLUS"
+        ],
+        "why": [
+          "Tired for 9 days."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-A05": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Amber",
+    "story": "A5",
+    "story_text": "Says 'severe' in her own words",
+    "dialect": "Standard",
+    "caller": "son",
+    "speaker": "anand",
+    "style": {
+      "noise": "street",
+      "noise_level": 0.45
+    },
+    "text": "அம்மாவுக்கு இடது கையில ரொம்ப கடுமையான வலி, தாங்கவே முடியலன்னு சொல்றாங்க. நான் அவங்க பையன் கார்த்திக் பேசுறேன்.",
+    "meaning": "Mother says she has very severe pain in her left arm, she can't bear it. This is her son Karthik speaking.",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "SEVERE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "6",
+      "Q_ARM_SUDDEN": "NO"
+    },
+    "file": "audio/TA-A05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [
+        "AMBER_PATIENT_SAYS_SEVERE"
+      ],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_PATIENT_SAYS_SEVERE"
+      ],
+      "why": [
+        "She described her problem as severe in her own message."
+      ]
+    },
+    "seconds": 7.2,
+    "heard": {
+      "transcript": "அம்மாவுக்கு இட கையில ரொம்ப கடுமையான வீடு. தாங்கவே முடியலன்னு சொல்றாங்க. நான் அவங்க பையன் கார்த்திக் பேசுறேன்.",
+      "translation": "They are saying that Amma has a very severe pain in her left hand and she is unable to bear it. I am their son Karthik speaking.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_pain",
+          "other_symptom"
+        ],
+        "severity_word": "SEVERE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "floors": [
+          "AMBER_PATIENT_SAYS_SEVERE",
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_PATIENT_SAYS_SEVERE",
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "She described her problem as severe in her own message.",
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-A06": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Amber",
+    "story": "A6",
+    "story_text": "A symptom we have no questions for",
+    "dialect": "Madurai",
+    "caller": "patient",
+    "speaker": "priya",
+    "style": {
+      "pace": 1.15,
+      "noise": "home",
+      "noise_level": 0.3
+    },
+    "text": "முதுகுல எல்லாம் சிவப்பா தடிப்பு தடிப்பா வந்துருச்சுய்யா… அரிப்பு தாங்க முடியல, ராத்திரி தூக்கமே இல்ல…",
+    "meaning": "Red raised patches have come up all over my back… I can't bear the itching, no sleep at night…",
+    "tags": {
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TA-A06.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "floors": [
+        "AMBER_OTHER_SYMPTOM_REPORTED"
+      ],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_OTHER_SYMPTOM_REPORTED"
+      ],
+      "why": [
+        "She mentioned a problem we have no questions for, so the duty doctor calls her."
+      ]
+    },
+    "seconds": 5.6,
+    "heard": {
+      "transcript": "முதுகுல எல்லாம் சிவப்பா தடிப்பு தடிப்பா வந்துருச்சுயா அரிப்பு தாங்க முடியல ராத்திரி தூக்கமே இல்ல",
+      "translation": "There is redness and swelling in the back, and I cannot bear the itching. I couldn't sleep at all last night.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "other_symptom"
+        ],
+        "severity_word": "SEVERE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "floors": [
+          "AMBER_PATIENT_SAYS_SEVERE",
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_PATIENT_SAYS_SEVERE",
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "She described her problem as severe in her own message.",
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-G01": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Green",
+    "story": "G1",
+    "story_text": "Mild headache",
+    "dialect": "Standard",
+    "caller": "patient",
+    "speaker": "kavitha",
+    "style": {
+      "pitch": 0.88
+    },
+    "text": "காலையில லேசா தலைவலி இருந்துச்சு, இப்போ கொஞ்சம் பரவாயில்ல. ஒரு தடவை சொல்லிடலாம்னு மெசேஜ் போட்டேன்.",
+    "meaning": "I had a mild headache in the morning, it's a bit better now. I sent a message just to let you know.",
+    "tags": {
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "2",
+      "Q_HEAD_WORSE": "NO"
+    },
+    "file": "audio/TA-G01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+      ]
+    },
+    "seconds": 8.4,
+    "heard": {
+      "transcript": "காலையில லேசா தலைவலி இருந்துச்சு. இப்போ கொஞ்சம் பரவாயில்லை. ஒரு தடவை சொல்லிடலாம்னு மெசேஜ் போட்டேன்.",
+      "translation": "I had a slight headache in the morning. Now I am a little better. I sent a message saying I would tell you once.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "headache"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-G02": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Green",
+    "story": "G2",
+    "story_text": "A bit tired for 2 days",
+    "dialect": "Kongu (Coimbatore)",
+    "caller": "patient",
+    "speaker": "rupali",
+    "style": {
+      "muffled": true,
+      "noise": "room",
+      "noise_level": 0.3
+    },
+    "text": "ரெண்டு நாளா கொஞ்சம் சோர்வா இருக்குதுங்க, வேற ஒண்ணும் இல்லீங்க. சாப்பிட்டு நல்லா ரெஸ்ட் எடுக்கறேனுங்க.",
+    "meaning": "I've been a little tired for two days, nothing else. I'm eating and resting well.",
+    "tags": {
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_TIRED_DAYS": "2",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/TA-G02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO"
+      ]
+    },
+    "seconds": 7.9,
+    "heard": {
+      "transcript": "ரெண்டு நாளா கொஞ்சம் சோர்வா இருக்குதுங்க. வேற ஒன்னும் இல்லைங்க. சாப்பிட்டு நல்லா ரெஸ்ட் எடுக்குறேனுங்க.",
+      "translation": "I have been feeling a little tired for two days. There is nothing else. I am resting well after eating.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "tiredness"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-G03": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Green",
+    "story": "G3",
+    "story_text": "Hand aching a little",
+    "dialect": "Tirunelveli",
+    "caller": "patient",
+    "speaker": "ritu",
+    "style": {
+      "noise": "home",
+      "noise_level": 0.25
+    },
+    "text": "சமையல் பண்ணும்போது கை கொஞ்சம் வலிக்குதுலே, ரொம்ப இல்ல, லேசாத்தான். மத்தபடி நல்லா இருக்கேன்.",
+    "meaning": "My hand hurts a little when I cook, not much, just slightly. Otherwise I'm fine.",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "2",
+      "Q_ARM_SUDDEN": "NO"
+    },
+    "file": "audio/TA-G03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO"
+      ]
+    },
+    "seconds": 6.4,
+    "heard": {
+      "transcript": "சமையல் பண்ணும்போது கை கொஞ்சம் வலிக்குதே, ரொம்ப இல்லை, லேசாத்தான், மற்றபடி நல்லா இருக்கேன்.",
+      "translation": "My hand hurts a little while cooking, not too much, just a little. Otherwise, I am fine.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_pain"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-G04": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Green",
+    "story": "G4",
+    "story_text": "Nausea after tablets, eating fine",
+    "dialect": "Chennai (Madras Bashai)",
+    "caller": "patient",
+    "speaker": "shreya",
+    "style": {
+      "pace": 1.2
+    },
+    "text": "மாத்திரை போட்டதும் லேசா குமட்டுது, வாந்தி எல்லாம் இல்லபா. சாப்பாடு நல்லா சாப்பிடறேன்.",
+    "meaning": "I feel slightly queasy after taking the tablets, no vomiting at all. I'm eating well.",
+    "tags": {
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_NAUSEA": "YES",
+      "Q_VOMIT": "0",
+      "Q_LIQUIDS": "YES",
+      "Q_SUPP": "NO"
+    },
+    "file": "audio/TA-G04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO"
+      ]
+    },
+    "seconds": 4.6,
+    "heard": {
+      "transcript": "மாத்திரை போட்டதும் லேசா குமிட்டது. வாந்தி எல்லாம் இல்லப்பா. சாப்பாடு நல்லா சாப்பிடுறேன்.",
+      "translation": "I felt a slight nausea after taking the medicine. I don't have vomiting. I am eating well.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "nausea_vomiting"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TA-G05": {
+    "language": "Tamil",
+    "mrn": "SYN-0142",
+    "tier": "Green",
+    "story": "G5",
+    "story_text": "Health worry mixed with daily chatter",
+    "dialect": "Madurai",
+    "caller": "patient",
+    "speaker": "roopa",
+    "style": {
+      "pace": 1.05,
+      "noise": "room",
+      "noise_level": 0.35
+    },
+    "text": "நாளைக்கு எங்க பேத்திக்கு காது குத்து விசேஷம்ய்யா, அதுக்கு கிளம்பணும்… நேத்திலேருந்து கொஞ்சம் அசதியா இருக்கு, லேசா தலையும் வலிக்குது, அம்புட்டுதான்.",
+    "meaning": "Tomorrow is my granddaughter's ear-piercing ceremony, I have to get ready for it… I've been a bit tired since yesterday, a slight headache too, that's all.",
+    "tags": {
+      "symptoms": [
+        "headache",
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "2",
+      "Q_HEAD_WORSE": "NO",
+      "Q_TIRED_DAYS": "1",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/TA-G05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO; Tired for (days): 1; Tiredness worse than last week: NO"
+      ]
+    },
+    "seconds": 7.2,
+    "heard": {
+      "transcript": "நாளைக்கு எங்க பேத்திக்கு காது குத்து விசேஷம்யா, அதுக்கு கிளம்பணும். நேத்திலிருந்து கொஞ்சம் வசதியா இருக்கு, லேசா தலையும் வலிக்குது, அம்புட்டுதான்.",
+      "translation": "Tomorrow is my granddaughter's ear piercing ceremony, so I need to leave. It's been a bit uncomfortable since yesterday, and my head is also aching slightly. It's just a minor issue.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "headache"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+        ]
+      },
+      "verdict": "safe",
+      "note": "not asked: Q_TIRED_DAYS, Q_TIRED_WORSE"
+    }
+  },
+  "HI-R01": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Red",
+    "story": "R1",
+    "story_text": "Chest pain or breathless",
+    "dialect": "Haryanvi",
+    "caller": "patient",
+    "speaker": "ritu",
+    "style": {
+      "pace": 1.2,
+      "tremble": true
+    },
+    "text": "राम राम… छाती म्हं घणा दर्द हो रहा सै, साँस कोन्या आ रही… पसीना छूट रहा सै, के करूँ समझ कोन्या आता…",
+    "meaning": "Oh God… there's a lot of pain in my chest, I can't breathe… I'm sweating, I don't understand what to do…",
+    "tags": {
+      "symptoms": [
+        "chest_or_breathing"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "YES",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/HI-R01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_CHEST_PAIN"
+      ],
+      "why": [
+        "Chest pain or hard to breathe reported"
+      ]
+    },
+    "seconds": 6.8,
+    "heard": {
+      "transcript": "राम राम, छाती में बहुत दर्द हो रहा है, सांस कोन्या आ रही, पसीना छूट रहा है, क्या करूँ समझ कोन्या आता?",
+      "translation": "Ram Ram, there is a lot of pain in the chest, who is breathing, is there sweat coming out, what should I do, understand, who was there?",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "chest_or_breathing"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_CHEST_PAIN"
+        ],
+        "why": [
+          "Chest pain or hard to breathe reported"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-R02": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Red",
+    "story": "R2",
+    "story_text": "So sleepy she cannot keep her eyes open",
+    "dialect": "Bhojpuri",
+    "caller": "son",
+    "speaker": "ratan",
+    "style": {
+      "pitch": 0.9,
+      "noise": "room",
+      "noise_level": 0.2
+    },
+    "text": "भइया, हमार माई सबेरे से एकदम बेहोस जइसन सुतल बाड़ी… आँखिए ना खुलत बा, बोलावे पर भी ठीक से जवाब ना देत बाड़ी।",
+    "meaning": "Brother, my mother has been lying almost unconscious since morning… her eyes won't open, she doesn't answer properly even when we call her.",
+    "tags": {
+      "symptoms": [
+        "sleepiness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "YES",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/HI-R02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_DROWSY"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_CANNOT_STAY_AWAKE"
+      ],
+      "why": [
+        "Reported as so sleepy she cannot keep her eyes open"
+      ]
+    },
+    "seconds": 9.2,
+    "heard": {
+      "transcript": "भैया, हमार माई सवेरे से एकदम बेहोश, जैसम सुतल बाड़ी आँखिए ना खुलत बा, बोलावे पर भी ठीक से जवाब ना देत बाड़ी।",
+      "translation": "Brother, my mother has been completely unconscious since morning. She can't even open her eyes properly, and she can't even respond properly to calls.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_CANNOT_STAY_AWAKE"
+        ],
+        "why": [
+          "Reported as so sleepy she cannot keep her eyes open"
+        ]
+      },
+      "verdict": "safe",
+      "note": ""
+    }
+  },
+  "HI-R03": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Red",
+    "story": "R3",
+    "story_text": "Left arm red and hot",
+    "dialect": "Mumbaiya",
+    "caller": "patient",
+    "speaker": "simran",
+    "style": {
+      "pace": 1.25,
+      "noise": "street",
+      "noise_level": 0.45
+    },
+    "text": "अरे, बाएँ हाथ पे एकदम लाल लाल हो गया है, छूने पे गरम लगता है… दर्द भी बहुत है, वाट लग गई है अपुन की…",
+    "meaning": "Hey, my left arm has gone completely red, it feels hot to touch… there's a lot of pain too, I'm in a real mess…",
+    "tags": {
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "YES",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/HI-R03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_ARM_RED_OR_HOT"
+      ],
+      "why": [
+        "Left arm reported as red or hot to touch"
+      ]
+    },
+    "seconds": 7.0,
+    "heard": {
+      "transcript": "अरे बाएँ हाथ पे एकदम लाल लाल हो गया है, छूने पे गरम लगता है, दर्द भी बहुत है, वाट लग गई है अपुन की।",
+      "translation": "Oh, my left hand has become completely red. It feels hot when I touch it, and there's a lot of pain too. I'm in trouble now.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_swelling_or_redness",
+          "arm_pain"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_ARM_RED_OR_HOT"
+        ],
+        "why": [
+          "Left arm reported as red or hot to touch"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-R04": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Red",
+    "story": "R4",
+    "story_text": "High fever with shivering",
+    "dialect": "Standard",
+    "caller": "patient",
+    "speaker": "pooja",
+    "style": {
+      "pace": 0.85,
+      "muffled": true
+    },
+    "text": "कल रात से तेज़ बुखार है… पूरा शरीर काँप रहा है, कंबल ओढ़ के भी ठंड लग रही है… थर्मामीटर में एक सौ दो दिखा रहा है।",
+    "meaning": "High fever since last night… my whole body is shaking, I feel cold even under a blanket… the thermometer shows 102.",
+    "tags": {
+      "symptoms": [
+        "fever_chills"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "101.5",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/HI-R04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_CHILLS",
+        "Q_FEELS_HOT"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_FEVER_100_4F_PLUS"
+      ],
+      "why": [
+        "Temperature reported as 100.4 F (38.0 C) or more"
+      ]
+    },
+    "seconds": 10.6,
+    "heard": {
+      "transcript": "कल रात से तेज बुखार है, पूरा शरीर कांप रहा है, कंबल ओढ़ के भी ठंड लग रही है, थर्मामीटर में 102 दिखा रहा है।",
+      "translation": "I have had a high fever since last night, my whole body is shivering. I am feeling cold even after covering myself with a blanket. The thermometer shows 102.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "fever_chills"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_CHILLS",
+          "Q_FEELS_HOT"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_FEVER_100_4F_PLUS"
+        ],
+        "why": [
+          "Temperature reported as 100.4 F (38.0 C) or more"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-R05": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Red",
+    "story": "R5",
+    "story_text": "Vomiting many times, cannot keep water down",
+    "dialect": "Awadhi",
+    "caller": "patient",
+    "speaker": "roopa",
+    "style": {
+      "pitch": 0.9,
+      "noise": "home",
+      "noise_level": 0.35
+    },
+    "text": "हमका सुबह से छह-सात बार उल्टी होइ गई है… पानी पियत हैं तौ ऊ भी निकल जात है… बहुत कमजोरी लागत है।",
+    "meaning": "I've vomited six or seven times since morning… when I drink water even that comes back up… I feel very weak.",
+    "tags": {
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.8",
+      "Q_BANGLES": "NO",
+      "Q_NAUSEA": "YES",
+      "Q_VOMIT": "8"
+    },
+    "file": "audio/HI-R05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_VOMITING_6_PLUS"
+      ],
+      "why": [
+        "Vomiting reported 6 or more times since yesterday"
+      ]
+    },
+    "seconds": 8.6,
+    "heard": {
+      "transcript": "हमका सुबह से छह सात बार उल्टी होई गई है, पानी पीयत हैं तो ऊ भी निकल जात हैं, बहुत कमजोरी लागत हैं।",
+      "translation": "I have vomited six to seven times since morning. When I drink water, it also comes out. I feel very weak.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "nausea_vomiting",
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_VOMITING_6_PLUS"
+        ],
+        "why": [
+          "Vomiting reported 6 or more times since yesterday"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-A01": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Amber",
+    "story": "A1",
+    "story_text": "Arm swollen, bangles tight",
+    "dialect": "Bhojpuri",
+    "caller": "patient",
+    "speaker": "neha",
+    "style": {
+      "pace": 0.9,
+      "pitch": 0.92,
+      "tremble": true,
+      "noise": "home",
+      "noise_level": 0.3
+    },
+    "text": "हाय राम… दू दिन से बायाँ हाथ सूज गइल बा… चूड़ी एतना कस गइल कि निकलते नइखे… त-तनी-तनी दरद भी बा, डर लागत बा।",
+    "meaning": "Oh God… for two days my left arm has been swollen… the bangles are so tight they won't come off… it hurts a little too, I'm scared.",
+    "tags": {
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "YES",
+      "Q_ARM_SCORE": "4",
+      "Q_ARM_SUDDEN": "NO",
+      "Q_SWOLLEN": "YES",
+      "Q_SKIN": "NO"
+    },
+    "file": "audio/HI-A01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_BANGLES_TIGHTER_THAN_BASELINE",
+        "AMBER_ARM_SWOLLEN"
+      ],
+      "why": [
+        "Left arm: no swelling and loose bangles on 20 October. Today: bangles tighter.",
+        "She says the left arm looks swollen or feels heavy."
+      ]
+    },
+    "seconds": 10.9,
+    "heard": {
+      "transcript": "हाय राम, दू दिन से बाया हाथ सूज गईल बा चूड़ी, इतना कस गईल कि कल ते नईखे, त तनी तनी दर्द भी बा, डर लागत बा।",
+      "translation": "Oh Ram, my left hand has been swollen for two days, and the bangle is so tight that it doesn't even move, and I'm also feeling a little bit of pain, I'm feeling scared.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_swelling_or_redness",
+          "arm_pain"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_BANGLES_TIGHTER_THAN_BASELINE",
+          "AMBER_ARM_SWOLLEN"
+        ],
+        "why": [
+          "Left arm: no swelling and loose bangles on 20 October. Today: bangles tighter.",
+          "She says the left arm looks swollen or feels heavy."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-A02": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Amber",
+    "story": "A2",
+    "story_text": "Headache worse than last time",
+    "dialect": "Standard",
+    "caller": "patient",
+    "speaker": "suhani",
+    "style": {
+      "pitch": 0.88
+    },
+    "text": "तीन दिन से सिर का दर्द बढ़ता जा रहा है… पिछली बार जो बताया था उससे ज़्यादा है… दवाई से भी आराम नहीं।",
+    "meaning": "For three days the headache has been getting worse… it's more than what I told you last time… even the medicine doesn't help.",
+    "tags": {
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "3",
+      "Q_HEAD_WORSE": "YES"
+    },
+    "file": "audio/HI-A02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"
+      ],
+      "why": [
+        "She says the headache is worse than on 26 October."
+      ]
+    },
+    "seconds": 7.5,
+    "heard": {
+      "transcript": "3 दिन से सिर का दर्द बढ़ता जा रहा है, पिछली बार जो बताया था उससे ज़्यादा है, दवाई से भी आराम नहीं।",
+      "translation": "I have been experiencing a headache for three days. It's worse than what I described last time, and I'm not getting any relief even with medication.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "headache"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"
+        ],
+        "why": [
+          "She says the headache is worse than on 26 October."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-A03": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Amber",
+    "story": "A3",
+    "story_text": "Arm pain started suddenly",
+    "dialect": "Haryanvi",
+    "caller": "patient",
+    "speaker": "ishita",
+    "style": {
+      "tremble": true
+    },
+    "text": "क-कल शाम नै अचानक बाएँ हाथ म्हं जोर का दर्द उठ्या… त-तब तै हाथ हिलाते होए डर लागै सै।",
+    "meaning": "Yesterday evening a strong pain suddenly rose in my left arm… since then I'm scared to move my arm.",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "5",
+      "Q_ARM_SUDDEN": "YES"
+    },
+    "file": "audio/HI-A03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_ARM_PAIN_SUDDEN_ONSET"
+      ],
+      "why": [
+        "She says the arm pain started suddenly."
+      ]
+    },
+    "seconds": 6.8,
+    "heard": {
+      "transcript": "कल शाम में अचानक बाएँ हाथ में ज़ोर का दर्द उठ गया था, तब ते हाथ हिलाते हुए डर लगे से।",
+      "translation": "Yesterday evening, suddenly there was a sharp pain in my left hand, then I felt scared while moving my hand.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_pain"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_ARM_PAIN_SUDDEN_ONSET"
+        ],
+        "why": [
+          "She says the arm pain started suddenly."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-A04": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Amber",
+    "story": "A4",
+    "story_text": "Tired for more than a week",
+    "dialect": "Mumbaiya",
+    "caller": "patient",
+    "speaker": "tanya",
+    "style": {
+      "pace": 0.9,
+      "muffled": true
+    },
+    "text": "एक हफ्ते से ज़्यादा हो गया, एकदम थकान लगती है… उठने का मन नहीं करता, खाना भी बराबर नहीं जाता।",
+    "meaning": "It's been more than a week, I feel completely tired… I don't feel like getting up, and I can't eat properly either.",
+    "tags": {
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_TIRED_DAYS": "9",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/HI-A04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_TIREDNESS_7_DAYS_PLUS"
+      ],
+      "why": [
+        "Tired for 9 days."
+      ]
+    },
+    "seconds": 9.9,
+    "heard": {
+      "transcript": "एक हफ़्ते से ज़्यादा हो गया, एकदम थकान लगती है, उठने का मन नहीं करता, खाना भी बराबर नहीं जाता।",
+      "translation": "It's been more than a week. I feel very tired, and I don't feel like getting up. I can't even eat properly.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "tiredness"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_TIREDNESS_7_DAYS_PLUS"
+        ],
+        "why": [
+          "Tired for 9 days."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-A05": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Amber",
+    "story": "A5",
+    "story_text": "Says 'severe' in her own words",
+    "dialect": "Standard",
+    "caller": "son",
+    "speaker": "amit",
+    "style": {
+      "noise": "street",
+      "noise_level": 0.45
+    },
+    "text": "नमस्ते, मैं सावित्री जी का बेटा बोल रहा हूँ। माँ के बाएँ हाथ में बहुत ज़्यादा तेज़ दर्द है, बहुत गंभीर लग रहा है।",
+    "meaning": "Hello, this is Savitri's son. Mother has very sharp pain in her left arm, it looks very serious.",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "SEVERE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "6",
+      "Q_ARM_SUDDEN": "NO"
+    },
+    "file": "audio/HI-A05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [
+        "AMBER_PATIENT_SAYS_SEVERE"
+      ],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_PATIENT_SAYS_SEVERE"
+      ],
+      "why": [
+        "She described her problem as severe in her own message."
+      ]
+    },
+    "seconds": 8.0,
+    "heard": {
+      "transcript": "नमस्ते, मैं सावित्री जी का बेटा बोल रहा हूँ। माँ के बाएँ हाथ में बहुत ज़्यादा तेज़ दर्द है, बहुत गंभीर लग रहा है।",
+      "translation": "Hello, I am Savitri ji's son speaking. My mother has a very severe pain in her left hand. It feels very serious.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_pain"
+        ],
+        "severity_word": "SEVERE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "floors": [
+          "AMBER_PATIENT_SAYS_SEVERE"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_PATIENT_SAYS_SEVERE"
+        ],
+        "why": [
+          "She described her problem as severe in her own message."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-A06": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Amber",
+    "story": "A6",
+    "story_text": "A symptom we have no questions for",
+    "dialect": "Awadhi",
+    "caller": "patient",
+    "speaker": "priya",
+    "style": {
+      "pace": 1.15,
+      "noise": "room",
+      "noise_level": 0.3
+    },
+    "text": "चार दिन से खाँसी आवत है, रात भर खों-खों करत रहित है… बलगम भी निकलत है।",
+    "meaning": "I've had a cough for four days, I keep coughing all night… phlegm is coming up too.",
+    "tags": {
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/HI-A06.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "floors": [
+        "AMBER_OTHER_SYMPTOM_REPORTED"
+      ],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_OTHER_SYMPTOM_REPORTED"
+      ],
+      "why": [
+        "She mentioned a problem we have no questions for, so the duty doctor calls her."
+      ]
+    },
+    "seconds": 5.6,
+    "heard": {
+      "transcript": "चार दिन से खांसी आवत है, रात भर खों खों करत रहीत है, बलगम भी निकलत है।",
+      "translation": "I have been having a cough for four days, it keeps making a 'kho-kho' sound all night, and I am also passing phlegm.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-G01": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Green",
+    "story": "G1",
+    "story_text": "Mild headache",
+    "dialect": "Bhojpuri",
+    "caller": "patient",
+    "speaker": "rupali",
+    "style": {
+      "pitch": 0.9
+    },
+    "text": "सबेरे तनी मूड़ी में दरद रहल, अब ठीक बा। बस बतावे खातिर मैसेज कइनी।",
+    "meaning": "I had a slight headache this morning, it's fine now. I sent a message just to let you know.",
+    "tags": {
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "2",
+      "Q_HEAD_WORSE": "NO"
+    },
+    "file": "audio/HI-G01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+      ]
+    },
+    "seconds": 6.5,
+    "heard": {
+      "transcript": "सवेरे तनी मुड़ी में दर्द रहल, अब ठीक बा, बस बतावे खातिर मैसेज कई नी।",
+      "translation": "In the morning, there was pain in my head, now it's fine, just didn't message to tell.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "headache"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-G02": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Green",
+    "story": "G2",
+    "story_text": "A bit tired for 2 days",
+    "dialect": "Haryanvi",
+    "caller": "patient",
+    "speaker": "kavya",
+    "style": {
+      "muffled": true,
+      "noise": "room",
+      "noise_level": 0.3
+    },
+    "text": "दो दिन तै थोड़ी थकान सी सै, और कुछ कोन्या। खाणा-पीणा ठीक सै।",
+    "meaning": "I've been a little tired for two days, nothing else. Eating and drinking are fine.",
+    "tags": {
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_TIRED_DAYS": "2",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/HI-G02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO"
+      ]
+    },
+    "seconds": 5.1,
+    "heard": {
+      "transcript": "दो दिन तक थोड़ी थकान सी है और कुछ कोनिया खाना पीना ठीक है।",
+      "translation": "For two days, I felt a little tired and some pain. Food and drink were fine.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "tiredness",
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "safe",
+      "note": "Amber (higher than Green)"
+    }
+  },
+  "HI-G03": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Green",
+    "story": "G3",
+    "story_text": "Hand aching a little",
+    "dialect": "Mumbaiya",
+    "caller": "patient",
+    "speaker": "shreya",
+    "style": {
+      "pace": 1.1,
+      "noise": "home",
+      "noise_level": 0.25
+    },
+    "text": "खाना बनाते टाइम हाथ थोड़ा दुखता है, ज़्यादा नहीं, बस हल्का सा। बाकी सब एकदम मस्त है।",
+    "meaning": "My hand hurts a little when I cook, not much, just slightly. Everything else is great.",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "2",
+      "Q_ARM_SUDDEN": "NO"
+    },
+    "file": "audio/HI-G03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO"
+      ]
+    },
+    "seconds": 6.0,
+    "heard": {
+      "transcript": "खाना बनाते टाइम हाथ थोड़ा दुखता है, ज़्यादा नहीं बस हल्का सा, बाकी सब एकदम मस्त है।",
+      "translation": "My hand hurts a little while cooking. Not much, just a little. Otherwise, everything is perfectly fine.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_pain"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-G04": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Green",
+    "story": "G4",
+    "story_text": "Nausea after tablets, eating fine",
+    "dialect": "Standard",
+    "caller": "patient",
+    "speaker": "neha",
+    "style": {
+      "pace": 1.2
+    },
+    "text": "गोली खाने के बाद थोड़ा जी मिचलाता है, उल्टी नहीं हुई। खाना ठीक से खा रही हूँ।",
+    "meaning": "I feel a little queasy after the tablets, I haven't vomited. I'm eating properly.",
+    "tags": {
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_NAUSEA": "YES",
+      "Q_VOMIT": "0",
+      "Q_LIQUIDS": "YES",
+      "Q_SUPP": "NO"
+    },
+    "file": "audio/HI-G04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO"
+      ]
+    },
+    "seconds": 6.7,
+    "heard": {
+      "transcript": "गोली खाने के बाद थोड़ा जी मिचलाता है, उल्टी नहीं हुई, खाना ठीक से खा रही हूँ।",
+      "translation": "After taking the pill, I feel a little nauseous, I didn't vomit. I am eating properly.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "nausea_vomiting"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "HI-G05": {
+    "language": "Hindi",
+    "mrn": "SYN-0011",
+    "tier": "Green",
+    "story": "G5",
+    "story_text": "Health worry mixed with daily chatter",
+    "dialect": "Awadhi",
+    "caller": "patient",
+    "speaker": "pooja",
+    "style": {
+      "noise": "room",
+      "noise_level": 0.35
+    },
+    "text": "परसों पोती का मुंडन है, ओकरे तैयारी में लगी हैं… कल से तनिक थकान है और हल्का सिर दर्द, बस इतना ही।",
+    "meaning": "My granddaughter's head-shaving ceremony is the day after tomorrow, I'm busy getting ready… since yesterday I'm a bit tired with a slight headache, that's all.",
+    "tags": {
+      "symptoms": [
+        "headache",
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "2",
+      "Q_HEAD_WORSE": "NO",
+      "Q_TIRED_DAYS": "1",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/HI-G05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO; Tired for (days): 1; Tiredness worse than last week: NO"
+      ]
+    },
+    "seconds": 6.9,
+    "heard": {
+      "transcript": "परसों पोती का मुंडन है, ओकरें तैयारी में लगी हैं, कल से तनिक थकान है और हल्का सिर दर्द, बस इतना ही।",
+      "translation": "The day after tomorrow is the daughter-in-law's head-shaving ceremony, she is busy with preparations, she is a little tired since yesterday, and a slight headache, that's all.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "tiredness",
+          "headache"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO; Tired for (days): 1; Tiredness worse than last week: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-R01": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Red",
+    "story": "R1",
+    "story_text": "Chest pain or breathless",
+    "dialect": "Telangana",
+    "caller": "patient",
+    "speaker": "priya",
+    "style": {
+      "pace": 1.2,
+      "tremble": true
+    },
+    "text": "అయ్యో… చాతీల శానా నొప్పి వస్తాంది, ఊపిరి ఆడతలేదు… చెమటలు పడుతున్నయ్, ఏం జేయాల్నో తెల్వదు…",
+    "meaning": "Oh… a lot of pain in my chest, I can't breathe… I'm sweating, I don't know what to do…",
+    "tags": {
+      "symptoms": [
+        "chest_or_breathing"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "YES",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TE-R01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_CHEST_PAIN"
+      ],
+      "why": [
+        "Chest pain or hard to breathe reported"
+      ]
+    },
+    "seconds": 6.4,
+    "heard": {
+      "transcript": "అయ్యో ఛాతీలో శానా నొప్పి వస్తాంది. ఊపిరి ఆడతలేదు, చెమటలు పడుతున్నాయి. ఏం చేయాలో తెలవదు.",
+      "translation": "Oh no, I have a lot of chest pain. I can't breathe, and I'm sweating. I don't know what to do.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "chest_or_breathing",
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_CHEST_PAIN"
+        ],
+        "why": [
+          "Chest pain or hard to breathe reported"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-R02": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Red",
+    "story": "R2",
+    "story_text": "So sleepy she cannot keep her eyes open",
+    "dialect": "Coastal Andhra",
+    "caller": "son",
+    "speaker": "varun",
+    "style": {
+      "pitch": 0.9,
+      "noise": "room",
+      "noise_level": 0.2
+    },
+    "text": "అండీ, మా అమ్మగారు పొద్దుట్నుంచి బాగా మత్తుగా పడుకునే ఉన్నారు… కళ్ళు తెరవలేకపోతున్నారు, పిలిచినా సరిగ్గా పలకడం లేదు.",
+    "meaning": "Sir, my mother has been lying very drowsy since morning… she can't open her eyes, she doesn't respond properly when we call her.",
+    "tags": {
+      "symptoms": [
+        "sleepiness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "YES",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TE-R02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_DROWSY"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_CANNOT_STAY_AWAKE"
+      ],
+      "why": [
+        "Reported as so sleepy she cannot keep her eyes open"
+      ]
+    },
+    "seconds": 11.6,
+    "heard": {
+      "transcript": "అండి మా అమ్మగారు పొద్దుటి నుంచి బాగా మత్తుగా పడుకునే ఉన్నారు కళ్ళు తెరవలేకపోతున్నారు పిలిచినా సరిగ్గా పలకడం లేదు",
+      "translation": "Sir, my mother has been sleeping very drowsily since morning. She is unable to open her eyes. Even when called, she is not responding properly.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "sleepiness"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_DROWSY"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_CANNOT_STAY_AWAKE"
+        ],
+        "why": [
+          "Reported as so sleepy she cannot keep her eyes open"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-R03": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Red",
+    "story": "R3",
+    "story_text": "Left arm red and hot",
+    "dialect": "Rayalaseema",
+    "caller": "patient",
+    "speaker": "kavitha",
+    "style": {
+      "pitch": 0.93,
+      "tremble": true
+    },
+    "text": "ఎడమ చెయ్యి మొత్తం ఎర్రగా అయిపోయిందప్పా, ముట్టుకుంటే నిప్పు మాదిరి కాలతాంది… నొప్పి తట్టుకోలేకపోతుండా…",
+    "meaning": "My whole left arm has gone red, it burns like fire when I touch it… I can't bear the pain…",
+    "tags": {
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "YES",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TE-R03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_ARM_RED_OR_HOT"
+      ],
+      "why": [
+        "Left arm reported as red or hot to touch"
+      ]
+    },
+    "seconds": 10.4,
+    "heard": {
+      "transcript": "ఎడమ చెయ్యి మొత్తం ఎర్రగా అయిపోయిందప్పా, ముట్టుకుంటే నిప్పు మాదిరి కాలతాంది నొప్పి తట్టుకోలేకపోతుండా.",
+      "translation": "My entire left hand has turned red. When I touch it, it feels like fire burning. I can't bear the pain.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_swelling_or_redness",
+          "other_symptom"
+        ],
+        "severity_word": "SEVERE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED"
+        ],
+        "floors": [
+          "AMBER_PATIENT_SAYS_SEVERE",
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_ARM_RED_OR_HOT"
+        ],
+        "why": [
+          "Left arm reported as red or hot to touch"
+        ]
+      },
+      "verdict": "safe",
+      "note": ""
+    }
+  },
+  "TE-R04": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Red",
+    "story": "R4",
+    "story_text": "High fever with shivering",
+    "dialect": "Standard",
+    "caller": "patient",
+    "speaker": "ritu",
+    "style": {
+      "pace": 0.85,
+      "muffled": true
+    },
+    "text": "నిన్న రాత్రి నుంచి జ్వరం బాగా ఉంది… ఒళ్ళంతా వణుకుతోంది, దుప్పటి కప్పుకున్నా చలిగా ఉంది… థర్మామీటర్‌లో నూట ఒకటిన్నర చూపిస్తోంది.",
+    "meaning": "High fever since last night… my whole body is shivering, I feel cold even under the blanket… the thermometer shows 101.5.",
+    "tags": {
+      "symptoms": [
+        "fever_chills"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "101.5",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TE-R04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_CHILLS",
+        "Q_FEELS_HOT"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_FEVER_100_4F_PLUS"
+      ],
+      "why": [
+        "Temperature reported as 100.4 F (38.0 C) or more"
+      ]
+    },
+    "seconds": 11.3,
+    "heard": {
+      "transcript": "నిన్న రాత్రి నుంచి జ్వరం బాగా ఉంది. ఒళ్ళంతా వణుకుతోంది. దుప్పటి కప్పుకున్నా చలిగా ఉంది. థర్మామీటర్లో నూట ఒకటిన్నర చూపిస్తోంది.",
+      "translation": "I have had a high fever since last night. My whole body is shivering. Even when I cover myself with a blanket, it feels cold. The thermometer shows 101.5.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "fever_chills"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_CHILLS",
+          "Q_FEELS_HOT"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_FEVER_100_4F_PLUS"
+        ],
+        "why": [
+          "Temperature reported as 100.4 F (38.0 C) or more"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-R05": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Red",
+    "story": "R5",
+    "story_text": "Vomiting many times, cannot keep water down",
+    "dialect": "Hyderabadi",
+    "caller": "son",
+    "speaker": "mohit",
+    "style": {
+      "pace": 1.2,
+      "noise": "street",
+      "noise_level": 0.4
+    },
+    "text": "సార్, మా అమ్మకి పొద్దున్నుంచి ఏడెనిమిది సార్లు వాంతులైనయ్… నీళ్ళు తాగినా వెంటనే బయటికొచ్చేస్తున్నయ్… బహుత్ కమ్జోర్ అయిపోయింది.",
+    "meaning": "Sir, my mother has vomited seven or eight times since morning… even water comes straight back out… she has become very weak.",
+    "tags": {
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.8",
+      "Q_BANGLES": "NO",
+      "Q_NAUSEA": "YES",
+      "Q_VOMIT": "8"
+    },
+    "file": "audio/TE-R05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT"
+      ],
+      "floors": [],
+      "tier": "Red",
+      "red_kind": "CONFIRMED",
+      "reasons": [
+        "RED_VOMITING_6_PLUS"
+      ],
+      "why": [
+        "Vomiting reported 6 or more times since yesterday"
+      ]
+    },
+    "seconds": 8.7,
+    "heard": {
+      "transcript": "సార్, మా అమ్మకి పొద్దున్న నుంచి ఏడెనిమిది సార్లు వాంతులైనాయి. నీళ్లు తాగినా వెంటనే బయటికి వచ్చేస్తున్నాయి. బహుత్ కంజోర్ అయిపోయింది.",
+      "translation": "Sir, my mother has been vomiting seven times since morning. Even after drinking water, it is coming out immediately. She has become very weak.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "nausea_vomiting"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT"
+        ],
+        "floors": [],
+        "tier": "Red",
+        "red_kind": "CONFIRMED",
+        "reasons": [
+          "RED_VOMITING_6_PLUS"
+        ],
+        "why": [
+          "Vomiting reported 6 or more times since yesterday"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-A01": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Amber",
+    "story": "A1",
+    "story_text": "Arm swollen, bangles tight",
+    "dialect": "Coastal Andhra",
+    "caller": "patient",
+    "speaker": "suhani",
+    "style": {
+      "pace": 0.9,
+      "pitch": 0.92,
+      "tremble": true,
+      "noise": "home",
+      "noise_level": 0.3
+    },
+    "text": "అయ్యో బాబోయ్… రెండ్రోజుల్నించి ఎడమ చెయ్యి వాచిపోయిందండీ… గాజులు బిగుసుకుపోయి తీయలేకపోతున్నానండీ… కొ-కొంచెం నొప్పిగా కూడా ఉంది, భయంగా ఉందండీ.",
+    "meaning": "Oh my… for two days my left arm has been swollen… the bangles are so tight I can't take them off… it hurts a little too, I'm scared.",
+    "tags": {
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "YES",
+      "Q_ARM_SCORE": "4",
+      "Q_ARM_SUDDEN": "NO",
+      "Q_SWOLLEN": "YES",
+      "Q_SKIN": "NO"
+    },
+    "file": "audio/TE-A01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN",
+        "Q_SWOLLEN",
+        "Q_SKIN"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_BANGLES_TIGHTER_THAN_BASELINE",
+        "AMBER_ARM_SWOLLEN"
+      ],
+      "why": [
+        "Left arm: no swelling and loose bangles on 22 October. Today: bangles tighter.",
+        "She says the left arm looks swollen or feels heavy."
+      ]
+    },
+    "seconds": 14.1,
+    "heard": {
+      "transcript": "అయ్యో బాబోయ్ రెండు రోజుల నుంచి ఎడమ చెయ్యి వాచిపోయిందండి గాజులు బిగుసుకుపోయి తీయలేకపోతున్నానండి ఇంకో కొంచెం నొప్పిగా కూడా ఉంది భయంగా ఉందండి",
+      "translation": "Oh my god! My left hand has been aching for two days. The bangles have become stiff, and I am unable to remove them. It is also hurting a little more. I am scared.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_swelling_or_redness",
+          "arm_pain",
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN",
+          "Q_SWOLLEN",
+          "Q_SKIN"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_BANGLES_TIGHTER_THAN_BASELINE",
+          "AMBER_ARM_SWOLLEN",
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "Left arm: no swelling and loose bangles on 22 October. Today: bangles tighter.",
+          "She says the left arm looks swollen or feels heavy.",
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-A02": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Amber",
+    "story": "A2",
+    "story_text": "Headache worse than last time",
+    "dialect": "Telangana",
+    "caller": "patient",
+    "speaker": "roopa",
+    "style": {
+      "pitch": 0.88
+    },
+    "text": "మూడు దినాల సంది తలనొప్పి ఎక్కువైతాంది… మొన్న జెప్పినదానికన్నా జెర ఎక్కువే ఉంది… గోలీ ఏసుకున్నా తగ్గుతలేదు.",
+    "meaning": "For three days the headache has been getting worse… it's a bit more than what I told you the other day… even the tablet doesn't help.",
+    "tags": {
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "3",
+      "Q_HEAD_WORSE": "YES"
+    },
+    "file": "audio/TE-A02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"
+      ],
+      "why": [
+        "She says the headache is worse than on 28 October."
+      ]
+    },
+    "seconds": 9.3,
+    "heard": {
+      "transcript": "మూడు దినాల సంధి, తలనొప్పి ఎక్కువైతాంది. మొన్న చెప్పిన దానికన్నా జర ఎక్కువే ఉంది. గోళీ వేసుకున్నా తగ్గుతలేదు.",
+      "translation": "It's a three-day period, and the headache is getting worse. The fever is higher than what I mentioned earlier. It's not subsiding even after taking a pill.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "headache",
+          "fever_chills"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_CHILLS",
+          "Q_FEELS_HOT",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_CHILLS",
+          "Q_FEELS_HOT",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_HEADACHE_WORSE_THAN_LAST_TIME"
+        ],
+        "why": [
+          "She says the headache is worse than on 28 October."
+        ]
+      },
+      "verdict": "safe",
+      "note": "also asked: Q_CHILLS, Q_FEELS_HOT"
+    }
+  },
+  "TE-A03": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Amber",
+    "story": "A3",
+    "story_text": "Arm pain started suddenly",
+    "dialect": "Rayalaseema",
+    "caller": "patient",
+    "speaker": "shruti",
+    "style": {
+      "pace": 1.15,
+      "tremble": true
+    },
+    "text": "ని-నిన్న సాయంత్రం ఉన్నట్టుండి ఎడమ చేతిలో గట్టిగా నొప్పి వచ్చిందప్పా… అప్పటి నుంచి చెయ్యి కదిలించాలంటే భయమైతాంది.",
+    "meaning": "Yesterday evening a strong pain suddenly came in my left arm… since then I'm scared to move the arm.",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "5",
+      "Q_ARM_SUDDEN": "YES"
+    },
+    "file": "audio/TE-A03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_ARM_PAIN_SUDDEN_ONSET"
+      ],
+      "why": [
+        "She says the arm pain started suddenly."
+      ]
+    },
+    "seconds": 8.7,
+    "heard": {
+      "transcript": "నీ నిన్న సాయంత్రం ఉన్నట్టుండి ఎడమ చేతిలో గట్టిగా నొప్పి వచ్చింది, అప్పటి నుంచి చెయ్యి కదిలించాలంటే భయమైతాంది.",
+      "translation": "Since yesterday evening, I have been experiencing severe pain in my left hand, and since then, I have been afraid to move my hand.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_pain"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "floors": [],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_ARM_PAIN_SUDDEN_ONSET"
+        ],
+        "why": [
+          "She says the arm pain started suddenly."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-A04": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Amber",
+    "story": "A4",
+    "story_text": "Tired for more than a week",
+    "dialect": "Coastal Andhra",
+    "caller": "patient",
+    "speaker": "kavya",
+    "style": {
+      "pace": 0.85,
+      "muffled": true
+    },
+    "text": "వారం దాటిపోయిందండీ, ఒళ్ళంతా నీరసంగానే ఉంది… లేవాలన్నా ఓపిక లేదు, అన్నం కూడా సరిగ్గా సయించడం లేదండీ.",
+    "meaning": "It's been more than a week, my whole body feels weak… I don't have the strength to get up, and I can't eat properly either.",
+    "tags": {
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_TIRED_DAYS": "9",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/TE-A04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_TIREDNESS_7_DAYS_PLUS"
+      ],
+      "why": [
+        "Tired for 9 days."
+      ]
+    },
+    "seconds": 10.5,
+    "heard": {
+      "transcript": "వారం దాటిపోయిందండి, ఒళ్ళంతా నీరసంగానే ఉంది, లేవాలన్నా ఓపిక లేదు, అన్నం కూడా సరిగ్గా సహించడం లేదండి.",
+      "translation": "It's been over a week. My whole body feels weak. I don't have the energy to get up. I can't even digest food properly.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "safe",
+      "note": "not asked: Q_TIRED_DAYS, Q_TIRED_WORSE"
+    }
+  },
+  "TE-A05": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Amber",
+    "story": "A5",
+    "story_text": "Says 'severe' in her own words",
+    "dialect": "Hyderabadi",
+    "caller": "son",
+    "speaker": "aditya",
+    "style": {
+      "noise": "street",
+      "noise_level": 0.45
+    },
+    "text": "నమస్తే, నేను నిర్మల గారి అబ్బాయిని. అమ్మ ఎడమ చేతిలో చాలా తీవ్రమైన నొప్పి, భరించలేకపోతోంది.",
+    "meaning": "Hello, I'm Nirmala's son. Mother has very severe pain in her left arm, she can't bear it.",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "SEVERE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "6",
+      "Q_ARM_SUDDEN": "NO"
+    },
+    "file": "audio/TE-A05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [
+        "AMBER_PATIENT_SAYS_SEVERE"
+      ],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_PATIENT_SAYS_SEVERE"
+      ],
+      "why": [
+        "She described her problem as severe in her own message."
+      ]
+    },
+    "seconds": 10.0,
+    "heard": {
+      "transcript": "నమస్తే, నేను నిర్మల గారి అబ్బాయిని. అమ్మ ఎడమ చేతిలో చాలా తీవ్రమైన నొప్పి భరించలేకపోతోంది.",
+      "translation": "Hello, I am Nirmala's son. Mom is unable to bear severe pain in her left hand.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "arm_pain"
+        ],
+        "severity_word": "SEVERE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_ARM_SCORE",
+          "Q_ARM_SUDDEN"
+        ],
+        "floors": [
+          "AMBER_PATIENT_SAYS_SEVERE"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_PATIENT_SAYS_SEVERE"
+        ],
+        "why": [
+          "She described her problem as severe in her own message."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-A06": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Amber",
+    "story": "A6",
+    "story_text": "A symptom we have no questions for",
+    "dialect": "Telangana",
+    "caller": "patient",
+    "speaker": "neha",
+    "style": {
+      "pace": 1.15,
+      "noise": "home",
+      "noise_level": 0.3
+    },
+    "text": "నాలుగు దినాల సంది కాళ్ళు వాపులు వచ్చినయ్, చీలమండల దగ్గర బాగా ఉబ్బినయ్…",
+    "meaning": "For four days my legs have been swelling, they're very puffy around the ankles…",
+    "tags": {
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.6",
+      "Q_BANGLES": "NO"
+    },
+    "file": "audio/TE-A06.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES"
+      ],
+      "floors": [
+        "AMBER_OTHER_SYMPTOM_REPORTED"
+      ],
+      "tier": "Amber",
+      "red_kind": null,
+      "reasons": [
+        "AMBER_OTHER_SYMPTOM_REPORTED"
+      ],
+      "why": [
+        "She mentioned a problem we have no questions for, so the duty doctor calls her."
+      ]
+    },
+    "seconds": 6.0,
+    "heard": {
+      "transcript": "నాలుగు దినాల సంధి కాళ్ళు వాపులు వచ్చినాయి, చీలమండల దగ్గర బాగా ఉబ్బినాయి.",
+      "translation": "I had cramps in my legs for four days. They swelled up a lot near the shin area.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-G01": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Green",
+    "story": "G1",
+    "story_text": "Mild headache",
+    "dialect": "Standard",
+    "caller": "patient",
+    "speaker": "rupali",
+    "style": {
+      "pitch": 0.88
+    },
+    "text": "పొద్దున కొంచెం తలనొప్పిగా ఉండేది, ఇప్పుడు పర్వాలేదు. ఊరికే చెప్దామని మెసేజ్ పెట్టాను.",
+    "meaning": "I had a slight headache in the morning, it's fine now. I sent a message just to let you know.",
+    "tags": {
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "2",
+      "Q_HEAD_WORSE": "NO"
+    },
+    "file": "audio/TE-G01.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+      ]
+    },
+    "seconds": 6.5,
+    "heard": {
+      "transcript": "పొద్దున కొంచెం తలనొప్పిగా ఉండేది, ఇప్పుడు పర్వాలేదు, ఊరికే చెప్దామని మెసేజ్ పెట్టాను.",
+      "translation": "I had a slight headache in the morning. Now I'm fine. I just sent a message to tell you.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "headache"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-G02": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Green",
+    "story": "G2",
+    "story_text": "A bit tired for 2 days",
+    "dialect": "Rayalaseema",
+    "caller": "patient",
+    "speaker": "ishita",
+    "style": {
+      "muffled": true,
+      "noise": "room",
+      "noise_level": 0.3
+    },
+    "text": "రెండు దినాలుగా కొంచెం నీరసంగా ఉండాది, ఇంకేమీ లేదు. బాగానే తింటాండా.",
+    "meaning": "I've been a little tired for two days, nothing else. I'm eating well.",
+    "tags": {
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_TIRED_DAYS": "2",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/TE-G02.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO"
+      ]
+    },
+    "seconds": 5.5,
+    "heard": {
+      "transcript": "రెండు దినాలుగా కొంచెం నీరసంగా ఉండాది ఇంకేమీ లేదు బాగానే తింటాండా",
+      "translation": "I have been feeling a little weak for two days, nothing else, I will eat well.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "tiredness"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Tired for (days): 2; Tiredness worse than last week: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-G03": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Green",
+    "story": "G3",
+    "story_text": "Hand aching a little",
+    "dialect": "Telangana",
+    "caller": "patient",
+    "speaker": "tanya",
+    "style": {
+      "noise": "home",
+      "noise_level": 0.25
+    },
+    "text": "వంట చేసేటప్పుడు చెయ్యి జెర నొస్తాంది, ఎక్కువేం లేదు, కొంచెమే. మిగతా అంతా మంచిగనే ఉన్న.",
+    "meaning": "My hand hurts a bit when I cook, not much, just slightly. Everything else is fine.",
+    "tags": {
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_ARM_SCORE": "2",
+      "Q_ARM_SUDDEN": "NO"
+    },
+    "file": "audio/TE-G03.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_ARM_SCORE",
+        "Q_ARM_SUDDEN"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Left arm pain (out of 10): 2; Arm pain started suddenly: NO"
+      ]
+    },
+    "seconds": 6.4,
+    "heard": {
+      "transcript": "వంట చేసేటప్పుడు చెయ్యి జరనొస్తాంది. ఎక్కువేం లేదు కొంచెమే. మిగతా అంతా మంచిగానే ఉన్నా.",
+      "translation": "My hand feels numb while cooking. It's not much, just a little. The rest is fine.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "other_symptom"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES"
+        ],
+        "floors": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "tier": "Amber",
+        "red_kind": null,
+        "reasons": [
+          "AMBER_OTHER_SYMPTOM_REPORTED"
+        ],
+        "why": [
+          "She mentioned a problem we have no questions for, so the duty doctor calls her."
+        ]
+      },
+      "verdict": "safe",
+      "note": "Amber (higher than Green)"
+    }
+  },
+  "TE-G04": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Green",
+    "story": "G4",
+    "story_text": "Nausea after tablets, eating fine",
+    "dialect": "Coastal Andhra",
+    "caller": "patient",
+    "speaker": "pooja",
+    "style": {
+      "pace": 1.2
+    },
+    "text": "మాత్ర వేసుకున్నాక కొంచెం వికారంగా ఉంటుందండీ, వాంతులు ఏమీ లేవు. అన్నం బాగానే తింటున్నాను.",
+    "meaning": "I feel a little queasy after taking the tablet, no vomiting at all. I'm eating well.",
+    "tags": {
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_NAUSEA": "YES",
+      "Q_VOMIT": "0",
+      "Q_LIQUIDS": "YES",
+      "Q_SUPP": "NO"
+    },
+    "file": "audio/TE-G04.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_NAUSEA",
+        "Q_VOMIT",
+        "Q_LIQUIDS",
+        "Q_SUPP"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO"
+      ]
+    },
+    "seconds": 5.7,
+    "heard": {
+      "transcript": "మాత్ర వేసుకున్నాక కొంచెం వికారంగా ఉంటుందండి, వాంతులు ఏమీ లేవు, అన్నం బాగానే తింటున్నాను.",
+      "translation": "After taking the medicine, I feel a little unwell. I don't have any vomiting. I am eating well.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "nausea_vomiting"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_NAUSEA",
+          "Q_VOMIT",
+          "Q_LIQUIDS",
+          "Q_SUPP"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Nausea since yesterday: YES; Vomited (times since yesterday): 0; Keeps water down: YES; Supplements only after full meals: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  },
+  "TE-G05": {
+    "language": "Telugu",
+    "mrn": "SYN-0013",
+    "tier": "Green",
+    "story": "G5",
+    "story_text": "Health worry mixed with daily chatter",
+    "dialect": "Hyderabadi",
+    "caller": "patient",
+    "speaker": "simran",
+    "style": {
+      "noise": "room",
+      "noise_level": 0.35
+    },
+    "text": "ఎల్లుండి మా మనవరాలి పుట్టినరోజు ఫంక్షన్ ఉంది, దానికి రెడీ అవ్వాలి… నిన్నటి నుంచి కొంచెం అలసటగా ఉంది, కొంచెం తలనొప్పి కూడా, అంతే.",
+    "meaning": "My granddaughter's birthday function is the day after tomorrow, I have to get ready… I've been a bit tired since yesterday, with a slight headache too, that's all.",
+    "tags": {
+      "symptoms": [
+        "headache",
+        "tiredness"
+      ],
+      "severity_word": "NONE"
+    },
+    "answers": {
+      "Q_SLURRED": "NO",
+      "Q_AWAKE": "NO",
+      "Q_CHEST": "NO",
+      "Q_ARM_RED": "NO",
+      "Q_TEMP": "98.4",
+      "Q_BANGLES": "NO",
+      "Q_HEADACHE": "YES",
+      "Q_HEAD_SCORE": "2",
+      "Q_HEAD_WORSE": "NO",
+      "Q_TIRED_DAYS": "1",
+      "Q_TIRED_WORSE": "NO"
+    },
+    "file": "audio/TE-G05.wav",
+    "expected": {
+      "route": "TRIAGE",
+      "profile": "ROUTED",
+      "planned": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "asked": [
+        "Q_SLURRED",
+        "Q_AWAKE",
+        "Q_CHEST",
+        "Q_ARM_RED",
+        "Q_TEMP",
+        "Q_BANGLES",
+        "Q_HEADACHE",
+        "Q_HEAD_SCORE",
+        "Q_HEAD_WORSE",
+        "Q_TIRED_DAYS",
+        "Q_TIRED_WORSE"
+      ],
+      "floors": [],
+      "tier": "Green",
+      "red_kind": null,
+      "reasons": [],
+      "why": [
+        "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO; Tired for (days): 1; Tiredness worse than last week: NO"
+      ]
+    },
+    "seconds": 8.4,
+    "heard": {
+      "transcript": "ఎల్లుండి మా మనవరాలి పుట్టినరోజు ఫంక్షన్ ఉంది, దానికి రెడీ అవ్వాలి. నిన్నటి నుంచి కొంచెం అలసటగా ఉంది, కొంచెం తలనొప్పి కూడా అంతే.",
+      "translation": "The day after tomorrow is my granddaughter's birthday function. I need to get ready for it. I've been feeling a little tired since yesterday. And a little bit of a headache too. That's it.",
+      "tags": {
+        "health_related": "YES",
+        "symptoms": [
+          "tiredness",
+          "headache"
+        ],
+        "severity_word": "NONE",
+        "valid": true
+      },
+      "result": {
+        "route": "TRIAGE",
+        "profile": "ROUTED",
+        "planned": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "asked": [
+          "Q_SLURRED",
+          "Q_AWAKE",
+          "Q_CHEST",
+          "Q_ARM_RED",
+          "Q_TEMP",
+          "Q_BANGLES",
+          "Q_HEADACHE",
+          "Q_HEAD_SCORE",
+          "Q_HEAD_WORSE",
+          "Q_TIRED_DAYS",
+          "Q_TIRED_WORSE"
+        ],
+        "floors": [],
+        "tier": "Green",
+        "red_kind": null,
+        "reasons": [],
+        "why": [
+          "No rule fired. Temperature 98.4; Speech slurred or confused: NO; Very hard to stay awake: NO; Chest pain or hard to breathe: NO; Left arm red or hot: NO; Bangles tighter: NO; Headache today: YES; Headache (out of 10): 2; Headache worse than last time: NO; Tired for (days): 1; Tiredness worse than last week: NO"
+        ]
+      },
+      "verdict": "pass",
+      "note": ""
+    }
+  }
+}

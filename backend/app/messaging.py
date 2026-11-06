@@ -136,9 +136,11 @@ def render_buttons(conn, tmpl: dict, card: dict | None) -> list[dict]:
 
 def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: str, reason_code: str,
                  recipient: str = "patient", card_id: int | None = None, gap_id: int | None = None,
-                 handover_id: int | None = None, mode: str = "live", extra: dict | None = None) -> dict:
+                 handover_id: int | None = None, mode: str = "live", extra: dict | None = None,
+                 buttons: list[dict] | None = None) -> dict:
     """Send one approved template through the send-guard. The sender refuses a template that is not
-    approved and effective for the patient's language (held_template_missing): no fallback language."""
+    approved and effective for the patient's language (held_template_missing): no fallback language.
+    buttons: reply buttons made at send time (the appointment slots), in place of the template's own."""
     patient = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
     if patient is None:
         raise NotFound(f"Patient {mrn} not found")
@@ -158,7 +160,7 @@ def send_message(conn, *, mrn: str, template_id: str, actor_type: str, actor: st
         body = render(tmpl, patient, card, extra)
         english = tmpl if lang == "English" else policy.template(conn, template_id, "English")
         body_en = render(english, patient, card, extra) if english else body
-        buttons = render_buttons(conn, tmpl, card)
+        buttons = buttons if buttons is not None else render_buttons(conn, tmpl, card)
     else:
         body = body_en = ""
         buttons = []

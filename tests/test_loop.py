@@ -33,7 +33,7 @@ def test_agent_sends_an_approved_reminder_and_records_why(seeded, client):
     assert [(m["recipient"], m["status"], m["language"]) for m in sent] == [
         ("patient", "sent", "Hindi"), ("caregiver", "sent", "Hindi")]
     assert sent[0]["body"].startswith("नमस्ते Sunita जी") and "09/11/2026" in sent[0]["body"]
-    assert [b["id"] for b in sent[0]["buttons"]] == ["booked", "help_book", "cant_come", "done_outside"]
+    assert [b["id"] for b in sent[0]["buttons"]] == ["booked", "help_book", "cant_come", "booked_elsewhere"]
     assert [b["label_en"] for b in sent[0]["buttons"]][0] == "Blood tests booked"
     decision = last_audit("agent_decision")
     assert (decision["actor_type"], decision["rule"], decision["task"], decision["mode"], decision["policy_version"],
@@ -124,23 +124,30 @@ def test_booked_button_updates_the_visit_card_without_ai(seeded, client):
     change = last_audit("card_state_changed")
     assert (change["actor_type"], change["details"]["source"]) == ("system", "patient_button")
     assert scalar("SELECT count(*) FROM audit_ledger WHERE actor_type = 'ai'") == 0  # no model involved
-    assert morning(client)["gap_check"]["resolved"] == 1
+    # 5 Nov: booked for the day of the tap, on the appointment list, and the reminder gap closed at once
+    v1 = next(c for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json() if c["item_code"] == "V1")
+    assert v1["appointment_date"] == "2026-11-09"
+    assert [(a["item_code"], a["source"]) for a in client.get("/appointments", headers=PRIYA).json()
+            if a["mrn"] == "SYN-0007"] == [("V1", "patient_button")]
+    assert scalar("SELECT count(*) FROM gap_event WHERE card_id = %s AND status <> 'resolved'", v1["card_id"]) == 0
 
 
 def test_other_buttons_create_people_tasks(seeded, client):
     confirm_plan(client, "SYN-0007")
     morning(client)  # T1 reminder (a test card)
-    client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "booked"})
-    client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "help_book"})
     client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "cant_come"})
+    client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "booked"})
+    r = client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "help_book"})
     tasks = {t["task_type"]: t for t in client.get("/needs-you", headers=PRIYA).json()["tasks"]}
-    # Use Case 2b: help-booking and can't-come tasks, owned by the card's owner (T1: Laboratory) and cover.
-    # Use Case 2T v1.4: Booked on a test moves it to Booked (no date), with no Confirm test booking task.
-    assert set(tasks) >= {"help_booking", "cant_come"} and "confirm_test_booking" not in tasks
+    # Use Case 2b: a can't-come task, owned by the card's owner (T1: Laboratory) and cover.
+    # 5 Nov: Booked on a test books it for the day of the tap, with no task; once booked, Please help me book
+    # changes nothing (no slots, no task).
+    assert "cant_come" in tasks and not {"help_booking", "confirm_test_booking"} & set(tasks)
+    assert r.json()["handling"] == ["button_help_book:already_progressed"]
     t1 = next(c for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json() if c["item_code"] == "T1")
-    assert (t1["state"], t1["label"]) == ("Booked", "Patient says booked (no date)")
-    assert tasks["help_booking"]["due_date"] == "2026-11-04"  # 2 working days
-    assert (tasks["help_booking"]["owner_name"], tasks["help_booking"]["cover_name"]) == ("Sunil Kumar", "Priya Nair")
+    assert (t1["state"], t1["label"], t1["appointment_date"]) == ("Booked", None, "2026-11-02")
+    assert tasks["cant_come"]["due_date"] == "2026-11-04"  # 2 working days
+    assert (tasks["cant_come"]["owner_name"], tasks["cant_come"]["cover_name"]) == ("Sunil Kumar", "Priya Nair")
 
 
 def test_still_unbooked_at_t3_goes_to_the_coordinator_once(seeded, client):
@@ -183,14 +190,45 @@ def test_status_change_needs_a_reason(seeded, client):
 
 
 def test_help_booking_on_a_test_card_books_the_test(seeded, client):
-    """Golden Path: "Please help me book" on the T1 blood-test reminder; Record booking books the test."""
+    """Golden Path (5 Nov): "Please help me book" on the T1 blood-test reminder offers four slots in Hindi; the slot
+    she taps books the test for that date and time, she is told so, and it is on the appointment list."""
     confirm_plan(client, "SYN-0007")
     morning(client)  # T1 reminder (a test card)
-    client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "help_book"})
-    task = next(t for t in client.get("/patients/SYN-0007/tasks", headers=PRIYA).json()["tasks"]
-                if t["task_type"] == "help_booking")
-    r = client.post(f"/tasks/{task['task_id']}/result", headers=PRIYA,
-                    json={"result": "booked", "appointment_date": "2026-11-06", "appointment_time": "09:30", "note": "Lab slot"})
-    assert r.status_code == 200, r.text
+    r = client.post("/simulator/SYN-0007/reply", headers=PRIYA, json={"button": "help_book"})
+    assert r.json()["handling"] == ["button_help_book:slots_offered"]
+    assert not [t for t in client.get("/patients/SYN-0007/tasks", headers=PRIYA).json()["tasks"]
+                if t["task_type"] == "help_booking"]
+    offer = next(m for m in outbox("SYN-0007") if m["template_id"] == "booking_slots")
+    assert (offer["status"], offer["language"], len(offer["buttons"])) == ("sent", "Hindi", 4)
+    assert offer["body"].startswith("नमस्ते Sunita जी। कृपया अपनी")
+    days = [b["date"] for b in offer["buttons"]]
+    assert days == sorted(set(days)) and all("2026-11-03" <= d <= "2026-11-16" for d in days)
+    slot = offer["buttons"][2]
+    r = client.post("/simulator/SYN-0007/reply", headers=PRIYA,
+                    json={"button": "slot_3", "in_reply_to": offer["message_id"]})
+    assert r.json()["handling"] == ["button_slot_3:card_booked_slot"]
     t1 = next(c for c in client.get("/patients/SYN-0007/cards", headers=PRIYA).json() if c["item_code"] == "T1")
-    assert (t1["state"], t1["appointment_date"], t1["booking_source"], t1["appointment_time"]) ==         ("Booked", "2026-11-06", "coordinator", "09:30:00")
+    assert (t1["state"], t1["appointment_date"], t1["booking_source"], t1["appointment_time"]) == \
+        ("Booked", slot["date"], "patient_slot", f"{slot['time']}:00")
+    done = outbox("SYN-0007")[-1]
+    assert done["template_id"] == "booking_confirmed" and "सफलतापूर्वक बुक हो गया है" in done["body"]
+    assert slot["label"] in done["body"]
+    # a second tap on another slot changes nothing
+    r = client.post("/simulator/SYN-0007/reply", headers=PRIYA,
+                    json={"button": "slot_1", "in_reply_to": offer["message_id"]})
+    assert r.json()["handling"] == ["button_slot_1:already_progressed"]
+
+
+def test_help_booking_goes_to_a_person_when_the_slots_cannot_be_sent(seeded, client):
+    """No consent for automated messages: the slot offer is blocked, so a coordinator gets the help-booking task."""
+    from app import db
+
+    confirm_plan(client, "SYN-0007")
+    morning(client)
+    reminder = next(m for m in outbox("SYN-0007") if m["recipient"] == "patient")
+    with db.connect() as c:
+        c.execute("UPDATE consent SET scopes = array_remove(scopes, 'automated_messaging') WHERE mrn = 'SYN-0007'")
+    r = client.post("/simulator/SYN-0007/reply", headers=PRIYA,
+                    json={"button": "help_book", "in_reply_to": reminder["message_id"]})
+    assert r.json()["handling"] == ["button_help_book:slots_not_sent_help_booking_created"]
+    assert next(m for m in outbox("SYN-0007") if m["template_id"] == "booking_slots")["status"] == "blocked"

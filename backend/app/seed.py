@@ -18,6 +18,7 @@ from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline
                         uc1, uc2a, uc2b, uc2c, uc2t, vt)
 
 SEED_USER = "u_priya"
+SELF_BOOKING_TEMPLATES = ("booking_slots", "booking_confirmed")
 
 DEMO_TABLES = (
     "triage_document", "triage_episode", "triage_history",
@@ -215,6 +216,9 @@ def _seed_uc1(conn, uc: dict | None = None) -> None:
         ("scenario_settings", "default", {**uc["settings"], "scenario": uc["scenario"]}, f"Demo data set: {uc['title']}"),
         *(("message_template", f"{t['template_id']}:{t['language']}", t, t["approved_by"])
           for t in uc["message_templates"]),
+        # Patient self-booking: every data set can offer slots and confirm a booking (5 Nov)
+        *(("message_template", f"{t['template_id']}:{t['language']}", t, t["approved_by"])
+          for t in message_templates() if t["template_id"] in SELF_BOOKING_TEMPLATES),
         *((("report_routing", "default", uc["report_routing"], uc["report_routing"]["signed_off_by"]),)
           if uc.get("report_routing") else ()),
     ))

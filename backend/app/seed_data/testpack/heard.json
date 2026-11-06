@@ -1,0 +1,595 @@
+{
+  "TA-R01": {
+    "transcript": "என்னப்பா இது நெஞ்சு நடுவுல பயங்கரமா வலிக்குது. மூச்சு வாங்கவே முடியல. கை காலெல்லாம் வேர்த்து விட்டது. பேஜாரா கீதுவா. சீக்கிரம் ஏதாச்சும் பண்ணுங்க.",
+    "translation": "What is this, my chest hurts terribly in the middle. I can't even breathe. My hands and legs are all sweaty. I'm feeling restless. Please do something quickly.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "chest_or_breathing",
+        "other_symptom"
+      ],
+      "severity_word": "SEVERE",
+      "valid": true
+    }
+  },
+  "TA-R02": {
+    "transcript": "ஏனுங்க எங்க அம்மாவுக்கு காலையிலிருந்து நெம்பத் தூக்கமாவே இருக்குதுங்க. கண்ணையே திறக்க முடியலைங்க. கூப்பிட்டாலும் சரியா பதில் சொல்ல மாட்டேங்கிறாங்க. என்ன பண்றதுன்னே தெரியலைங்க.",
+    "translation": "What is it? My mother has been feeling very sleepy since morning. She can't even open her eyes. Even when I call her, she doesn't give a proper answer. I don't know what to do.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "sleepiness"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-R03": {
+    "transcript": "இலை இடது கை முழுக்க சிவந்து போச்சுலே, தொட்டா நெருப்பா சுடுது வலியும் தாங்க முடியல பயமா இருக்குதேன், என்ன செய்யன்னு தெரியலை.",
+    "translation": "My left hand is completely red. When I touch it, it feels like fire, and I can't bear the pain; I'm scared. I don't know what to do.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "SEVERE",
+      "valid": true
+    }
+  },
+  "TA-R04": {
+    "transcript": "ராத்திரியிலிருந்து ஜுரம் அடிக்குது, உடம்பெல்லாம் நடுங்குது, போர்வை போத்தியும் குளிருது, தெர்மாமீட்டர்ல நூற்றி ஒன்னுக்கு மேல காட்டுது.",
+    "translation": "I have been having a fever since last night, and my whole body is shivering. My blanket is also cold, and the thermometer shows above 101.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "fever_chills"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-R05": {
+    "transcript": "சார், எங்க அம்மா காலையில இருந்து ஏழு எட்டு தடவை வாந்தி எடுத்துட்டாங்க. தண்ணி குடிச்சாலும் உடனே வந்துருது, ரொம்ப டயர்டாக்கிறாங்க. என்ன பண்றதுன்னு சொல்லுங்க சார்.",
+    "translation": "Sir, my mother has vomited seven or eight times since morning. Even after drinking water, she vomits immediately and feels very tired. Please tell me what to do, sir.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "nausea_vomiting",
+        "tiredness"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-A01": {
+    "transcript": "ஆத்தாடி ஆ ஐயோ ரெண்டு நாளா இந்த இடது கை இம்புட்டு வீங்கிப் போயி கிடக்குயா வலையெல்லாம் இருகிப் போச்சு கழட்டவே இயலலையால லேசா வலிக்குதுயா எனக்கு அம்புட்டு பயமா இருக்கு டாக்டர் அம்மா என்னத்த பண்றதுன்னே தெரியலையே",
+    "translation": "Oh my god! Oh no! For two days, this left hand has been swollen and swollen, and the veins have become tight. I can't even remove it; it hurts a little. I'm so scared. Doctor, I don't know what to do.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain",
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-A02": {
+    "transcript": "ஏனுங்க மூணு நாளா தலைவலி நெம்ப அதிகமாயிருச்சுங்க போன தடவை சொன்னதை விட இப்போ கூடுதலா இருக்குதுங்க மாத்திரை போட்டும் கேட்கலிங்க",
+    "translation": "Why, for three days my headache has increased a lot. It is more now than what I said last time. I didn't even ask for medicine.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-A03": {
+    "transcript": "நேத்து சாயங்காலம் விடீர்னு இடது கையில் சுளிர்னு வலி வந்துச்சுப்பா, அப்போலேருந்து கையை அசைக்கவே பயமாக்கிது.",
+    "translation": "Yesterday evening, suddenly, I felt a sharp pain in my left hand. Since then, I have been afraid to move my hand.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-A04": {
+    "transcript": "ஒரு வாரத்துக்கு மேல் ஆச்சு. உடம்பு அசதியாகவே இருக்குலே, எந்திரிக்கவே முடியல. சோறு கூட சரியா இறங்கல.",
+    "translation": "It has been more than a week. My body feels very tired. I am unable to get up. Even my appetite is not properly reduced.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-A05": {
+    "transcript": "அம்மாவுக்கு இட கையில ரொம்ப கடுமையான வீடு. தாங்கவே முடியலன்னு சொல்றாங்க. நான் அவங்க பையன் கார்த்திக் பேசுறேன்.",
+    "translation": "They are saying that Amma has a very severe pain in her left hand and she is unable to bear it. I am their son Karthik speaking.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_pain",
+        "other_symptom"
+      ],
+      "severity_word": "SEVERE",
+      "valid": true
+    }
+  },
+  "TA-A06": {
+    "transcript": "முதுகுல எல்லாம் சிவப்பா தடிப்பு தடிப்பா வந்துருச்சுயா அரிப்பு தாங்க முடியல ராத்திரி தூக்கமே இல்ல",
+    "translation": "There is redness and swelling in the back, and I cannot bear the itching. I couldn't sleep at all last night.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "SEVERE",
+      "valid": true
+    }
+  },
+  "TA-G01": {
+    "transcript": "காலையில லேசா தலைவலி இருந்துச்சு. இப்போ கொஞ்சம் பரவாயில்லை. ஒரு தடவை சொல்லிடலாம்னு மெசேஜ் போட்டேன்.",
+    "translation": "I had a slight headache in the morning. Now I am a little better. I sent a message saying I would tell you once.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-G02": {
+    "transcript": "ரெண்டு நாளா கொஞ்சம் சோர்வா இருக்குதுங்க. வேற ஒன்னும் இல்லைங்க. சாப்பிட்டு நல்லா ரெஸ்ட் எடுக்குறேனுங்க.",
+    "translation": "I have been feeling a little tired for two days. There is nothing else. I am resting well after eating.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-G03": {
+    "transcript": "சமையல் பண்ணும்போது கை கொஞ்சம் வலிக்குதே, ரொம்ப இல்லை, லேசாத்தான், மற்றபடி நல்லா இருக்கேன்.",
+    "translation": "My hand hurts a little while cooking, not too much, just a little. Otherwise, I am fine.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-G04": {
+    "transcript": "மாத்திரை போட்டதும் லேசா குமிட்டது. வாந்தி எல்லாம் இல்லப்பா. சாப்பாடு நல்லா சாப்பிடுறேன்.",
+    "translation": "I felt a slight nausea after taking the medicine. I don't have vomiting. I am eating well.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TA-G05": {
+    "transcript": "நாளைக்கு எங்க பேத்திக்கு காது குத்து விசேஷம்யா, அதுக்கு கிளம்பணும். நேத்திலிருந்து கொஞ்சம் வசதியா இருக்கு, லேசா தலையும் வலிக்குது, அம்புட்டுதான்.",
+    "translation": "Tomorrow is my granddaughter's ear piercing ceremony, so I need to leave. It's been a bit uncomfortable since yesterday, and my head is also aching slightly. It's just a minor issue.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-R01": {
+    "transcript": "राम राम, छाती में बहुत दर्द हो रहा है, सांस कोन्या आ रही, पसीना छूट रहा है, क्या करूँ समझ कोन्या आता?",
+    "translation": "Ram Ram, there is a lot of pain in the chest, who is breathing, is there sweat coming out, what should I do, understand, who was there?",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "chest_or_breathing"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-R02": {
+    "transcript": "भैया, हमार माई सवेरे से एकदम बेहोश, जैसम सुतल बाड़ी आँखिए ना खुलत बा, बोलावे पर भी ठीक से जवाब ना देत बाड़ी।",
+    "translation": "Brother, my mother has been completely unconscious since morning. She can't even open her eyes properly, and she can't even respond properly to calls.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-R03": {
+    "transcript": "अरे बाएँ हाथ पे एकदम लाल लाल हो गया है, छूने पे गरम लगता है, दर्द भी बहुत है, वाट लग गई है अपुन की।",
+    "translation": "Oh, my left hand has become completely red. It feels hot when I touch it, and there's a lot of pain too. I'm in trouble now.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-R04": {
+    "transcript": "कल रात से तेज बुखार है, पूरा शरीर कांप रहा है, कंबल ओढ़ के भी ठंड लग रही है, थर्मामीटर में 102 दिखा रहा है।",
+    "translation": "I have had a high fever since last night, my whole body is shivering. I am feeling cold even after covering myself with a blanket. The thermometer shows 102.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "fever_chills"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-R05": {
+    "transcript": "हमका सुबह से छह सात बार उल्टी होई गई है, पानी पीयत हैं तो ऊ भी निकल जात हैं, बहुत कमजोरी लागत हैं।",
+    "translation": "I have vomited six to seven times since morning. When I drink water, it also comes out. I feel very weak.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "nausea_vomiting",
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-A01": {
+    "transcript": "हाय राम, दू दिन से बाया हाथ सूज गईल बा चूड़ी, इतना कस गईल कि कल ते नईखे, त तनी तनी दर्द भी बा, डर लागत बा।",
+    "translation": "Oh Ram, my left hand has been swollen for two days, and the bangle is so tight that it doesn't even move, and I'm also feeling a little bit of pain, I'm feeling scared.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-A02": {
+    "transcript": "3 दिन से सिर का दर्द बढ़ता जा रहा है, पिछली बार जो बताया था उससे ज़्यादा है, दवाई से भी आराम नहीं।",
+    "translation": "I have been experiencing a headache for three days. It's worse than what I described last time, and I'm not getting any relief even with medication.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-A03": {
+    "transcript": "कल शाम में अचानक बाएँ हाथ में ज़ोर का दर्द उठ गया था, तब ते हाथ हिलाते हुए डर लगे से।",
+    "translation": "Yesterday evening, suddenly there was a sharp pain in my left hand, then I felt scared while moving my hand.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-A04": {
+    "transcript": "एक हफ़्ते से ज़्यादा हो गया, एकदम थकान लगती है, उठने का मन नहीं करता, खाना भी बराबर नहीं जाता।",
+    "translation": "It's been more than a week. I feel very tired, and I don't feel like getting up. I can't even eat properly.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-A05": {
+    "transcript": "नमस्ते, मैं सावित्री जी का बेटा बोल रहा हूँ। माँ के बाएँ हाथ में बहुत ज़्यादा तेज़ दर्द है, बहुत गंभीर लग रहा है।",
+    "translation": "Hello, I am Savitri ji's son speaking. My mother has a very severe pain in her left hand. It feels very serious.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "SEVERE",
+      "valid": true
+    }
+  },
+  "HI-A06": {
+    "transcript": "चार दिन से खांसी आवत है, रात भर खों खों करत रहीत है, बलगम भी निकलत है।",
+    "translation": "I have been having a cough for four days, it keeps making a 'kho-kho' sound all night, and I am also passing phlegm.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-G01": {
+    "transcript": "सवेरे तनी मुड़ी में दर्द रहल, अब ठीक बा, बस बतावे खातिर मैसेज कई नी।",
+    "translation": "In the morning, there was pain in my head, now it's fine, just didn't message to tell.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-G02": {
+    "transcript": "दो दिन तक थोड़ी थकान सी है और कुछ कोनिया खाना पीना ठीक है।",
+    "translation": "For two days, I felt a little tired and some pain. Food and drink were fine.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "tiredness",
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-G03": {
+    "transcript": "खाना बनाते टाइम हाथ थोड़ा दुखता है, ज़्यादा नहीं बस हल्का सा, बाकी सब एकदम मस्त है।",
+    "translation": "My hand hurts a little while cooking. Not much, just a little. Otherwise, everything is perfectly fine.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-G04": {
+    "transcript": "गोली खाने के बाद थोड़ा जी मिचलाता है, उल्टी नहीं हुई, खाना ठीक से खा रही हूँ।",
+    "translation": "After taking the pill, I feel a little nauseous, I didn't vomit. I am eating properly.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "HI-G05": {
+    "transcript": "परसों पोती का मुंडन है, ओकरें तैयारी में लगी हैं, कल से तनिक थकान है और हल्का सिर दर्द, बस इतना ही।",
+    "translation": "The day after tomorrow is the daughter-in-law's head-shaving ceremony, she is busy with preparations, she is a little tired since yesterday, and a slight headache, that's all.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "tiredness",
+        "headache"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-R01": {
+    "transcript": "అయ్యో ఛాతీలో శానా నొప్పి వస్తాంది. ఊపిరి ఆడతలేదు, చెమటలు పడుతున్నాయి. ఏం చేయాలో తెలవదు.",
+    "translation": "Oh no, I have a lot of chest pain. I can't breathe, and I'm sweating. I don't know what to do.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "chest_or_breathing",
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-R02": {
+    "transcript": "అండి మా అమ్మగారు పొద్దుటి నుంచి బాగా మత్తుగా పడుకునే ఉన్నారు కళ్ళు తెరవలేకపోతున్నారు పిలిచినా సరిగ్గా పలకడం లేదు",
+    "translation": "Sir, my mother has been sleeping very drowsily since morning. She is unable to open her eyes. Even when called, she is not responding properly.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "sleepiness"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-R03": {
+    "transcript": "ఎడమ చెయ్యి మొత్తం ఎర్రగా అయిపోయిందప్పా, ముట్టుకుంటే నిప్పు మాదిరి కాలతాంది నొప్పి తట్టుకోలేకపోతుండా.",
+    "translation": "My entire left hand has turned red. When I touch it, it feels like fire burning. I can't bear the pain.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "other_symptom"
+      ],
+      "severity_word": "SEVERE",
+      "valid": true
+    }
+  },
+  "TE-R04": {
+    "transcript": "నిన్న రాత్రి నుంచి జ్వరం బాగా ఉంది. ఒళ్ళంతా వణుకుతోంది. దుప్పటి కప్పుకున్నా చలిగా ఉంది. థర్మామీటర్లో నూట ఒకటిన్నర చూపిస్తోంది.",
+    "translation": "I have had a high fever since last night. My whole body is shivering. Even when I cover myself with a blanket, it feels cold. The thermometer shows 101.5.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "fever_chills"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-R05": {
+    "transcript": "సార్, మా అమ్మకి పొద్దున్న నుంచి ఏడెనిమిది సార్లు వాంతులైనాయి. నీళ్లు తాగినా వెంటనే బయటికి వచ్చేస్తున్నాయి. బహుత్ కంజోర్ అయిపోయింది.",
+    "translation": "Sir, my mother has been vomiting seven times since morning. Even after drinking water, it is coming out immediately. She has become very weak.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-A01": {
+    "transcript": "అయ్యో బాబోయ్ రెండు రోజుల నుంచి ఎడమ చెయ్యి వాచిపోయిందండి గాజులు బిగుసుకుపోయి తీయలేకపోతున్నానండి ఇంకో కొంచెం నొప్పిగా కూడా ఉంది భయంగా ఉందండి",
+    "translation": "Oh my god! My left hand has been aching for two days. The bangles have become stiff, and I am unable to remove them. It is also hurting a little more. I am scared.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_swelling_or_redness",
+        "arm_pain",
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-A02": {
+    "transcript": "మూడు దినాల సంధి, తలనొప్పి ఎక్కువైతాంది. మొన్న చెప్పిన దానికన్నా జర ఎక్కువే ఉంది. గోళీ వేసుకున్నా తగ్గుతలేదు.",
+    "translation": "It's a three-day period, and the headache is getting worse. The fever is higher than what I mentioned earlier. It's not subsiding even after taking a pill.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "headache",
+        "fever_chills"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-A03": {
+    "transcript": "నీ నిన్న సాయంత్రం ఉన్నట్టుండి ఎడమ చేతిలో గట్టిగా నొప్పి వచ్చింది, అప్పటి నుంచి చెయ్యి కదిలించాలంటే భయమైతాంది.",
+    "translation": "Since yesterday evening, I have been experiencing severe pain in my left hand, and since then, I have been afraid to move my hand.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-A04": {
+    "transcript": "వారం దాటిపోయిందండి, ఒళ్ళంతా నీరసంగానే ఉంది, లేవాలన్నా ఓపిక లేదు, అన్నం కూడా సరిగ్గా సహించడం లేదండి.",
+    "translation": "It's been over a week. My whole body feels weak. I don't have the energy to get up. I can't even digest food properly.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-A05": {
+    "transcript": "నమస్తే, నేను నిర్మల గారి అబ్బాయిని. అమ్మ ఎడమ చేతిలో చాలా తీవ్రమైన నొప్పి భరించలేకపోతోంది.",
+    "translation": "Hello, I am Nirmala's son. Mom is unable to bear severe pain in her left hand.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "arm_pain"
+      ],
+      "severity_word": "SEVERE",
+      "valid": true
+    }
+  },
+  "TE-A06": {
+    "transcript": "నాలుగు దినాల సంధి కాళ్ళు వాపులు వచ్చినాయి, చీలమండల దగ్గర బాగా ఉబ్బినాయి.",
+    "translation": "I had cramps in my legs for four days. They swelled up a lot near the shin area.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-G01": {
+    "transcript": "పొద్దున కొంచెం తలనొప్పిగా ఉండేది, ఇప్పుడు పర్వాలేదు, ఊరికే చెప్దామని మెసేజ్ పెట్టాను.",
+    "translation": "I had a slight headache in the morning. Now I'm fine. I just sent a message to tell you.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "headache"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-G02": {
+    "transcript": "రెండు దినాలుగా కొంచెం నీరసంగా ఉండాది ఇంకేమీ లేదు బాగానే తింటాండా",
+    "translation": "I have been feeling a little weak for two days, nothing else, I will eat well.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "tiredness"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-G03": {
+    "transcript": "వంట చేసేటప్పుడు చెయ్యి జరనొస్తాంది. ఎక్కువేం లేదు కొంచెమే. మిగతా అంతా మంచిగానే ఉన్నా.",
+    "translation": "My hand feels numb while cooking. It's not much, just a little. The rest is fine.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "other_symptom"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-G04": {
+    "transcript": "మాత్ర వేసుకున్నాక కొంచెం వికారంగా ఉంటుందండి, వాంతులు ఏమీ లేవు, అన్నం బాగానే తింటున్నాను.",
+    "translation": "After taking the medicine, I feel a little unwell. I don't have any vomiting. I am eating well.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "nausea_vomiting"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  },
+  "TE-G05": {
+    "transcript": "ఎల్లుండి మా మనవరాలి పుట్టినరోజు ఫంక్షన్ ఉంది, దానికి రెడీ అవ్వాలి. నిన్నటి నుంచి కొంచెం అలసటగా ఉంది, కొంచెం తలనొప్పి కూడా అంతే.",
+    "translation": "The day after tomorrow is my granddaughter's birthday function. I need to get ready for it. I've been feeling a little tired since yesterday. And a little bit of a headache too. That's it.",
+    "tags": {
+      "health_related": "YES",
+      "symptoms": [
+        "tiredness",
+        "headache"
+      ],
+      "severity_word": "NONE",
+      "valid": true
+    }
+  }
+}

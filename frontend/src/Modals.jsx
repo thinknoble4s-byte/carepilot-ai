@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, blobUrl, post, upload } from './api.js';
 import { CallPane } from './Triage.jsx';
-import { buttonLabel, fmt, useUI, VoiceClip } from './ui.jsx';
+import { fmt, tapLabel, useUI, VoiceClip } from './ui.jsx';
 
 export const CLOSE_REASONS = ['Nothing clinical', 'Travel or booking plans only', 'Patient called; matter resolved',
   'Doctor instruction done, patient messaged', 'Review booked; doctor\'s plan in place',
@@ -442,7 +442,7 @@ export function WaPhone({ thread, patient, settings, english, coordinator, onTap
                   {!out && m.party !== 'patient' && <div className="wa-from">{m.party.charAt(0).toUpperCase() + m.party.slice(1)}</div>}
                   {out && m.party !== 'patient' && <div className="wa-from">To the {m.party}</div>}
                   {failed && <div className="wa-failed">⊘ Not delivered: {m.status === 'blocked' ? (WA_REASON[m.blocked_reason] || (m.blocked_reason || 'blocked').replaceAll('_', ' ')) : m.status.replaceAll('_', ' ')}</div>}
-                  {m.direction === 'in' && m.button && <div className="wa-text">{withOrder(m, buttonLabel(m.button))}</div>}
+                  {m.direction === 'in' && m.button && <div className="wa-text">{withOrder(m, tapLabel(m, thread))}</div>}
                   {m.kind === 'voice' && (
                     <div className="wa-voice">
                       <span className="wa-mic-av" aria-hidden="true">🎙</span>
@@ -621,7 +621,7 @@ function Messages({ patient }) {
             <div className="card-title">Demo: reply as the patient</div>
             <div className="small-note">
               {actOnReplies
-                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI: Booked moves the card; Please help me book and I can\'t come create a task for a person; Done at an outside lab (a lab test) moves it to Completed and asks for the report. Typing just HELP (or मदद / ಸಹಾಯ) asks for a person too. Other text and voice notes go to the AI (Sarvam) for one yes/no question: does it mention health? Yes, or any doubt or AI failure, hands it to a person; no makes a proposal for you to approve.'
+                ? 'Tap a button on any message in the phone, or reply to one here. Buttons update the workflow directly, with no AI: Booked (or Booked elsewhere, on a test) books the card for today; Please help me book offers four slots, and the slot tapped books it for that date and time with a confirmation; I can\'t come creates a task for a person. Typing just HELP (or मदद / ಸಹಾಯ) asks for a person too. Other text and voice notes go to the AI (Sarvam) for one yes/no question: does it mention health? Yes, or any doubt or AI failure, hands it to a person; no makes a proposal for you to approve.'
                 : 'Use Case 1: a reply (button, text or HELP) is saved in the message history and CarePilot takes no action. Reply handling arrives with Use Case 2.'}
             </div>
             {lastSent && (

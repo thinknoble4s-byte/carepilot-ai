@@ -116,15 +116,17 @@ def report(rid):
         return c.execute("SELECT * FROM test_report WHERE report_id = %s", (rid,)).fetchone()
 
 
+def self_book(client, mrn, slot="slot_1"):
+    """Please help me book, then the patient taps one of the four slots: the test is Booked for it."""
+    tap(client, mrn, "help_book")
+    return tap(client, mrn, slot, "booking_slots")
+
+
 def hospital_cycle(client, mrn="TP001"):
     """P steps 1 to 11: up to Report verified and the doctor's item."""
     to_reminder(client)
     set_clock(client, "2026-11-16", "10:15")
-    tap(client, mrn, "help_book")
-    set_clock(client, "2026-11-17", "10:00")
-    t = task(client, mrn, "help_booking")
-    ok(client.post(f"/tasks/{t['task_id']}/result", headers=ANITA, json={
-        "result": "booked", "appointment_date": "2026-11-20", "appointment_time": "08:00", "note": "Booked the lab slot"}))
+    self_book(client, mrn)
     set_clock(client, "2026-11-20", "18:00")
     completed(client, mrn)
     set_clock(client, "2026-11-23", "11:00")
@@ -170,24 +172,27 @@ def test_t1_full_hospital_cycle(uc2t, client):
     assert scalar("SELECT count(*) FROM gap_event WHERE rule = 'G0'") == 8
     m = sent("TP001", "test_booking_reminder")
     assert len(m) == 1 and "not yet booked your Blood test (CBC), advised by Dr. Sekhar, due on 23-Nov" in m[0]["body"]
-    assert [b["id"] for b in m[0]["buttons"]] == ["booked", "help_book", "cant_come", "done_outside"]
+    assert [b["id"] for b in m[0]["buttons"]] == ["booked", "help_book", "cant_come", "booked_elsewhere"]
     assert m[0]["buttons"][0]["label"] == "Blood test booked (I have already booked)"
     assert scalar("SELECT reason_code FROM audit_ledger WHERE action = 'agent_decision' AND mrn = 'TP001'") == "gap_actionable"
     set_clock(client, "2026-11-16", "10:15")
     tap(client, "TP001", "help_book")
     assert cbc(client, "TP001")["state"] == "Due"  # the tap alone leaves the card Due
-    t = task(client, "TP001", "help_booking")
-    assert t["due_date"] == "2026-11-18" and t["card_id"] == cbc(client, "TP001")["card_id"]
-    assert ok(client.get("/patients/TP001/tasks", headers=ANITA))["hold"] is True
-    set_clock(client, "2026-11-17", "10:00")
-    # Record booking needs a date and a time.
-    assert client.post(f"/tasks/{t['task_id']}/result", headers=ANITA,
-                       json={"result": "booked", "appointment_date": "2026-11-20"}).status_code == 422
-    ok(client.post(f"/tasks/{t['task_id']}/result", headers=ANITA, json={
-        "result": "booked", "appointment_date": "2026-11-20", "appointment_time": "08:00", "note": "Lab slot booked"}))
+    assert task(client, "TP001", "help_booking") is None  # 5 Nov: she books herself from four slots
+    offer = sent("TP001", "booking_slots")
+    assert len(offer) == 1 and [b["id"] for b in offer[0]["buttons"]] == ["slot_1", "slot_2", "slot_3", "slot_4"]
+    assert "Please choose a time for your blood test" in offer[0]["body"]
+    slot = offer[0]["buttons"][1]
+    assert "2026-11-17" <= slot["date"] <= "2026-11-27" and slot["date"] < offer[0]["buttons"][2]["date"]
+    tap(client, "TP001", "slot_2", "booking_slots")
     c = cbc(client, "TP001")
     assert (c["state"], c["booking_source"], c["appointment_date"], c["appointment_time"], c["label"]) == \
-        ("Booked", "coordinator", "2026-11-20", "08:00:00", "Booked (confirmed by coordinator)")
+        ("Booked", "patient_slot", slot["date"], f"{slot['time']}:00", None)
+    done = sent("TP001", "booking_confirmed")
+    assert len(done) == 1 and f"has been booked successfully: {slot['label']}" in done[0]["body"]
+    appt = next(a for a in ok(client.get("/appointments", headers=ANITA)) if a["mrn"] == "TP001")
+    assert (appt["item"], appt["appointment_date"], appt["appointment_time"], appt["source"]) == \
+        ("Blood test (CBC)", slot["date"], f"{slot['time']}:00", "patient_slot")
     set_clock(client, "2026-11-20", "18:00")
     completed(client, "TP001")
     c = cbc(client, "TP001")
@@ -240,7 +245,7 @@ def test_t2_outside_lab_road(uc2t, client):
     tap(client, "TP004", "booked")
     c = cbc(client, "TP004")
     assert (c["state"], c["label"], c["booking_source"], c["appointment_date"]) == \
-        ("Booked", "Patient says booked (no date)", "patient_button", None)
+        ("Booked", None, "patient_button", "2026-11-16")  # 5 Nov: booked for the day of the tap
     assert task(client, "TP004", "help_booking") is None
     # The report check: raised Tue 24 Nov at 07:00, sent at 07:30, once.
     morning(client, "2026-11-23")
@@ -355,8 +360,10 @@ def test_t4_booked_tap(uc2t, client):
     set_clock(client, "2026-11-16", "10:15")
     tap(client, "TP005", "booked")
     c = cbc(client, "TP005")
-    assert (c["state"], c["label"], c["patient_says_booked"]) == ("Booked", "Patient says booked (no date)", True)
+    assert (c["state"], c["label"], c["appointment_date"]) == ("Booked", None, "2026-11-16")
     assert scalar("SELECT count(*) FROM coordinator_task WHERE mrn = 'TP005'") == 0
+    assert [(a["source"], a["appointment_date"]) for a in ok(client.get("/appointments", headers=ANITA))
+            if a["mrn"] == "TP005"] == [("patient_button", "2026-11-16")]
     assert scalar("SELECT status FROM gap_event WHERE card_id = %s", c["card_id"]) == "resolved"
     set_clock(client, "2026-11-17", "07:00")
     gap_check(client)
@@ -370,24 +377,25 @@ def test_t4_booked_tap(uc2t, client):
         ("Booked", False, "appointment_list", "2026-11-20", None)
 
 
-def test_t4_record_booking_replaces_label(uc2t, client):
+def test_t4_booked_elsewhere_tap(uc2t, client):
+    """5 Nov: Booked elsewhere (in place of Done at an outside lab) books the test outside for the day of the tap;
+    once booked, Please help me book offers no slots."""
     to_reminder(client)
-    tap(client, "TP005", "booked")
-    tap(client, "TP005", "help_book")
-    t = task(client, "TP005", "help_booking")
-    ok(client.post(f"/tasks/{t['task_id']}/result", headers=ANITA, json={
-        "result": "booked", "appointment_date": "2026-11-20", "appointment_time": "08:00"}))
+    set_clock(client, "2026-11-16", "10:15")
+    m = sent("TP005", "test_booking_reminder")[-1]
+    assert [b["label_en"] for b in m["buttons"]][-1] == "Booked elsewhere"
+    tap(client, "TP005", "booked_elsewhere")
     c = cbc(client, "TP005")
-    assert (c["state"], c["booking_source"], c["patient_says_booked"], c["label"]) == \
-        ("Booked", "coordinator", False, "Booked (confirmed by coordinator)")
+    assert (c["state"], c["label"], c["booking_source"], c["appointment_date"]) == \
+        ("Booked", "Booked outside", "patient_elsewhere", "2026-11-16")
+    assert scalar("SELECT status FROM gap_event WHERE card_id = %s", c["card_id"]) == "resolved"
+    r = tap(client, "TP005", "help_book")
+    assert r["handling"] == ["button_help_book:already_progressed"] and sent("TP005", "booking_slots") == []
 
 
 def test_t5_patient_words_do_not_move_the_card(uc2t, client):
     to_reminder(client)
-    tap(client, "TP001", "help_book")
-    t = task(client, "TP001", "help_booking")
-    ok(client.post(f"/tasks/{t['task_id']}/result", headers=ANITA, json={
-        "result": "booked", "appointment_date": "2026-11-20", "appointment_time": "08:00"}))
+    self_book(client, "TP001")
     r = ok(client.post("/simulator/TP001/reply", headers=ANITA, json={"text": "I have done my test"}), 201)
     assert r["handover_id"] or r["proposal_id"]  # the Use Case 2a path: a person sees it
     assert cbc(client, "TP001")["state"] == "Booked"
@@ -470,7 +478,7 @@ def test_t9_repeat_runs(uc2t, client):
     for _ in range(2):
         client.post("/simulator/TP001/reply", headers=ANITA,
                     json={"button": "help_book", "in_reply_to": reminder["message_id"], "event_id": "tap-1"})
-    assert scalar("SELECT count(*) FROM coordinator_task WHERE mrn = 'TP001' AND task_type = 'help_booking'") == 1
+    assert len(sent("TP001", "booking_slots")) == 1  # a replayed tap offers the slots once
 
 
 def test_t10_report_check_rules(uc2t, client):
@@ -687,7 +695,9 @@ def test_audit_thread_positive_case(uc2t, client):
             "SELECT action, actor_type FROM audit_ledger WHERE mrn = 'TP001' ORDER BY id").fetchall()]
     want = [("plan_confirmed", "person"), ("card_created", "system"), ("gap_detected", "system"),
             ("agent_decision", "agent"), ("message_sent", "agent"), ("reply_received", "system"),
-            ("task_created", "system"), ("task_result_recorded", "person"), ("card_state_changed", "system"),
+            ("message_sent", "agent"), ("agent_decision", "agent"),  # the four slots
+            ("reply_received", "system"), ("card_state_changed", "system"), ("appointment_booked", "system"),
+            ("message_sent", "agent"),  # booked successfully
             ("test_appointment_list_loaded", "person"), ("card_state_changed", "system"),
             ("lab_report_received", "system"), ("card_state_changed", "system"), ("report_linked", "system"),
             ("card_state_changed", "system"), ("review_item_created", "system"), ("report_file_opened", "person"),

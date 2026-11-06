@@ -16,13 +16,13 @@ HELP (or ಸಹಾಯ / मदद / உதவி / సహాయం) always reach
 """
 from pathlib import Path
 
-from . import ai, audit, clock, handover, help_tasks, messaging, policy, states, tasks, triage
+from . import ai, audit, booking, clock, handover, help_tasks, messaging, policy, tasks, triage
 from .agent import AGENT, set_next_action
 from .errors import Invalid, NotFound
 
 GATEWAY = "WhatsApp gateway (simulated)"
 SARVAM = "Sarvam (AI)"
-BUTTONS = ("booked", "help_book", "cant_come",
+BUTTONS = ("booked", "help_book", "cant_come", "booked_elsewhere", *booking.SLOT_BUTTONS,  # 5 Nov: self-booking
            "done_outside", "done_hospital", "not_done")  # Use Case 2T: the report check
 CLIP_DIR = Path(__file__).resolve().parent / "seed_data" / "uc2a" / "audio"
 MAX_AUDIO_BYTES = 5 * 1024 * 1024  # a recorded note of up to 30 seconds is about 1 MB as 16 kHz WAV
@@ -373,26 +373,24 @@ def _apply_button(conn, mrn: str, button: str, target: dict | None, inbound_id: 
             outcome = test_cycle.tap_done_outside(conn, card, inbound_id, GATEWAY)  # the test reminder's 4th button
         else:
             outcome = "no_report_check"
-    elif button == "booked" and card and card["card_type"] == "test" and card["state"] == "Due" \
-            and policy.settings(conn).get("test_cycle"):
-        from . import test_cycle
-
-        outcome = test_cycle.tap_booked(conn, card, inbound_id, GATEWAY)  # Use Case 2T REQ-05: Booked, no date
-    elif button == "booked" and card and card["card_type"] == "visit" and card["state"] == "Due":
-        states.transition_card(conn, card["card_id"], "Booked", "system", GATEWAY, source="patient_button")
-        outcome = "card_booked"
-        set_next_action(conn, mrn, f"{card['item_code']} booked by the patient; attendance comes from the appointment list")
-    elif button == "booked" and card and card["state"] == "Due":
-        tasks.create_task(conn, mrn=mrn, task_type="confirm_test_booking", card_id=card["card_id"],
-                          reason=f"Patient says {card['name']} is booked: add the appointment date",
-                          actor_type="system", actor=GATEWAY, dedupe_key=f"testbooked:{card['card_id']}")
-        outcome = "test_booking_to_confirm"
-        set_next_action(conn, mrn, f"Coordinator to confirm the {card['item_code']} appointment date")
-    elif button == "booked":
-        outcome = "already_progressed" if card else "no_card"
+    elif button in booking.SLOT_BUTTONS:  # 5 Nov: the slot she chose books the card, and she is told so
+        outcome = booking.tap_slot(conn, mrn, button, target, card, inbound_id, GATEWAY)
+    elif button in ("booked", "booked_elsewhere"):  # 5 Nov: booked for the day of the tap; no task, no "no date"
+        if card is None:
+            outcome = "no_card"
+        elif card["state"] != "Due":
+            outcome = "already_progressed"
+        elif button == "booked_elsewhere" and card["card_type"] != "test":
+            outcome = "not_a_test"
+        else:
+            outcome = booking.tap_booked(conn, card, inbound_id, GATEWAY, elsewhere=button == "booked_elsewhere")
+    elif button == "help_book" and card and card["state"] == "Due":  # 5 Nov: four slots to choose from
+        outcome = booking.offer_slots(conn, mrn, card, inbound_id, GATEWAY)
+    elif button == "help_book" and card:
+        outcome = "already_progressed"
     else:
-        # Use Case 2b: the agent escalates to the coordinator; one task, owner and cover from the card; the
-        # card stays Due (no state for "can't come"); nothing is sent to the patient.
+        # Use Case 2b: the agent escalates to the coordinator (I can't come; Please help me book with no card);
+        # one task, owner and cover from the card; the card stays Due; nothing is sent to the patient.
         task_type = "help_booking" if button == "help_book" else "cant_come"
         r = help_tasks.escalate(conn, mrn=mrn, task_type=task_type, card=card, inbound_id=inbound_id, actor=GATEWAY)
         outcome = f"{task_type}_{'created' if r['created'] else 'already_open'}"

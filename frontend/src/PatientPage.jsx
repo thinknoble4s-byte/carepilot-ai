@@ -5,7 +5,7 @@ import { CloseReason, openCall, openHandover, openMessages, openPause, PatientWo
 import ProposalCard from './Proposals.jsx';
 import { TasksSection } from './Tasks.jsx';
 import { openReportFile, ReportsSection } from './TestCycle.jsx';
-import { buttonLabel, Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, useUI } from './ui.jsx';
+import { BOOKED_VIA, bookedLabel, Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, tapLabel, useUI } from './ui.jsx';
 
 // Test cards (Use Case 2T v1.4): specimen-based (blood test) or not (imaging). A report is verified by its two
 // identifiers (the system for a hospital report, a coordinator for an outside one); imaging is Verified by the doctor.
@@ -44,7 +44,7 @@ function OrderCard({ card, today, task }) {
   const instruction = card.item_code.startsWith('X');
   const test = card.card_type === 'test';
   let state;
-  // Test labels: who booked it (a tap has no date); the report-check answer; how the report was checked.
+  // Test labels: Booked (or Booked outside) with its date; the report-check answer; how the report was checked.
   if (test && card.state === 'Verified') {
     state = <Pill tone="good">Verified by {ui.name(card.verified_by)}</Pill>;
   } else if (test && card.state === 'Report verified') {
@@ -53,17 +53,9 @@ function OrderCard({ card, today, task }) {
     state = <Pill tone="warn">{card.label || 'Report received'}</Pill>;
   } else if (test && card.state === 'Completed') {
     state = <Pill tone="good">Completed {fmt(card.completed_on)} — {card.specimen === false && card.report_road !== 'outside' ? "waiting for the doctor's verification" : 'waiting for the report'}</Pill>;
-  } else if (test && card.state === 'Booked') {
-    const by = card.booking_source === 'appointment_list' ? 'Booked (appointment list)'
-      : card.booking_source === 'coordinator' ? 'Booked (confirmed by coordinator)' : 'Patient says booked (no date)';
-    state = <Pill tone={card.booking_source === 'patient_button' ? 'warn' : 'good'}>{by}{when(card)}</Pill>;
   } else if (done) state = <Pill tone="good">Complete</Pill>;
-  else if (card.state !== 'Due') {
-    // Use Case 2b REQ-12: who booked it — the patient's tap or the coordinator, with the appointment date.
-    const label = card.state === 'Booked' && card.booking_source === 'coordinator' ? 'Booked (confirmed by coordinator)'
-      : card.state === 'Booked' && card.booking_source === 'patient_button' ? 'Booked (patient-reported)' : card.state;
-    state = <Pill tone="good">{label}{card.appointment_date ? ` ${fmt(card.appointment_date)}` : ''}{card.appointment_time ? ` ${String(card.appointment_time).slice(0, 5)}` : ''}</Pill>;
-  }
+  else if (card.state === 'Booked') state = <Pill tone="good">{bookedLabel(card)}</Pill>;
+  else if (card.state !== 'Due') state = <Pill tone="good">{card.state}{when(card)}</Pill>;
   else if (instruction) state = <Pill tone="brand">From doctor's instruction</Pill>;
   else if (d > 0) state = <Pill tone="bad">{d} days overdue</Pill>;
   else state = <Pill tone="warn">Not booked · due {d === 0 ? 'today' : `in ${-d} days`}</Pill>;
@@ -75,9 +67,9 @@ function OrderCard({ card, today, task }) {
       </div>
       <div className="d">Owner: <b>{card.owner_name}</b> · cover: {card.cover_name} · {card.department}</div>
       <div className="d">Origin: {instruction ? "Doctor's instruction (hospital record)" : `Plan item (plan #${card.care_plan_id}, item ${card.item_code})`}
-        {card.booking_source ? ` · booked via ${card.booking_source.replaceAll('_', ' ')}` : ''}</div>
+        {card.booking_source ? ` · booked by ${BOOKED_VIA[card.booking_source] || card.booking_source.replaceAll('_', ' ')}` : ''}</div>
       {card.gap_status && <div className="d">Reminder gap: <GapState status={card.gap_status} reason={card.gap_reason} rule={card.gap_rule} /></div>}
-      {test && card.label && !['Report received', 'Report verified'].includes(card.state) && !card.label.startsWith('Booked') && card.label !== 'Patient says booked (no date)' && (
+      {test && card.label && !['Report received', 'Report verified'].includes(card.state) && !card.label.startsWith('Booked') && (
         <div className="d">Label: <b>{card.label}</b></div>
       )}
       <Stepper card={card} />
@@ -433,7 +425,7 @@ export default function PatientPage({ mrn }) {
                   <td>{m.direction === 'call' ? 'Call' : 'WhatsApp'}</td>
                   <td>{m.direction === 'out' ? `To ${m.party}` : m.direction === 'in' ? `From ${m.party}` : `${m.party} (by ${ui.name(m.actor)})`}</td>
                   <td>{m.direction === 'out' ? <>{m.template_id.replaceAll('_', ' ')}<div className="small-note">{m.body_en}</div></>
-                    : m.direction === 'in' ? <>{m.button && <b>Tapped “{buttonLabel(m.button)}” </b>}{m.kind === 'voice' && <b>Voice note ({m.clip_id || 'recorded'}): </b>}{m.transcript || m.body}{m.translation && m.translation !== m.body && <div className="small-note">AI translation: {m.translation}</div>}{m.ai_flag && <div className="small-note">AI health flag: {m.ai_flag}{m.ai_failed ? ' (AI failed — safe path)' : ''}</div>}</> : m.body || '—'}</td>
+                    : m.direction === 'in' ? <>{m.button && <b>Tapped “{tapLabel(m, thread)}” </b>}{m.kind === 'voice' && <b>Voice note ({m.clip_id || 'recorded'}): </b>}{m.transcript || m.body}{m.translation && m.translation !== m.body && <div className="small-note">AI translation: {m.translation}</div>}{m.ai_flag && <div className="small-note">AI health flag: {m.ai_flag}{m.ai_failed ? ' (AI failed — safe path)' : ''}</div>}</> : m.body || '—'}</td>
                   <td>{m.direction === 'out'
                     ? <span className={`tag ${m.status === 'sent' ? 'verified' : 'unverified'}`}>{m.status === 'sent' ? 'Sent' : m.status.replaceAll('_', ' ')}{m.blocked_reason ? `: ${m.blocked_reason}` : ''}</span>
                     : m.direction === 'in' ? <span className="tag verified">Reply</span> : <span className="tag">{CALL_OUTCOME[m.status] || m.status}</span>}</td>

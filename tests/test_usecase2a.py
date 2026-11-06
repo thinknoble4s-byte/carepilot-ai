@@ -56,10 +56,10 @@ def test_seed_after_use_case_1(uc2a, client):
 
 
 def test_uc2a_t1_positive_case(uc2a, client):
-    # Step 1: the Booked tap moves the card, source patient button, no appointment date, no AI.
+    # Step 1: the Booked tap moves the card, source patient button, booked for the day of the tap (5 Nov), no AI.
     reply(client, "TP001", button="booked", in_reply_to=reminder("TP001")["message_id"])
     rv = cards(client, "TP001")["Review visit"]
-    assert (rv["state"], rv["booking_source"], rv["appointment_date"]) == ("Booked", "patient_button", None)
+    assert (rv["state"], rv["booking_source"], rv["appointment_date"]) == ("Booked", "patient_button", "2026-11-09")
     assert scalar("SELECT count(*) FROM audit_ledger WHERE actor_type = 'ai_suggestion'") == 0
 
     # Steps 2-5: voice note -> text, translation, flag yes -> acknowledgement, handover, send block.
@@ -208,7 +208,8 @@ def test_audit_order_positive_case(uc2a, client):
                             WHERE mrn = 'TP001' AND id > (SELECT max(id) FROM audit_ledger WHERE action = 'reminder_run')
                               AND action NOT IN ('task_created', 'task_done') ORDER BY id""").fetchall()
     seq = [(r["action"], r["actor_type"]) for r in rows]
-    expected = [("reply_received", "system"), ("card_state_changed", "system"), ("voice_note_received", "system"), ("ai_understanding", "ai_suggestion"),
+    expected = [("reply_received", "system"), ("card_state_changed", "system"), ("appointment_booked", "system"),
+                ("voice_note_received", "system"), ("ai_understanding", "ai_suggestion"),
                 ("agent_decision", "agent"), ("message_sent", "agent"), ("handover_opened", "system"),
                 ("gate1_decided", "person"), ("gate2_decided", "person"), ("instruction_recorded", "person"),
                 ("card_created", "system"), ("message_sent", "agent"), ("handover_closed", "person")]
