@@ -1,6 +1,6 @@
 # CarePilot AI — MVP demo
 
-**Demo video (6 min):** [demo/CarePilot_AI_MVP_Demov2.mp4](demo/CarePilot_AI_MVP_Demov2.mp4): the care plan, Hindi reminders and WhatsApp self-booking, voice triage with a person in the loop, the patient journey, the audit trail and the Chief's performance indicators, all on synthetic data.
+**Demo video (7 min 43 s):** [demo/CarePilot_AI_MVP_Demov5.mp4](demo/CarePilot_AI_MVP_Demov5.mp4): the care plan, Hindi reminders and WhatsApp self-booking, voice triage with a person in the loop, the patient journey, the audit trail and the Chief's performance indicators, all on synthetic data.
 
 Follow-up and continuity-of-care agent for cancer survivors. This repo builds the MVP Golden Path in increments (see section 10 of `architecture/carepilot_technical_architecture_aws_sarvam_vertex.html`).
 
