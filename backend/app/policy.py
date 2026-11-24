@@ -46,7 +46,7 @@ def template(conn, template_id: str, language: str) -> dict | None:
 
 
 DEFAULT_SETTINGS = {"gap_rules": ["G0", "G1"], "reminder_cards": "all", "caregiver_copy": True,
-                    "act_on_replies": True, "people_tasks": True, "clinic_name": "Hospital A"}
+                    "act_on_replies": True, "people_tasks": True, "clinic_name": "Dr. Sekhar Clinic"}
 
 
 def settings(conn) -> dict:

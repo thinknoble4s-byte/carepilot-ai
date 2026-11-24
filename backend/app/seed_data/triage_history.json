@@ -8,8 +8,8 @@
     "sex": "female",
     "caregiver_relation": "son",
     "team": {
-      "en": "the Hospital A care team",
-      "hi": "अस्पताल A की देखभाल टीम"
+      "en": "Dr. Sekhar Clinic",
+      "hi": "डॉक्टर शेखर क्लिनिक"
     },
     "arm_baseline": {
       "date": "2026-10-20",
@@ -55,7 +55,7 @@
       ],
       "active_treatment_completed": "2026 (see the care plan)",
       "current_phase": "Follow-up after treatment, with the oncology team",
-      "treating_hospital": "Hospital A (synthetic)",
+      "treating_hospital": "Dr. Sekhar Clinic (synthetic)",
       "care_team_phone": "+91 00000 00000 (placeholder)",
       "treating_oncologist": "Treating oncologist: Dr. Sekhar"
     },
@@ -90,8 +90,8 @@
     "sex": "female",
     "caregiver_relation": "son",
     "team": {
-      "en": "the Hospital A care team",
-      "hi": "अस्पताल A की देखभाल टीम"
+      "en": "Dr. Sekhar Clinic",
+      "hi": "डॉक्टर शेखर क्लिनिक"
     },
     "arm_baseline": {
       "date": "2026-10-20",
@@ -137,7 +137,7 @@
       ],
       "active_treatment_completed": "2026 (see the care plan)",
       "current_phase": "Follow-up after treatment, with the oncology team",
-      "treating_hospital": "Hospital A (synthetic)",
+      "treating_hospital": "Dr. Sekhar Clinic (synthetic)",
       "care_team_phone": "+91 00000 00000 (placeholder)",
       "treating_oncologist": "Treating oncologist: Dr. Sekhar"
     },
@@ -172,8 +172,8 @@
     "sex": "female",
     "caregiver_relation": null,
     "team": {
-      "en": "the Hospital A care team",
-      "hi": "अस्पताल A की देखभाल टीम",
+      "en": "Dr. Sekhar Clinic",
+      "hi": "डॉक्टर शेखर क्लिनिक",
       "te": "ఆసుపత్రి A సంరక్షణ బృందం"
     },
     "arm_baseline": {
@@ -211,7 +211,7 @@
       ],
       "active_treatment_completed": "2026 (see the care plan)",
       "current_phase": "Follow-up after treatment, with the oncology team",
-      "treating_hospital": "Hospital A (synthetic)",
+      "treating_hospital": "Dr. Sekhar Clinic (synthetic)",
       "care_team_phone": "+91 00000 00000 (placeholder)",
       "treating_oncologist": "Treating oncologist: Dr. Sekhar"
     },
@@ -249,8 +249,8 @@
     "sex": "female",
     "caregiver_relation": "son",
     "team": {
-      "en": "the Hospital A care team",
-      "hi": "अस्पताल A की देखभाल टीम",
+      "en": "Dr. Sekhar Clinic",
+      "hi": "डॉक्टर शेखर क्लिनिक",
       "ta": "மருத்துவமனை A பராமரிப்புக் குழுவின்"
     },
     "arm_baseline": {
@@ -297,7 +297,7 @@
       ],
       "active_treatment_completed": "Surgery, 1 October 2026",
       "current_phase": "Recovery after surgery; follow-up with the oncology team",
-      "treating_hospital": "Hospital A (synthetic)",
+      "treating_hospital": "Dr. Sekhar Clinic (synthetic)",
       "care_team_phone": "+91 00000 00000 (placeholder)",
       "treating_oncologist": "Treating oncologist: Dr. Sekhar"
     },

@@ -151,9 +151,11 @@ def test_lines_and_clips_are_the_spec_word_for_word():
         assert squash(named(x["text_en"])) in document, x
 
 
-# L2, L4 and L9 were reworded by the product owner on 24 Nov 2026 (shorter), after spec v0.1.2. They stay
+# L2, L4 and L9 were reworded by the product owner on 24 Nov 2026 (shorter), after spec v0.1.2, and L1 now opens
+# like the triage call (TPL_CALL_OPEN_LITE_V1), so L2 no longer introduces the assistant. They stay
 # DRAFT-CLINICAL until Dr. Sekhar approves them; what must not be lost in the rewording is checked here.
-REWORDED = {"L2": ("Letrozole", "every 3 months", "Shall I book"), "L4": ("painless", "Shall I book"),
+REWORDED = {"L1": ("automatic assistant of {hospital}", "{full_name}", "Am I speaking with her?"),
+            "L2": ("Letrozole", "every 3 months", "Shall I book"), "L4": ("painless", "Shall I book"),
             "L9": ("within two hours", "emergency department", "108", "112", "do not wait")}
 
 
@@ -163,7 +165,7 @@ def test_reworded_lines_keep_what_matters():
     lines = {x["line_id"]: x for x in reference.uc1v_library()["languages"]["Hindi"]["lines"]}
     for line_id, musts in REWORDED.items():
         x = lines[line_id]
-        assert x["status"] == "DRAFT-CLINICAL" and x["approved_by"] is None, line_id
+        assert x["status"] in ("DRAFT", "DRAFT-CLINICAL") and x["approved_by"] is None, line_id
         assert all(m in x["text_en"] for m in musts), line_id
         assert x["text"].rstrip().endswith("?") == (line_id != "L9"), line_id
     assert all(w in lines["L9"]["text"] for w in ("108", "112", "इमरजेंसी", "दो घंटे"))
@@ -1201,16 +1203,27 @@ def test_v3_agent_audio_is_bulbul_and_is_stored(uc1v, client, monkeypatch):
     assert asked[0][2]["speaker"] == "kavitha"
 
 
-def test_r1_a_long_line_is_never_made_live(uc1v, client, monkeypatch):
-    """Bulbul drops clauses from long requests: without a checked recording the text is shown and nothing is played."""
+def test_r1_a_long_line_is_spoken_sentence_by_sentence(uc1v, client, monkeypatch):
+    """Bulbul drops clauses from long requests: without a checked recording a long line is spoken one sentence at a
+    time (each request short), never as one long request, and never left silent (24 Nov 2026: every voice plays)."""
+    import io, wave
     call = to_stage(client, "booking")
     from app import ai, voice_script
 
+    def wav():
+        b = io.BytesIO()
+        with wave.open(b, "wb") as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(8000); w.writeframes(bytes(1600))
+        return b.getvalue(), "audio/wav"
+
+    sent = []
     monkeypatch.setattr(voice_script, "agent_audio", lambda *a, **kw: None)
-    monkeypatch.setattr(ai, "speak", lambda *a, **kw: pytest.fail("a long line was sent to live text-to-speech"))
+    monkeypatch.setattr(ai, "speak", lambda conn, text, *a, **kw: (sent.append(text), wav())[1])
     assert call["turns"][-1]["line_id"] == "L2"
     seq = call["turns"][-1]["seq"]
-    assert client.get(f"/voice/calls/{call['call_id']}/turns/{seq}/audio", headers=ANITA).status_code == 404
+    r = client.get(f"/voice/calls/{call['call_id']}/turns/{seq}/audio", headers=ANITA)
+    assert r.status_code == 200
+    assert len(sent) > 1 and all(len(t) <= 200 for t in sent)
 
 
 # ---- section 9

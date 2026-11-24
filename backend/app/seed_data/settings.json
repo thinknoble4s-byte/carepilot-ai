@@ -9,7 +9,7 @@
   "caregiver_copy": true,
   "act_on_replies": true,
   "people_tasks": true,
-  "clinic_name": "Hospital A",
+  "clinic_name": "Dr. Sekhar Clinic",
   "slots_by_due_date": true,
   "demo_cases": [
     {"mrn": "SYN-0202", "case": "1", "title": "Already booked", "steps": "When the T-7 reminder arrives, the patient taps \"… booked\" on it. The DEXA card shows Booked with that date.", "show_on": "2026-11-25", "template_id": "BC-HRPOS-1", "therapy": "Letrozole", "treatment_end_date": "2026-09-09"},

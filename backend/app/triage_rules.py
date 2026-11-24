@@ -346,7 +346,7 @@ def next_question(h: dict, answers: dict, after: str | None, ids=None) -> Questi
 # history record ("green_advice" is the doctor's own signed advice, also from the record).
 MESSAGE_TEXT = {
     "English": {
-        "open": "Hello. This is CarePilot's automated assistant, calling for {name} Amma from {team}. I will ask a few "
+        "open": "Hello. I am the automatic assistant of {team}, calling for {name} Amma. I will ask a few "
                 "short questions. Please answer yes or no, or say a number. To ask for a doctor to call you back at any time, press 0.",
         "repeat": "Sorry, I did not hear that clearly. Please say it again.",
         "red": "Thank you. Your answers include a warning sign. Please go to the nearest emergency department now. "
@@ -362,7 +362,7 @@ MESSAGE_TEXT = {
                  "department.",
         "green": "Thank you. Your answers today do not need a doctor's call.",
         "green_end": "We will call you again tomorrow morning. If you feel worse at any time, press 0 or reply HELP.",
-        "followup": "Hello. This is CarePilot's automated assistant. We spoke yesterday. How are you today: better than "
+        "followup": "Hello. This is the automatic assistant of {team}. We spoke yesterday. How are you today: better than "
                     "yesterday, the same, or worse?",
         "followup_better": "Thank you. We will tell your doctor.",
         "followup_not_better": "Thank you. A doctor will call you today. If you feel worse, go to the nearest emergency "
@@ -394,7 +394,7 @@ MESSAGE_TEXT = {
                                "பிரிவுக்குச் செல்லுங்கள்.",
     },
     "Hindi": {
-        "open": "नमस्ते। यह केयरपायलट का स्वचालित सहायक है। मैं {team} की ओर से {name} जी के लिए कॉल कर रही हूँ। मैं कुछ "
+        "open": "नमस्ते। मैं {team} की स्वचालित सहायक हूँ, और {name} जी के लिए कॉल कर रही हूँ। मैं कुछ "
                 "छोटे सवाल पूछूँगी। कृपया हाँ या नहीं में, या एक नंबर बोलकर जवाब दीजिए। किसी भी समय डॉक्टर से वापस कॉल "
                 "करवाने के लिए 0 दबाइए।",
         "repeat": "माफ़ कीजिए, मुझे ठीक से सुनाई नहीं दिया। कृपया फिर से बताइए।",
@@ -410,7 +410,7 @@ MESSAGE_TEXT = {
                  "अपने आप बंद या बदलिए मत। अगर तबीयत ज़्यादा खराब लगे, तो 0 दबाइए या नज़दीकी आपातकालीन विभाग में जाइए।",
         "green": "धन्यवाद। आज आपके जवाबों के लिए डॉक्टर की कॉल की ज़रूरत नहीं है।",
         "green_end": "हम कल सुबह फिर कॉल करेंगे। अगर किसी भी समय तबीयत ज़्यादा खराब लगे, तो 0 दबाइए या मदद लिखकर भेजिए।",
-        "followup": "नमस्ते। यह केयरपायलट का स्वचालित सहायक है। कल हमने आपसे बात की थी। आज आप कैसी हैं: कल से बेहतर, "
+        "followup": "नमस्ते। मैं {team} की स्वचालित सहायक हूँ। कल हमने आपसे बात की थी। आज आप कैसी हैं: कल से बेहतर, "
                     "वैसी ही, या ज़्यादा खराब?",
         "followup_better": "धन्यवाद। हम आपके डॉक्टर को बता देंगे।",
         "followup_not_better": "धन्यवाद। एक डॉक्टर आज आपको कॉल करेंगे। अगर तबीयत ज़्यादा खराब लगे, तो नज़दीकी आपातकालीन "

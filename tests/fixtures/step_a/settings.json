@@ -9,7 +9,7 @@
   "caregiver_copy": true,
   "act_on_replies": true,
   "people_tasks": true,
-  "clinic_name": "Hospital A",
+  "clinic_name": "Dr. Sekhar Clinic",
   "instruction_card": {
     "name": "Doctor-requested visit",
     "department": "Oncology OPD",

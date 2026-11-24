@@ -164,7 +164,7 @@
     "people_tasks": true,
     "hold_on_proposal": true,
     "hold_on_task": true,
-    "clinic_name": "Hospital A",
+    "clinic_name": "Dr. Sekhar Clinic",
     "instruction_card": {
       "name": "Doctor-requested visit",
       "department": "Review clinic",
