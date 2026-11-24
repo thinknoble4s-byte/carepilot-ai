@@ -111,7 +111,7 @@ def one(line: dict, round_: str, run: int, cache: Path) -> dict:
             "errors": r["errors"], "seconds": seconds}
 
 
-def run(plan: str, workers: int, cache: Path) -> None:
+def run(plan: str, workers: int, cache: Path, out: Path) -> None:
     s = settings()
     VS.policy.settings = lambda _conn: s  # the sorter reads only the settings and the demo AI switch
     VS.ai.sarvam_enabled = lambda _conn: True
@@ -140,7 +140,8 @@ def run(plan: str, workers: int, cache: Path) -> None:
     dirty = bool(subprocess.run(["git", "status", "--porcelain", "backend/app"], cwd=ROOT, capture_output=True,
                                 text=True).stdout.strip())
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "results.json").write_text(json.dumps({
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
         "frozen": {"date": started.strftime("%d %b %Y %H:%M"), "finished": datetime.now().strftime("%H:%M"),
                    "commit": commit + (" + uncommitted changes in backend/app" if dirty else ""),
                    "speech_model": s["ai"].get("speech_model"), "language_model": s["ai"].get("language_model"),
@@ -148,15 +149,14 @@ def run(plan: str, workers: int, cache: Path) -> None:
                    f"({s['voice_escalation']['patient_speaker']}; N06 shubh)", "prompt_version": VS.PROMPT_VERSION,
                    "plan": plan, "pack": "v0.1 draft, 23 Nov 2026"},
         "lines": lines, "runs": done}, ensure_ascii=False, indent=1), encoding="utf-8")
-    print("saved", OUT / "results.json")
+    print("saved", out)
 
 
-def retry_faults(cache: Path) -> None:
+def retry_faults(cache: Path, path: Path) -> None:
     """Run again, one at a time, the runs that still ended in a technical fault (pack section 6)."""
     s = settings()
     VS.policy.settings = lambda _conn: s
     VS.ai.sarvam_enabled = lambda _conn: True
-    path = OUT / "results.json"
     d = json.loads(path.read_text(encoding="utf-8"))
     lines = {ln["id"]: ln for ln in d["lines"]}
     for i, r in enumerate(d["runs"]):
@@ -174,16 +174,17 @@ if __name__ == "__main__":
     p.add_argument("what", choices=["run", "retry-faults", "report"])
     p.add_argument("--plan", choices=["short", "full"], default="short")
     p.add_argument("--workers", type=int, default=2)
+    p.add_argument("--out", default=str(OUT / "results.json"), help="results file")
     p.add_argument("--audio", default=str(Path(tempfile.gettempdir()) / "carepilot_predemo_audio"))
     a = p.parse_args()
     if a.what == "run":
         if not load_sarvam_key():
             sys.exit("No SARVAM_API_KEY (environment or .env)")
-        run(a.plan, a.workers, Path(a.audio))
+        run(a.plan, a.workers, Path(a.audio), Path(a.out))
     elif a.what == "retry-faults":
         load_sarvam_key()
-        retry_faults(Path(a.audio))
+        retry_faults(Path(a.audio), Path(a.out))
     else:
         from predemo_report import main as report
 
-        report(OUT / "results.json", ROOT / "documents" / "CarePilot_Sorter_Test_Results.html")
+        report(Path(a.out), ROOT / "documents" / "CarePilot_Sorter_Test_Results.html")

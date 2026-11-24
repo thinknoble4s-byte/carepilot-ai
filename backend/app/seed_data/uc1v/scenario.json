@@ -192,7 +192,7 @@
       "safety_callback_hours": 2,
       "slot_working_days_ahead": 2,
       "agent_speaker": "kavitha",
-      "patient_speaker": "ritu",
+      "patient_speaker": "priya",
       "caller_name": "Dr. Sekhar Clinic",
       "no_call_weekdays": [7],
       "tts_model": "bulbul:v3",
@@ -238,8 +238,8 @@
   "scripts": {
     "s2": {
       "title": "S2: I'm fine, no need",
-      "patient_voice": { "pace": 1.5 },
-      "patient_voice_note": "User, 22 Nov: pace 1.5; the usual loudness and tone.",
+      "patient_voice": { "pace": 1.0, "loudness": 0.9 },
+      "patient_voice_note": "User, 24 Nov: a soft, correctly paced patient (Bulbul v3 priya, normal pace, slightly soft). Replaces the 22 Nov fast, bold voice (ritu, pace 1.5).",
       "answers": {
         "L1": "P1",
         "L2": "P2",
@@ -250,8 +250,8 @@
     },
     "s3": {
       "title": "S3: safety stop",
-      "patient_voice": { "pace": 1.5, "loudness": 1.0, "pitch": -0.5 },
-      "patient_voice_note": "User, 22 Nov: pace 1.5 (was 1.25), loudness 1.0, tone -1.0. Bulbul v3 takes pitch from -0.5 to 0.5 (it refuses -1.0), so -0.5, its lowest.",
+      "patient_voice": { "pace": 1.0, "loudness": 0.9 },
+      "patient_voice_note": "User, 24 Nov: the same soft, correctly paced patient as S2 (priya, normal pace, default pitch). Replaces the 22 Nov fast, deep voice (pace 1.5, pitch -0.5).",
       "answers": {
         "L1": "P1",
         "L2": "P5",

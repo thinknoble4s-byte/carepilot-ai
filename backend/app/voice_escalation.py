@@ -5,6 +5,9 @@ reply into one of four labels and the rules here choose the next library line. H
 or an AI fault stops the script, books nothing, sets the send block and hands over to a person within two hours.
 Every step writes its reason code in the transaction that changes the state (R8).
 """
+import io
+import re
+import wave
 from datetime import date, datetime, time, timedelta
 
 from psycopg.types.json import Jsonb
@@ -702,10 +705,34 @@ def record(conn, call_id: int) -> dict:
                              "chars": len(clip["text"])} if clip else None}
 
 
+def _speak_live(conn, text: str, language: str, cfg: dict, voice: dict) -> tuple[bytes, str] | None:
+    """A line with no recording (e.g. wording changed and not yet recorded) is still spoken, never shown as text
+    only: each sentence is its own short Bulbul request (a long request drops clauses, R1) and the parts are joined
+    with a short pause. None only if the voice service fails for a sentence."""
+    if len(text) <= cfg["tts_live_max_chars"]:
+        return ai.speak(conn, text, language, timeout=cfg["tts_timeout_seconds"], **voice)
+    parts = []
+    for sentence in [x for x in re.split(r"(?<=[।?.!])\s+", text.strip()) if x]:
+        part = ai.speak(conn, sentence, language, timeout=cfg["tts_timeout_seconds"], **voice)
+        if not part:
+            return None
+        parts.append(part[0])
+    out = io.BytesIO()
+    with wave.open(out, "wb") as w:
+        for i, part in enumerate(parts):
+            with wave.open(io.BytesIO(part)) as r:
+                if i == 0:
+                    w.setparams(r.getparams())
+                else:
+                    w.writeframes(bytes(1) * int(r.getframerate() * 0.25) * r.getsampwidth() * r.getnchannels())
+                w.writeframes(r.readframes(r.getnframes()))
+    return out.getvalue(), "audio/wav"
+
+
 def turn_audio(conn, call_id: int, seq: int) -> tuple[bytes, str] | None:
     """The stored audio of a turn. An agent line is Bulbul reading the saved library text: recorded beforehand
-    and listened back (scripts/voice_escalation_kit.py lines). Only a short text is made now: in one long request
-    Bulbul was found to leave out clauses, which would break R1, so a long text without a recording is shown only."""
+    and listened back (scripts/voice_escalation_kit.py lines). Without a recording it is made now, sentence by
+    sentence (_speak_live), so the agent is always heard."""
     c = _call(conn, call_id)
     t = conn.execute("SELECT * FROM voice_turn WHERE call_id = %s AND seq = %s", (call_id, seq)).fetchone()
     if t is None:
@@ -718,8 +745,8 @@ def turn_audio(conn, call_id: int, seq: int) -> tuple[bytes, str] | None:
     cfg = _config(conn)
     voice = {"speaker": cfg["agent_speaker"], "model": cfg["tts_model"]}
     made = voice_script.agent_audio(c["language"], t["text"], **voice)
-    if not made and len(t["text"]) <= cfg["tts_live_max_chars"]:
-        made = ai.speak(conn, t["text"], c["language"], timeout=cfg["tts_timeout_seconds"], **voice)
+    if not made:
+        made = _speak_live(conn, t["text"], c["language"], cfg, voice)
     if made:
         audio_id = conn.execute("INSERT INTO audio_blob (mime, data) VALUES (%s, %s) RETURNING audio_id",
                                 (made[1], made[0])).fetchone()["audio_id"]

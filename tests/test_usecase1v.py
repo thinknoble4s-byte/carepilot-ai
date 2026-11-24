@@ -145,8 +145,29 @@ def test_lines_and_clips_are_the_spec_word_for_word():
     words.update(full_name="Sunita Verma", first_name="Sunita", surname="Verma")
     named = lambda text: re.sub(r"\{([^{}]+)\}", lambda m: words.get(m.group(1), m.group(0)), text)
     for x in [*pack["lines"], *pack["clips"].values()]:
+        if x.get("line_id") in REWORDED:  # changed by the product owner after the spec; checked below
+            continue
         assert squash(named(x["text"])) in document, x
         assert squash(named(x["text_en"])) in document, x
+
+
+# L2, L4 and L9 were reworded by the product owner on 24 Nov 2026 (shorter), after spec v0.1.2. They stay
+# DRAFT-CLINICAL until Dr. Sekhar approves them; what must not be lost in the rewording is checked here.
+REWORDED = {"L2": ("Letrozole", "every 3 months", "Shall I book"), "L4": ("painless", "Shall I book"),
+            "L9": ("within two hours", "emergency department", "108", "112", "do not wait")}
+
+
+def test_reworded_lines_keep_what_matters():
+    from app import reference
+
+    lines = {x["line_id"]: x for x in reference.uc1v_library()["languages"]["Hindi"]["lines"]}
+    for line_id, musts in REWORDED.items():
+        x = lines[line_id]
+        assert x["status"] == "DRAFT-CLINICAL" and x["approved_by"] is None, line_id
+        assert all(m in x["text_en"] for m in musts), line_id
+        assert x["text"].rstrip().endswith("?") == (line_id != "L9"), line_id
+    assert all(w in lines["L9"]["text"] for w in ("108", "112", "इमरजेंसी", "दो घंटे"))
+    assert "{नाम}" in lines["L9"]["text"] and "{surname}" in lines["L9"]["text_en"]
 
 
 def test_clinical_lines_keep_their_draft_status(uc1v):
@@ -383,7 +404,9 @@ def test_golden_path_one_date_then_simulate_call(golden, client, script, outcome
     assert (call["outcome"], call["caller"]) == (outcome, "Dr. Sekhar Clinic")
     said = " ".join(t["text"] + " " + t["translation"] for t in call["turns"])
     assert "सावित्री" in said and "सुनीता" not in said and "Sunita" not in said and "{" not in said
-    assert "डॉक्टर शेखर क्लिनिक" in said and "अस्पताल A" not in said
+    assert "डॉक्टर शेखर" in said and "अस्पताल A" not in said
+    if script == "s3":  # L9 names her in both languages (reworded 24 Nov 2026)
+        assert "सावित्री जी" in said and "Mrs. Patil" in said
     template = "uc1v_w1_booked" if script == "s2" else "uc1v_w2_safety"
     msg, = sql("SELECT body, body_en, status FROM outbox_message WHERE template_id = %s", template)
     assert msg["status"] == "sent" and "सावित्री जी" in msg["body"] and "{" not in msg["body"] + msg["body_en"]
@@ -626,12 +649,13 @@ def test_case_2_callable_after_the_other_three_replied(golden_ready, client, scr
 
 
 @pytest.mark.demo_template
-def test_both_scripts_speak_at_1_5_and_s3_has_its_own_tone(golden, client):
+def test_both_scripts_use_the_soft_normal_paced_patient_voice(golden, client):
+    """User, 24 Nov: a soft, correctly paced patient (priya, pace 1.0, slightly soft), replacing the fast, bold voice."""
     from app import reference, voice_script
 
     scripts, savitri = reference.uc1v()["scripts"], {"full_name": "Savitri Patil"}
-    assert scripts["s3"]["patient_voice"] == {"pace": 1.5, "loudness": 1.0, "pitch": -0.5}
-    assert scripts["s2"]["patient_voice"] == {"pace": 1.5}
+    assert reference.uc1v()["settings"]["voice_escalation"]["patient_speaker"] == "priya"
+    assert scripts["s2"]["patient_voice"] == scripts["s3"]["patient_voice"] == {"pace": 1.0, "loudness": 0.9}
     for who in reference.uc1v_library()["languages"]["Hindi"]["names"]:
         for key, s in scripts.items():
             for clip_id in set(s["answers"].values()):
@@ -934,7 +958,9 @@ def test_s3_health_beats_yes(uc1v, client):
     assert events("slot_offered") == [] and sql("SELECT 1 FROM voice_slot WHERE taken_by_card IS NOT NULL") == []
     assert sent() == ["booking_reminder", "uc1v_w2_safety"]
     stop = call["turns"][-1]
-    assert "000-000-0000" in stop["text"] and stop["approval_status"] == "DRAFT-CLINICAL"
+    assert "108" in stop["text"] and "112" in stop["text"] and stop["approval_status"] == "DRAFT-CLINICAL"
+    # the spoken L9 no longer reads out the helpline (reworded 24 Nov 2026); the WhatsApp copy W2 still carries it
+    assert "000-000-0000" in sql("SELECT body FROM outbox_message WHERE template_id = 'uc1v_w2_safety'")[0]["body"]
     h, = sql("SELECT * FROM handover")
     assert str(h["callback_due_at"]) == "2026-11-27 12:00:00"
     assert h["patient_words"] == next(t["text"] for t in call["turns"] if t["label"] == "HEALTH_CONCERN")

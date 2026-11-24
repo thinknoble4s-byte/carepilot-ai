@@ -151,7 +151,6 @@ export function VoiceCallScreen({ escalationId, callId, script = 's2' }) {
   const [call, setCall] = useState(null);
   const [upTo, setUpTo] = useState(0);
   const [speaking, setSpeaking] = useState(null);
-  const [noSound, setNoSound] = useState(false);
   const [thread, setThread] = useState(null);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
@@ -183,7 +182,6 @@ export function VoiceCallScreen({ escalationId, callId, script = 's2' }) {
     async function sound(urlPromise, chars) {
       if (await p.play(urlPromise, t)) return;
       if (!live()) return;
-      setNoSound(true);
       await p.wait(Math.min(1200 + chars * 45, 11000), t);
     }
 
@@ -364,7 +362,6 @@ export function VoiceCallScreen({ escalationId, callId, script = 's2' }) {
         {ended && call.reason_code === 'patient_rejected' && (
           <div className="small-note"><b>The patient rejected the call.</b> Nothing was said, no automatic retry will follow, and the coordinator has a task.</div>
         )}
-        {noSound && <div className="small-note">No voice was available for a line (simulated AI, or the voice service failed), so its text was shown instead.</div>}
         {error && (
           <div className="error">{error}{' '}
             <button type="button" className="btn sm" onClick={() => { setError(''); setReload((n) => n + 1); }}>Try again</button></div>
