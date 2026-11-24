@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CarePilot AI MVP Features</title>
+<style>
+  :root {
+    --bg: #f4f6f9; --paper: #ffffff; --ink: #14202e; --muted: #5b6b7d; --line: #e2e7ee;
+    --brand: #1d4e89; --brand-tint: #e8f0fa; --good: #1f8a5b; --good-tint: #e6f5ee;
+    --warn: #a35c00; --warn-tint: #fff4e0; --ai: #6b3fb5; --ai-tint: #f1ebfb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151c; --paper: #18212b; --ink: #e6ecf2; --muted: #9aabbd; --line: #2a3644;
+      --brand: #7fb0ec; --brand-tint: #1c2b3d; --good: #5cc796; --good-tint: #16302a;
+      --warn: #f0b35c; --warn-tint: #352a17; --ai: #b99af0; --ai-tint: #29213a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151c; --paper: #18212b; --ink: #e6ecf2; --muted: #9aabbd; --line: #2a3644;
+    --brand: #7fb0ec; --brand-tint: #1c2b3d; --good: #5cc796; --good-tint: #16302a;
+    --warn: #f0b35c; --warn-tint: #352a17; --ai: #b99af0; --ai-tint: #29213a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 "Segoe UI", system-ui, -apple-system, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 48px; }
+  header.hero { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 26px 28px; margin-bottom: 18px; }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); }
+  h1 { margin: 6px 0 8px; font-size: 28px; line-height: 1.25; }
+  .lead { margin: 0; color: var(--muted); max-width: 760px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .tag { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--brand-tint); color: var(--brand); }
+  .tag.good { background: var(--good-tint); color: var(--good); }
+  .tag.warn { background: var(--warn-tint); color: var(--warn); }
+  .tag.ai { background: var(--ai-tint); color: var(--ai); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 23px; } header.hero { padding: 20px; } }
+  section.card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+  section.card.wide { grid-column: 1 / -1; }
+  h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 17px; }
+  .num { flex: none; width: 28px; height: 28px; border-radius: 8px; background: var(--brand); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+  ul { margin: 0; padding-left: 18px; }
+  li { margin: 4px 0; }
+  li b { color: var(--ink); }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 6px 0 2px; }
+  .flow span { font-size: 12.5px; padding: 3px 9px; border-radius: 6px; background: var(--brand-tint); color: var(--brand); font-weight: 600; }
+  .flow span.end { background: var(--good-tint); color: var(--good); }
+  .flow i { font-style: normal; color: var(--muted); font-size: 12px; }
+  .flowlabel { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .scroll { overflow-x: auto; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">MVP feature summary · synthetic data only</div>
+    <h1>CarePilot AI: follow-up for breast cancer survivors</h1>
+    <p class="lead">CarePilot keeps track of each patient's follow-up visits and tests, reminds patients on (simulated) WhatsApp
+      in their own language, and hands anything to do with health to a person. It never diagnoses, reads results or gives
+      advice.</p>
+    <div class="tags">
+      <span class="tag">AWS Mumbai</span><span class="tag ai">Sarvam AI (Indian languages)</span>
+      <span class="tag good">~310 automated tests</span><span class="tag warn">Demo profile: no login or security</span>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <section class="card">
+      <h2><span class="num">1</span>Patients and care plans</h2>
+      <ul>
+        <li><b>Patient import:</b> the follow-up register and daily appointment list load from CSV; bad rows go to an exceptions list instead of being created silently.</li>
+        <li><b>Consent</b> per patient: WhatsApp to the patient, to the caregiver, and automated messaging. No consent means nothing is sent.</li>
+        <li><b>Three care plans</b> to choose from: T1 Hormone receptor positive, T2 Hormone receptor negative, T3 HER2 positive.</li>
+        <li><b>Plan schedule:</b> visits at months 3, 6, 9 and 12, each with its tests (blood test, mammogram, DEXA, ultrasound, 2D Echo, PET-CT) due a week before.</li>
+        <li><b>Confirming a plan:</b> the coordinator checks two identifiers; order cards are then created, each with a named owner and cover.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2><span class="num">2</span>Order cards (visits and tests)</h2>
+      <div class="flowlabel">Visits</div>
+      <div class="flow"><span>Due</span><i>→</i><span>Booked</span><i>→</i><span class="end">Attended</span></div>
+      <div class="flowlabel">Blood test (specimen-based)</div>
+      <div class="flow"><span>Due</span><i>→</i><span>Scheduled</span><i>→</i><span>Completed</span><i>→</i><span>Report received</span><i>→</i><span class="end">Report verified</span></div>
+      <div class="flowlabel">Imaging (non-specimen)</div>
+      <div class="flow"><span>Due</span><i>→</i><span>Scheduled</span><i>→</i><span>Completed</span><i>→</i><span class="end">Verified</span></div>
+      <p class="note">Only the doctor sets a test to verified. Attendance comes only from the appointment list, never from a patient's message.</p>
+    </section>
+
+    <section class="card">
+      <h2><span class="num">3</span>Daily automation</h2>
+      <ul>
+        <li><b>07:00 gap check:</b> finds items not booked 7 days before they are due, and missed items.</li>
+        <li><b>07:30 reminders:</b> approved templates in Kannada, Hindi or English, copying the caregiver when they have consented.</li>
+        <li><b>Safety rules:</b> no consent, a paused patient or the agent switched off means no message, and a reason is recorded.</li>
+        <li>Only one reminder per gap; repeat runs are suppressed.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2><span class="num">4</span>Patient replies (WhatsApp simulator)</h2>
+      <ul>
+        <li><b>Booked</b> updates a visit card, or creates a task to add the date for a test.</li>
+        <li><b>Please help me book</b> and <b>I can't come</b> each create a task for a person; typing <b>HELP</b> reaches a person.</li>
+        <li><b>Free text and voice notes:</b> Sarvam AI transcribes, translates and asks one question: does this mention health?
+          <ul>
+            <li>Yes, unsure, or the AI fails: a fixed acknowledgement, handed to the coordinator, all automated messages stop.</li>
+            <li>No: the AI drafts a note for the coordinator to approve or reject.</li>
+          </ul></li>
+        <li>The simulator looks like a WhatsApp chat (pending deploy).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2><span class="num">5</span>People and handoffs</h2>
+      <ul>
+        <li><b>Tasks</b> each have an owner, a cover and a deadline in working days; a missed deadline goes to the cover.</li>
+        <li><b>Handover chain:</b> the coordinator reviews, the doctor decides Urgent or Routine, then writes an instruction in the (simulated) hospital record, which creates a new visit card and a booking message.</li>
+        <li><b>Urgent call:</b> "call the patient today", owned by the coordinator until 16:00, the cover until 18:00, then Overdue.</li>
+        <li>Call attempts are logged. Only a person closes a handover, with a reason.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2><span class="num">6</span>Tests and reports</h2>
+      <ul>
+        <li><b>Simulated hospital lab:</b> reports linked by MRN and test code; a mismatch becomes a task, a report with no matching card goes to exceptions.</li>
+        <li><b>Outside reports:</b> the patient sends a photo or PDF, held Unverified; CarePilot reads only identifiers, never results, and the coordinator checks two of them.</li>
+        <li><b>Doctor:</b> opens the source file, verifies the test, and decides "Continue as planned" (the patient gets a message) or "Needs discussion".</li>
+        <li>An undecided item moves to the doctor's cover after one working day.</li>
+      </ul>
+    </section>
+
+    <section class="card wide">
+      <h2><span class="num">7</span>Screens and roles</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Role</th><th>What they see</th></tr></thead>
+        <tbody>
+          <tr><td><b>Care coordinator</b></td><td>Workspace worklist with statuses and reasons, Patient page, Patient journey timeline, Intake &amp; verification, Care Plan (read-only config), Audit trail</td></tr>
+          <tr><td><b>Doctor</b></td><td>Needs my decision: concerns, tests to verify, reports to review</td></tr>
+          <tr><td><b>Chief of hospital</b></td><td>Performance Indicators, totals only with no names</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">A "Viewing as" switch changes the role on screen; there is no login in the demo.</p>
+    </section>
+
+    <section class="card">
+      <h2><span class="num">8</span>Trust and demo tools</h2>
+      <ul>
+        <li><b>Audit trail:</b> hash-chained record of every action, with who did it and the demo date and time; AI suggestions are labelled separately.</li>
+        <li><b>Demo clock:</b> set the date and time, or run the 07:00 and 07:30 jobs on demand.</li>
+        <li><b>Reset demo:</b> six data sets (Use Cases 1, 2a, 2b, 2c, 2T and the Golden Path), all starting with no plan chosen.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2><span class="num">9</span>Running it</h2>
+      <ul>
+        <li><b>Hosting:</b> AWS Mumbai with a static website, one Lambda API and a PostgreSQL database.</li>
+        <li><b>Database:</b> off by default, started only with approval, stops automatically when idle.</li>
+        <li><b>Testing:</b> about 310 automated tests, plus a local demo that runs without AWS.</li>
+      </ul>
+    </section>
+
+    <section class="card wide">
+      <h2><span class="num">10</span>Not yet built</h2>
+      <div class="tags">
+        <span class="tag warn">Gap rules G2–G6</span><span class="tag warn">Refills</span>
+        <span class="tag warn">Real WhatsApp connection</span><span class="tag warn">Real hospital feeds</span>
+        <span class="tag warn">AI reading of documents</span><span class="tag warn">Login and security</span>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>CarePilot AI MVP demo · all patients, records and messages are synthetic · not clinical advice</footer>
+</div>
+</body>
+</html>

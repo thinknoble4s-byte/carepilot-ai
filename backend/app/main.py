@@ -14,9 +14,10 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFi
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from . import (agent, ai, audit, clock, consent, db, gateway, handover, help_tasks, importer, messaging, patients, plan,
+from . import (agent, ai, triage_criteria, audit, clock, consent, db, gateway, handover, help_tasks, importer, messaging, patients, plan,
                programme,
-               proposals, rules, seed, states, tasks, test_cycle, timeline, triage, urgent_calls, views, worklist)
+               proposals, rules, seed, states, tasks, test_cycle, timeline, triage, urgent_calls, views, voice_escalation,
+               worklist)
 from .auth import ANY_ROLE, CLINICAL, COORDINATOR, TRIAGE_VIEW, current_user, require_role
 from .errors import DomainError
 from . import policy
@@ -136,12 +137,15 @@ class AdvanceIn(BaseModel):
 @app.post("/clock/advance")
 def advance_clock(body: AdvanceIn, user: dict = Depends(require_role(*COORDINATOR))):
     def run(conn):
+        since = clock.get_today(conn)
         today = clock.advance(conn, body.days, user["user_id"])
+        voice_escalation.catch_up(conn, since)
         urgent_calls.sweep(conn)
         test_cycle.sweep(conn)
-        return today
+        voice_escalation.run_due(conn)  # UC1-V, rule V1
+        return {"today": today, "voice_due": voice_escalation.ready(conn)}
 
-    return {"today": in_tx(run)}
+    return in_tx(run)
 
 
 class ResetIn(BaseModel):
@@ -161,11 +165,15 @@ class SetDateIn(BaseModel):
 @app.post("/clock/set")
 def set_clock(body: SetDateIn, user: dict = Depends(require_role(*COORDINATOR))):
     def run(conn):
+        since = clock.get_today(conn)
         clock.set_forward(conn, body.date, user["user_id"], body.time)
+        voice_escalation.catch_up(conn, since)
         moved = urgent_calls.sweep(conn)  # Use Case 2c: cover step-in and Overdue at the times of day
         test_cycle.sweep(conn)  # Use Case 2T: report review to the doctor's cover after 1 working day
+        voice_escalation.run_due(conn)  # UC1-V, rule V1
         now = clock.get_now(conn)
-        return {"today": now.date(), "time": now.strftime("%H:%M"), "urgent": moved}
+        return {"today": now.date(), "time": now.strftime("%H:%M"), "urgent": moved,
+                "voice_due": voice_escalation.ready(conn)}
 
     return in_tx(run)
 
@@ -177,7 +185,8 @@ def demo_settings(_user: dict = Depends(current_user)):
         now = clock.get_now(conn)
         return {"scenario": s.get("scenario"), "clinic_name": s.get("clinic_name"), "act_on_replies": s["act_on_replies"],
                 "sarvam_enabled": ai.sarvam_enabled(conn), "ai_provider": ai.provider_name(),
-                "today": now.date(), "time": now.strftime("%H:%M"), "voice_triage": triage.config(conn)}
+                "today": now.date(), "time": now.strftime("%H:%M"), "voice_triage": triage.config(conn),
+                "voice_escalation": voice_escalation.config(conn), "demo_cases": s.get("demo_cases", [])}
 
     return in_tx(run)
 
@@ -341,7 +350,7 @@ def summary(_user: dict = Depends(require_role(*ANY_ROLE))):
 # ---------------------------------------------------------------------------
 @app.post("/rules/gap-check")
 def gap_check(_user: dict = Depends(require_role(*COORDINATOR))):
-    return in_tx(rules.run_gap_check)
+    return in_tx(lambda conn: {**rules.run_gap_check(conn), "voice_due": voice_escalation.ready(conn)})
 
 
 @app.post("/agent/run")
@@ -561,7 +570,7 @@ async def simulator_document(mrn: str, file: UploadFile | None = File(None), fro
                              card_id: int | None = Form(None), _user: dict = Depends(require_role(*COORDINATOR))):
     """The patient sends a photo or PDF of an outside report. Without a file: a synthetic outside-lab PDF (variant:
     clear, blurred, ct_scan, other_name, no_mrn, unreadable, future_date) for card_id, by default the test the
-    patient last said was done outside. from_phone: another sender number (demo)."""
+    patient last said was done outside, else last booked elsewhere. from_phone: another sender number (demo)."""
     data = await file.read() if file else None
     extra = {"from_phone": from_phone, "note": note}
 
@@ -570,11 +579,13 @@ async def simulator_document(mrn: str, file: UploadFile | None = File(None), fro
             p = conn.execute("SELECT * FROM patient WHERE mrn = %s", (mrn,)).fetchone()
             if p is None:
                 raise HTTPException(status_code=404, detail=f"Patient {mrn} not found")
+            outside = test_cycle.booked_outside(conn, mrn)
             card = conn.execute(
                 """SELECT name, specimen FROM order_card c WHERE mrn = %s AND card_type = 'test'
                    ORDER BY card_id = %s DESC, (SELECT max(check_id) FROM report_check k WHERE k.card_id = c.card_id
-                     AND k.status = 'sent' AND k.answer = 'done_outside') DESC NULLS LAST, card_id LIMIT 1""",
-                (mrn, card_id or 0)).fetchone()
+                     AND k.status = 'sent' AND k.answer = 'done_outside') DESC NULLS LAST,
+                     card_id = %s DESC, card_id LIMIT 1""",
+                (mrn, card_id or 0, outside[0]["card_id"] if outside else 0)).fetchone()
             pdf = test_cycle.outside_report_pdf(p, clock.get_today(conn), card["name"] if card else "Blood test",
                                                 variant, imaging=bool(card) and card["specimen"] is False)
             return gateway.receive_document(conn, mrn, data=pdf, mime="application/pdf",
@@ -806,6 +817,86 @@ def close_handover(handover_id: int, body: CloseIn, user: dict = Depends(require
 
 
 # ---------------------------------------------------------------------------
+# UC1-V: voice escalation, a simulated outbound call. The gate (dial) is the only way a call starts.
+# ---------------------------------------------------------------------------
+@app.get("/voice/overview")
+def voice_overview(_user: dict = Depends(require_role(*CLINICAL))):
+    return in_tx(voice_escalation.overview)
+
+
+@app.post("/demo/voice/advance")
+def voice_advance(user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(voice_escalation.advance_to_call, user)
+
+
+class DialIn(BaseModel):
+    script: str = "s2"  # which recorded patient clips answer
+
+
+@app.post("/voice/escalations/{escalation_id}/call")
+def voice_dial(escalation_id: int, body: DialIn | None = None, _user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(voice_escalation.dial, escalation_id, (body or DialIn()).script)
+
+
+@app.get("/voice/calls/{call_id}")
+def voice_call(call_id: int, _user: dict = Depends(require_role(*CLINICAL))):
+    return in_tx(voice_escalation.record, call_id)
+
+
+@app.post("/voice/calls/{call_id}/answer")
+def voice_answer(call_id: int, _user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(voice_escalation.answer, call_id)
+
+
+@app.post("/voice/calls/{call_id}/no-answer")
+def voice_no_answer(call_id: int, _user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(voice_escalation.no_answer, call_id)
+
+
+@app.post("/voice/calls/{call_id}/reject")
+def voice_reject(call_id: int, _user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(voice_escalation.reject, call_id)
+
+
+class VoiceReplyIn(BaseModel):
+    after_seq: int
+    text: str | None = None  # empty: the simulated patient's clip for that question
+    clip_id: str | None = None
+    silence: bool = False
+
+
+@app.post("/voice/calls/{call_id}/reply")
+def voice_reply(call_id: int, body: VoiceReplyIn, _user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(lambda conn: voice_escalation.reply(conn, call_id, body.after_seq, text=body.text,
+                                                     clip_id=body.clip_id, silence=body.silence))
+
+
+@app.get("/voice/calls/{call_id}/turns/{seq}/audio")
+def voice_turn_audio(call_id: int, seq: int, _user: dict = Depends(require_role(*CLINICAL))):
+    found = in_tx(voice_escalation.turn_audio, call_id, seq)
+    if found is None:
+        raise HTTPException(status_code=404, detail="No audio for this turn (simulated AI shows the text only)")
+    return Response(content=found[0], media_type=found[1])
+
+
+@app.get("/voice/calls/{call_id}/clips/{clip_id}/audio")
+def voice_clip_audio(call_id: int, clip_id: str, _user: dict = Depends(require_role(*CLINICAL))):
+    found = in_tx(voice_escalation.clip_audio, call_id, clip_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail="No recording for this patient clip")
+    return Response(content=found[0], media_type=found[1])
+
+
+class UndoIn(BaseModel):
+    reason: str | None = None
+
+
+@app.post("/voice/calls/{call_id}/undo")
+def voice_undo(call_id: int, body: UndoIn, user: dict = Depends(require_role(*COORDINATOR))):
+    return in_tx(voice_escalation.undo, call_id, user, body.reason)
+
+
+# ---------------------------------------------------------------------------
 # Screens matching prototype v7.2: worklist, timeline, calls, pause, Care Plan, indicators
 # ---------------------------------------------------------------------------
 @app.get("/worklist")
@@ -905,6 +996,12 @@ def triage_questions(_user: dict = Depends(require_role(*TRIAGE_VIEW))):
     return triage.question_bank()
 
 
+@app.get("/triage/criteria")
+def triage_criteria_view(_user: dict = Depends(require_role(*ANY_ROLE))):
+    """Care Plan, triage tabs: what decides Red, Amber and Green, and how the simulated call sorts a reply."""
+    return triage_criteria.criteria()
+
+
 @app.get("/patients/{mrn}/card")
 def patient_card(mrn: str, _user: dict = Depends(require_role(*TRIAGE_VIEW))):
     return in_tx(views.patient_card, mrn)
@@ -940,9 +1037,9 @@ async def triage_answer_voice(episode_id: int, file: UploadFile = File(...),
 
 
 @app.post("/triage/episodes/{episode_id}/no-answer")
-def triage_no_answer(episode_id: int, user: dict = Depends(require_role(*COORDINATOR))):
-    """Demo: "She does not answer": the call rings out (the second call is 5 minutes later)."""
-    return in_tx(triage.no_answer, episode_id, user)
+def triage_no_answer(episode_id: int, rejected: bool = False, user: dict = Depends(require_role(*COORDINATOR))):
+    """Demo: the call rings out, or Reject on the phone screen (the second call is 5 minutes later)."""
+    return in_tx(triage.no_answer, episode_id, user, rejected)
 
 
 class PlayIn(BaseModel):

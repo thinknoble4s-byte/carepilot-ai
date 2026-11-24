@@ -1,7 +1,8 @@
 {
   "scenario": "vt",
-  "title": "Voice Triage MVP-lite — Mrs. Lakshmi V. (Tamil), the call and Red, Amber, Green",
+  "title": "Voice Triage MVP-lite — Mrs. Lakshmi V. (Hindi), the call and Red, Amber, Green",
   "source": "usecase-docs/CarePilot_Voice_Triage_MVP_Lite_v1.1.docx (v1.1, 28 October 2026)",
+  "native_language": "Hindi",
   "demo_start_date": "2026-10-27",
   "seed_date": "2026-10-27",
   "seed_time": "10:12",
@@ -523,6 +524,13 @@
     },
     "voice_clips": [
       {
+        "id": "HI-04",
+        "patient": null,
+        "language": "Hindi",
+        "label": "HI-04 — since yesterday very sleepy, nausea, headache, left arm pain (Hindi)",
+        "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa) from the guide's voice note; replace with a native recording."
+      },
+      {
         "id": "TA-01",
         "patient": null,
         "language": "Tamil",
@@ -556,12 +564,14 @@
       "_note": "SYNTHETIC. What the hospital record holds for the triage call and the emergency summary.",
       "title": "Mrs. Lakshmi V.",
       "name_en": "Lakshmi",
+      "name_hi": "लक्ष्मी",
       "name_ta": "லட்சுமி",
       "age": 54,
       "sex": "female",
       "caregiver_relation": "son",
       "team": {
         "en": "the Chennai care team",
+        "hi": "चेन्नई की देखभाल टीम",
         "ta": "சென்னை பராமரிப்புக் குழுவின்"
       },
       "arm_baseline": {
@@ -577,6 +587,7 @@
         "date": "2026-10-19",
         "by": "Dr. Ananya",
         "en": "Dr. Ananya advised on 19 October: take your Shelcal-HD and Neurobion Forte only after a full meal, never on an empty stomach.",
+        "hi": "डॉ. अनन्या ने 19 अक्टूबर को सलाह दी थी: शेलकाल-HD और न्यूरोबियान फ़ोर्टे की गोलियाँ सिर्फ़ पूरा खाना खाने के बाद ही लें, खाली पेट कभी नहीं।",
         "ta": "அக்டோபர் 19 அன்று டாக்டர் அனன்யா அறிவுறுத்தியது: ஷெல்கால்-HD மற்றும் நியூரோபியான் ஃபோர்ட் மாத்திரைகளை முழு உணவுக்குப் பிறகு மட்டுமே எடுக்கவும்; வெறும் வயிற்றில் எடுக்க வேண்டாம்."
       },
       "events": [

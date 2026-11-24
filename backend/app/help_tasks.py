@@ -18,14 +18,20 @@ SYSTEM = "CarePilot"
 # Use Case 2T v1.4: the report-check tasks (find the hospital report, call about the test, call the patient to
 # resend a report) are calls too: attempts, then one result with a remarks note.
 TYPES = ("help_booking", "cant_come", "help_request", "confirm_test_booking", "find_hospital_report",
-         "call_about_test", "call_patient_resend")
+         "call_about_test", "call_patient_resend",
+         # UC1-V section 6.2: the safe exits of the automated call
+         "voice_not_connected", "voice_not_reached", "voice_declined", "voice_book_by_phone", "voice_unclear",
+         "voice_rebook")
 REASON = {"help_booking": "patient_asked_help_booking", "cant_come": "patient_cannot_come", "help_request": "help_keyword",
           "confirm_test_booking": "patient_says_test_booked"}
 LABEL = {"help_booking": "Help booking", "cant_come": "Can't come", "help_request": "Help request",
          "confirm_test_booking": "Confirm test booking", "find_hospital_report": "Find hospital report",
          "call_about_test": "Call about test", "call_patient_resend": "Call the patient",
          "outside_report": "Verify outside report", "report_mismatch": "Report mismatch",
-         "no_next_visit": "No next visit card"}
+         "no_next_visit": "No next visit card",
+         "voice_not_connected": "Call did not connect", "voice_not_reached": "Patient not reached",
+         "voice_declined": "Declined after explanation", "voice_book_by_phone": "Book by phone",
+         "voice_unclear": "Reply unclear", "voice_rebook": "Booking undone"}
 RESULTS = {
     "help_booking": ("booked", "could_not_book", "not_reached"),
     "confirm_test_booking": ("booked", "could_not_book", "not_reached"),
@@ -34,6 +40,7 @@ RESULTS = {
     "find_hospital_report": ("sorted", "needs_follow_up"),
     "call_about_test": ("booked", "sorted", "needs_follow_up", "not_reached"),
     "call_patient_resend": ("sorted", "needs_follow_up", "not_reached"),
+    **{t: ("booked", "could_not_book", "not_reached") for t in TYPES if t.startswith("voice_")},
 }
 DEFAULT_REASONS = ["cost", "pre_authorisation", "transport", "work_family", "other"]
 TRAILING = " \t.,!?;:।॥。！？"

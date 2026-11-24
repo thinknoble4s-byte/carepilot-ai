@@ -1,0 +1,264 @@
+{
+  "scenario": "uc1v",
+  "title": "Use Case 1-V: voice escalation for an unbooked follow-up (simulated call, Hindi)",
+  "source": "usecase-docs/CarePilot_UC1-V_Voice_Escalation_Spec_v0.1.2.docx (Draft v0.1, 19 Nov 2026, not yet approved)",
+  "demo_start_date": "2026-11-02",
+  "seed_date": "2026-11-25",
+  "seed_time": "09:00",
+  "load_at": "2026-11-27T10:00",
+  "users": [
+    {
+      "user_id": "u_anita",
+      "name": "Anita",
+      "role": "coordinator"
+    },
+    {
+      "user_id": "u_ravi",
+      "name": "Ravi",
+      "role": "coordinator"
+    },
+    {
+      "user_id": "u_sekhar",
+      "name": "Dr. Sekhar",
+      "role": "oncologist"
+    },
+    {
+      "user_id": "u_suresh",
+      "name": "Dr. Suresh Pillai",
+      "role": "chief"
+    }
+  ],
+  "coordinator": "Anita",
+  "patients": [
+    {
+      "mrn": "SYN-0301",
+      "full_name": "Sunita Verma",
+      "phone": "+919000000301",
+      "preferred_language": "Hindi",
+      "consent": {
+        "consent_reference": "CONS-SYN-0301",
+        "recorded_on": "2026-11-02",
+        "scopes": [
+          "whatsapp_patient",
+          "automated_messaging",
+          "automated_voice_call"
+        ]
+      },
+      "plan": {
+        "due_dates": {
+          "DX3": "2026-12-02"
+        }
+      },
+      "note": "Synthetic demo patient: Hindi, breast cancer survivor on Letrozole; 3-month DEXA due and not booked"
+    }
+  ],
+  "plan_template": {
+    "template_id": "BC-LET-DEXA-1",
+    "version": "1.0",
+    "name": "Letrozole: 3-monthly bone check (MOCK, not clinical advice)",
+    "short_name": "Letrozole bone check",
+    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "effective_from": "2026-10-21",
+    "due_date_entered": true,
+    "identifiers_required": false,
+    "therapy_required": false,
+    "departments": {
+      "Radiology": {
+        "owner": "Anita",
+        "cover": "Ravi"
+      }
+    },
+    "items": [
+      {
+        "item_code": "DX3",
+        "type": "test",
+        "name": "DEXA scan (3rd month)",
+        "department": "Radiology",
+        "test_code": "DEXA",
+        "specimen": false
+      }
+    ]
+  },
+  "deadline_policy": {
+    "version": "1.0",
+    "signed_off_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "default_coordinator": "Anita",
+    "default_doctor": "u_sekhar",
+    "covers": {
+      "Anita": "Ravi",
+      "Ravi": "Anita",
+      "Dr. Sekhar": "Dr. Sekhar"
+    },
+    "working_days": {
+      "coordinator_review": 1,
+      "call_first": 1,
+      "doctor_decision": 1,
+      "doctor_instruction": 1,
+      "urgent_call": 0,
+      "booking_from_instruction": 2,
+      "booking_help": 2,
+      "cannot_attend": 2,
+      "confirm_test_booking": 2,
+      "contact_needed": 2,
+      "help_booking": 2,
+      "cant_come": 2,
+      "help_request": 1,
+      "voice_not_connected": 2,
+      "voice_not_reached": 2,
+      "voice_declined": 2,
+      "voice_book_by_phone": 2,
+      "voice_unclear": 2,
+      "voice_rebook": 2
+    },
+    "escalation": {
+      "coordinator_review": "cover",
+      "call_first": "cover",
+      "doctor_decision": "cover",
+      "doctor_instruction": "reminder",
+      "urgent_call": "cover",
+      "booking_from_instruction": "cover",
+      "booking_help": "cover",
+      "cannot_attend": "cover",
+      "confirm_test_booking": "cover",
+      "contact_needed": "cover",
+      "help_booking": "cover",
+      "cant_come": "cover",
+      "help_request": "cover",
+      "voice_not_connected": "cover",
+      "voice_not_reached": "cover",
+      "voice_declined": "cover",
+      "voice_book_by_phone": "cover",
+      "voice_unclear": "cover",
+      "voice_rebook": "cover"
+    },
+    "help_keywords": [
+      "help",
+      "ಸಹಾಯ",
+      "मदद"
+    ],
+    "not_reached_after_attempts": 2,
+    "cant_come_reasons": [
+      "cost",
+      "pre_authorisation",
+      "transport",
+      "work_family",
+      "other"
+    ],
+    "note": "UC1-V: the voice-call tasks use the 2 working days of the help-booking task (placeholder, pending sign-off)."
+  },
+  "base_templates": [
+    "booking_reminder",
+    "missed_item_reminder",
+    "handover_ack",
+    "instruction_booking"
+  ],
+  "settings": {
+    "version": "0.1",
+    "note": "UC1-V: G0 on the DEXA card, then the voice escalation after 48 hours of silence.",
+    "gap_rules": [
+      "G0"
+    ],
+    "reminder_cards": "all",
+    "caregiver_copy": false,
+    "act_on_replies": true,
+    "people_tasks": true,
+    "hold_on_proposal": true,
+    "hold_on_task": true,
+    "clinic_name": "Hospital A",
+    "instruction_card": {
+      "name": "Doctor-requested visit",
+      "department": "Review clinic",
+      "owner": "Anita",
+      "cover": "Ravi"
+    },
+    "ai": {
+      "tries": 2,
+      "timeout_seconds": 10,
+      "speech_model": "saaras:v3",
+      "language_model": "sarvam-105b",
+      "note": "UC2a names Sarvam-30B; Sarvam deprecated it (API answer, 17 Oct 2026) and points to sarvam-105b."
+    },
+    "voice_escalation": {
+      "enabled": true,
+      "delay_hours": 48,
+      "window_start": "10:00",
+      "window_end": "18:00",
+      "retry_hours": 3,
+      "call_attempts": 2,
+      "explanations": 1,
+      "offers": 1,
+      "reasks": 1,
+      "identity_repeats": 1,
+      "safety_callback_hours": 2,
+      "slot_working_days_ahead": 2,
+      "agent_speaker": "kavitha",
+      "patient_speaker": "ritu",
+      "caller_name": "Dr. Sekhar Clinic",
+      "no_call_weekdays": [7],
+      "tts_model": "bulbul:v3",
+      "tts_timeout_seconds": 17,
+      "tts_live_max_chars": 200,
+      "sorter_budget_seconds": 16,
+      "sorter_try_seconds": 6,
+      "status": "48 hours, window, retry and re-ask are placeholders pending sign-off; the 2-hour callback still needs a named owner and out-of-hours cover (spec section 11)"
+    }
+  },
+  "slots": [
+    {
+      "date": "2026-11-30",
+      "time": "10:00",
+      "status": "free"
+    },
+    {
+      "date": "2026-12-01",
+      "time": "10:00",
+      "status": "taken"
+    },
+    {
+      "date": "2026-12-01",
+      "time": "10:30",
+      "status": "free"
+    },
+    {
+      "date": "2026-12-01",
+      "time": "11:00",
+      "status": "free"
+    },
+    {
+      "date": "2026-12-02",
+      "time": "11:30",
+      "status": "free"
+    },
+    {
+      "date": "2026-12-02",
+      "time": "12:00",
+      "status": "free"
+    }
+  ],
+  "scripts": {
+    "s2": {
+      "title": "S2: I'm fine, no need",
+      "patient_voice": { "pace": 1.5 },
+      "patient_voice_note": "User, 22 Nov: pace 1.5; the usual loudness and tone.",
+      "answers": {
+        "L1": "P1",
+        "L2": "P2",
+        "L3": "P3",
+        "L4": "P3",
+        "L5": "P4"
+      }
+    },
+    "s3": {
+      "title": "S3: safety stop",
+      "patient_voice": { "pace": 1.5, "loudness": 1.0, "pitch": -0.5 },
+      "patient_voice_note": "User, 22 Nov: pace 1.5 (was 1.25), loudness 1.0, tone -1.0. Bulbul v3 takes pitch from -0.5 to 0.5 (it refuses -1.0), so -0.5, its lowest.",
+      "answers": {
+        "L1": "P1",
+        "L2": "P5",
+        "L3": "P5",
+        "L4": "P5",
+        "L5": "P5"
+      }
+    }
+  }
+}

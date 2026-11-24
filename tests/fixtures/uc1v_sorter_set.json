@@ -1,0 +1,100 @@
+[
+  {
+    "row": 1,
+    "step": "L1",
+    "text": "जी हाँ, मैं सुनीता बोल रही हूँ।",
+    "text_en": "Yes, this is Sunita.",
+    "expected": "Identity confirmed"
+  },
+  {
+    "row": 2,
+    "step": "L1",
+    "text": "आप कौन बोल रही हैं?",
+    "text_en": "Who is speaking?",
+    "expected": "Not confirmed: repeat once"
+  },
+  {
+    "row": 3,
+    "step": "L1",
+    "text": "वो घर पर नहीं हैं, मैं उनका बेटा बोल रहा हूँ।",
+    "text_en": "She is not at home, I am her son.",
+    "expected": "Not the patient: L1b"
+  },
+  {
+    "row": 4,
+    "step": "L2",
+    "text": "हाँ, बुक कर दीजिए।",
+    "text_en": "Yes, please book it.",
+    "expected": "YES"
+  },
+  {
+    "row": 5,
+    "step": "L2",
+    "text": "मैं तो ठीक हूँ, स्कैन की क्या ज़रूरत है?",
+    "text_en": "I am fine, why do I need the scan?",
+    "expected": "NO"
+  },
+  {
+    "row": 6,
+    "step": "L2",
+    "text": "अभी नहीं कराना।",
+    "text_en": "I do not want it now.",
+    "expected": "NO"
+  },
+  {
+    "row": 7,
+    "step": "L2",
+    "text": "मैं ठीक हूँ, बस जोड़ों में थोड़ा दर्द रहता है।",
+    "text_en": "I am fine, only a little joint pain.",
+    "expected": "HEALTH_CONCERN"
+  },
+  {
+    "row": 8,
+    "step": "L2",
+    "text": "हाँ बुक कर दो, पर ऑपरेशन वाली जगह पर दर्द है।",
+    "text_en": "Yes, book it, but there is pain at the operation site.",
+    "expected": "HEALTH_CONCERN"
+  },
+  {
+    "row": 9,
+    "step": "L2",
+    "text": "मैंने दवा लेना बंद कर दिया है।",
+    "text_en": "I have stopped taking the medicine.",
+    "expected": "HEALTH_CONCERN"
+  },
+  {
+    "row": 10,
+    "step": "L2",
+    "text": "थकान है और चक्कर आ रहे हैं।",
+    "text_en": "I feel tired and dizzy.",
+    "expected": "HEALTH_CONCERN"
+  },
+  {
+    "row": 11,
+    "step": "L2",
+    "text": "कल बात करना, अभी खाना बना रही हूँ।",
+    "text_en": "Talk tomorrow, I am cooking now.",
+    "expected": "UNCLEAR"
+  },
+  {
+    "row": 12,
+    "step": "L2",
+    "text": "Silence or heavy noise",
+    "text_en": "No usable speech.",
+    "expected": "UNCLEAR"
+  },
+  {
+    "row": 13,
+    "step": "L5",
+    "text": "ठीक है, चलेगा।",
+    "text_en": "Okay, that works.",
+    "expected": "YES"
+  },
+  {
+    "row": 14,
+    "step": "L5",
+    "text": "उस दिन नहीं आ सकती।",
+    "text_en": "I cannot come that day.",
+    "expected": "NO"
+  }
+]

@@ -20,12 +20,14 @@ ALWAYS_ALLOWED_AUTOMATED = ("handover_ack",  # the fixed acknowledgement after a
                             # (sent the moment a case is Red; never held for a pause or an agent switch), and the
                             # outcome after the call (who calls her and when, with the go-to-hospital guardrail)
                             "triage_ack", "triage_red_caregiver", "triage_outcome_amber", "triage_outcome_red",
-                            "triage_outcome_nurse", "triage_outcome_unreached")
+                            "triage_outcome_nurse", "triage_outcome_unreached",
+                            "uc1v_w2_safety")  # UC1-V: the WhatsApp copy of the safety message
 # While a handover is open only these two pass, whoever sends (UC2a REQ-06): the acknowledgement and the
 # booking message for a doctor's instruction (a person decided that one). Everything else is refused.
 ALLOWED_DURING_HANDOVER = ("handover_ack", "instruction_booking", "triage_doctor_text",
                            # Use Case 2T REQ-20: decided by the doctor's click on a report, so they pass too
-                           "report_continue_booked", "report_continue_due")
+                           "report_continue_booked", "report_continue_due",
+                           "uc1v_w2_safety")
 # Use Case 2b: while a help-booking, can't-come or help-request task is open, routine reminders (and, later,
 # slot offers) to the patient are held for every sender (held_open_task). A setting, pending decision 10.
 HELP_TASK_TYPES = ("help_booking", "cant_come", "help_request")
@@ -36,7 +38,7 @@ HOLD_TASK_TYPES = HELP_TASK_TYPES + ("urgent_call",
 # Voice Triage: while an episode is open, only the triage messages and a doctor's order booking go out.
 ALLOWED_DURING_TRIAGE = ("handover_ack", "triage_ack", "triage_red_caregiver", "instruction_booking",
                          "triage_outcome_amber", "triage_outcome_red", "triage_outcome_nurse",
-                         "triage_outcome_unreached", "triage_doctor_text")
+                         "triage_outcome_unreached", "triage_doctor_text", "uc1v_w2_safety")
 ROUTINE_TEMPLATES = ("booking_reminder", "missed_item_reminder", "test_booking_reminder", "test_report_check",
                      "report_upload_nudge")
 

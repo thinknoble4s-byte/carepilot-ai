@@ -520,7 +520,7 @@ def test_golden_path_health_message_goes_to_voice_triage(monkeypatch, seeded, cl
     monkeypatch.setattr(seed, "step_a_settings", lambda: real)
     with db.connect() as c:
         r = seed.reset(c, scenario="step_a")
-    assert r["patients"] == 3 and r["users"] == 5  # triage v3: no ER Desk users
+    assert r["patients"] == 7 and r["users"] == 5  # triage v3: no ER Desk users
     priya = users_header("u_priya")
     out = voice_note(client, "SYN-0011", priya, clip="HI-04")
     assert out["triage_episode_id"] and out["handover_id"] is None
@@ -531,13 +531,13 @@ def test_golden_path_health_message_goes_to_voice_triage(monkeypatch, seeded, cl
     msg = [m for m in sent("SYN-0011") if m["template_id"] == "triage_red_caregiver"]
     assert len(msg) == 1 and msg[0]["to_phone"] == "+919000100011" and msg[0]["language"] == "Hindi"
     assert "सावित्री जी ने हमारी कॉल में" in msg[0]["body"]
-    # Nirmala speaks Telugu.
-    out = voice_note(client, "SYN-0013", priya, clip="TE-01")
+    # Nirmala speaks Hindi (22 Nov).
+    out = voice_note(client, "SYN-0013", priya, clip="HI-04")
     s = client.post(f"/triage/episodes/{out['triage_episode_id']}/play", headers=priya, json={"scenario": "green"}).json()
-    assert s["tier"] == "TIER_3_GREEN" and s["language"] == "Telugu" and "నిర్మల గారి కోసం" in s["turns"][1]["ta"]
-    assert any("షెల్‌కాల్-HD" in t["ta"] for t in s["turns"] if t["who"] == "agent")
+    assert s["tier"] == "TIER_3_GREEN" and s["language"] == "Hindi" and "निर्मला जी के लिए" in s["turns"][1]["ta"]
+    assert any("शेलकाल-HD" in t["ta"] for t in s["turns"] if t["who"] == "agent")
     # Lakshmi V. is the third Golden Path patient: the guide's scenarios, with the Golden Path's doctors.
-    out = voice_note(client, "SYN-0142", priya)
+    out = voice_note(client, "SYN-0142", priya, clip="HI-04")
     assert out["triage_episode_id"] and out["handover_id"] is None
     s = client.post(f"/triage/episodes/{out['triage_episode_id']}/play", headers=priya, json={"scenario": "amber"}).json()
     assert s["tier"] == "TIER_2_AMBER" and set(s["result"]["reason_codes"]) == {
@@ -1381,3 +1381,27 @@ def test_a_staff_call_that_escalates_counts_as_the_review(vt, client):
     assert s["review"]["action"] == "ESCALATED" and not s["awaits_review"]
     assert s["review_text"] == "Escalated by Anita after her call: “She has a fever since morning”"
     assert doctor_call(client, eid, "PICKED_UP").status_code == 200
+
+
+@pytest.mark.demo_template
+@pytest.mark.parametrize("scenario,mrn,who,name", [("vt", "SYN-0142", "u_anita", "लक्ष्मी"),
+                                                   ("step_a", "SYN-0142", "u_priya", "लक्ष्मी"),
+                                                   ("step_a", "SYN-0209", "u_priya", "सुशीला")])
+def test_triage_is_in_hindi_and_reject_is_recorded(seeded, monkeypatch, client, scenario, mrn, who, name):
+    from app import db, reference, seed
+
+    monkeypatch.delenv("CAREPILOT_SEED_DIR")
+    real = json.loads((reference.SEED_DIR / "settings.json").read_text(encoding="utf-8"))
+    monkeypatch.setattr(seed, "step_a_settings", lambda: real)
+    with db.connect() as c:
+        seed.reset(c, scenario=scenario)
+    user = users_header(who)
+    eid = voice_note(client, mrn, user, clip="HI-04")["triage_episode_id"]
+    r = client.post(f"/triage/episodes/{eid}/no-answer?rejected=true", headers=user)
+    assert r.status_code == 200 and "Call 1 rejected" in r.json()["turns"][-1]["en"]
+    s = client.post(f"/triage/episodes/{eid}/pickup", headers=user).json()
+    assert s["language"] == "Hindi" and any(f"{name} जी के लिए" in (t.get("ta") or "") for t in s["turns"])
+    s = client.post(f"/triage/episodes/{eid}/play", headers=user, json={"scenario": "green"}).json()
+    spoken = "".join(t.get("ta") or "" for t in s["turns"]) + "".join(m["body"] for m in sent(mrn))
+    assert s["tier"] == "TIER_3_GREEN"
+    assert not any("\u0b80" <= ch <= "\u0c7f" for ch in spoken), "no Tamil or Telugu"

@@ -4,6 +4,7 @@ import { api, post } from './api.js';
 import { InstructionForm, PatientWords } from './Modals.jsx';
 import { PatientLink } from './PatientCard.jsx';
 import { ReportReviews, RoutingSettings, TestVerifications } from './TestCycle.jsx';
+import { VoiceDeclined } from './VoiceCall.jsx';
 import { Dl, fmt, ScreenHead, useUI } from './ui.jsx';
 
 export default function Decisions() {
@@ -84,6 +85,8 @@ export default function Decisions() {
           ))}
         </div>
       )}
+
+      <VoiceDeclined />
 
       <TestVerifications />
 

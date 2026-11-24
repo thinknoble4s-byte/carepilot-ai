@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CarePilot AI Cost Breakdown</title>
+<style>
+  :root {
+    --bg: #f5f7fa; --paper: #ffffff; --ink: #1f2937; --muted: #5b6676; --line: #dde3ea;
+    --brand: #1f3fa8; --brand-soft: #e8edfb; --amber: #b45309; --amber-soft: #fff4e0;
+    --green: #0d7a3e; --green-soft: #e6f4ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161c; --paper: #1a2029; --ink: #e5e9ef; --muted: #9aa6b5; --line: #2c3540;
+      --brand: #8fa8f5; --brand-soft: #1d2640; --amber: #f2b45c; --amber-soft: #352a17;
+      --green: #7fd19f; --green-soft: #16301f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 Calibri, "Segoe UI", system-ui, sans-serif; }
+  .page { max-width: 980px; margin: 0 auto; padding: 32px 16px 56px; display: grid; gap: 22px; }
+  header .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); font-weight: 700; }
+  h1 { font-size: 30px; margin: 4px 0 6px; color: var(--brand); line-height: 1.2; }
+  h2 { font-size: 20px; margin: 0 0 4px; }
+  h3 { font-size: 16px; margin: 14px 0 6px; }
+  p { margin: 0 0 8px; }
+  .lede { color: var(--muted); max-width: 75ch; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .kpi { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .kpi b { display: block; font-size: 22px; color: var(--brand); font-variant-numeric: tabular-nums; }
+  .kpi span { color: var(--muted); font-size: 13px; }
+  section { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+         padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+  .tag.yours { background: var(--amber-soft); color: var(--amber); }
+  .tag.model { background: var(--brand-soft); color: var(--brand); }
+  .tag.check { background: var(--green-soft); color: var(--green); }
+  .tbl { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+       border-bottom: 2px solid var(--line); padding: 8px; }
+  td { border-bottom: 1px solid var(--line); padding: 8px; vertical-align: top; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
+  .note { color: var(--muted); font-size: 13px; }
+  ol, ul { margin: 6px 0 0; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  footer { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="eyebrow">CarePilot AI · Health-a-thon 2026 · Slide 12 backup</div>
+    <h1>Cost breakdown: where the slide 12 figures come from</h1>
+    <p class="lede">Planning estimates for one breast cancer follow-up clinic. Cloud and AI costs are from AWS (Mumbai, ap-south-1)
+      and Sarvam list prices as of October 2026, at US$1 ≈ ₹85. Re-check them in the AWS Pricing Calculator and on Sarvam's
+      pricing page before you commit.</p>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi"><b>₹4–6 lakh</b><span>One-time, per hospital (Level 0 pilot, 2 part-time developers)</span></div>
+    <div class="kpi"><b>₹30–50k</b><span>Subscription per facility per month (500 survivors)</span></div>
+    <div class="kpi"><b>₹18–23k</b><span>Running cost per facility per month (cloud + AI)</span></div>
+    <div class="kpi"><b>₹1–5</b><span>AI cost per voice triage case (slide: ₹3–5)</span></div>
+  </div>
+
+  <section>
+    <span class="tag yours">Team estimates</span>
+    <h2>1. Your figures (no breakdown behind them yet)</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Line on slide</th><th>Figure</th></tr></thead>
+      <tbody>
+        <tr><td>One-time (Level 0 pilot)</td><td>₹4–6 lakh per hospital: setup, protocol and templates, language review, consent, training, 60–90 days support</td></tr>
+        <tr><td>Subscription</td><td>₹60–100 per active survivor per month ≈ ₹30–50k per facility (500 survivors)</td></tr>
+        <tr><td>WhatsApp (pass-through)</td><td>≈ ₹0.12 per utility message (Meta) + ₹0.10–0.30 BSP markup = ₹0.22–0.42 per message</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">The ₹4–6 lakh is a one-time cost per hospital, not a monthly one. Its proposed basis is in the next section.</p>
+  </section>
+
+  <section>
+    <span class="tag yours">Proposed basis, to validate</span>
+    <h2>1a. Bill of materials for the one-time ₹4–6 lakh</h2>
+    <p class="note">Assumptions: one hospital, Level 0 pilot (files only, no system integration), 12 weeks, and <b>2 part-time developers at about 35% each</b>
+      (1.5–2 days a week; 2 × 60 working days × 35% ≈ 42 developer-days). The ₹8,000–12,000 day rate is a developer's full cost
+      (salary plus overhead). Day counts and rates are planning assumptions; replace them with the team's actual numbers.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>#</th><th>Item</th><th>What it covers</th><th class="num">Developer-days</th><th class="num">₹ (low – high)</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Environment set-up</td><td>AWS Mumbai deployment, WhatsApp Business number and template approval, calling line, logins and roles</td><td class="num">6</td><td class="num">48k – 72k</td></tr>
+        <tr><td>2</td><td>Data onboarding</td><td>Register import, appointment-list format, staff accounts, Doctor-on-Duty roster</td><td class="num">4</td><td class="num">32k – 48k</td></tr>
+        <tr><td>3</td><td>Clinical configuration</td><td>Care plan, triage thresholds and message wording, worked through with the hospital's doctors until sign-off</td><td class="num">8</td><td class="num">64k – 96k</td></tr>
+        <tr><td>4</td><td>Consent and DPDP</td><td>Consent form, privacy notice, data-protection checklist</td><td class="num">3</td><td class="num">24k – 36k</td></tr>
+        <tr><td>5</td><td>Training</td><td>Coordinators and doctors: 2 sessions, quick guides</td><td class="num">3</td><td class="num">24k – 36k</td></tr>
+        <tr><td>6</td><td>Pilot support</td><td>Shadow-mode monitoring, weekly reviews, fixes: about 1–1.5 days a week for 12 weeks</td><td class="num">18</td><td class="num">1.44L – 2.16L</td></tr>
+        <tr class="total"><td></td><td>Developer subtotal</td><td>2 developers × ≈ 21 days each</td><td class="num">42</td><td class="num">₹3.4 – 5.0 lakh</td></tr>
+        <tr><td>7</td><td>Native language review</td><td>Tamil, Hindi, Telugu: question bank and message templates (≈ ₹15–20k per language)</td><td class="num">external</td><td class="num">45k – 60k</td></tr>
+        <tr><td>8</td><td>Vendor set-up</td><td>WhatsApp provider and telephony one-time fees (to be quoted)</td><td class="num">external</td><td class="num">10k – 25k</td></tr>
+        <tr class="total"><td></td><td>Total</td><td>₹3.9 – 5.9 lakh</td><td></td><td class="num">≈ ₹4 – 6 lakh</td></tr>
+      </tbody>
+    </table></div>
+    <ul class="note">
+      <li><b>Pilot support (item 6) is the largest item.</b> Developer time is heaviest in the 2-week set-up and lighter during shadow and live running.</li>
+      <li><b>Not included:</b> the hospital's own staff and doctor time, Level 1 integration (EMR or lab links, priced separately), hardware, GST.</li>
+      <li><b>One line for slide 12:</b> "2 part-time developers (≈ 42 days at ₹8–12k) + language review and vendor set-up ≈ ₹4–6 lakh."</li>
+    </ul>
+    <h3>How the developers' time share moves the cost</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Time each developer gives the pilot</th><th class="num">Developer-days</th><th class="num">Developer cost</th><th class="num">One-time total</th></tr></thead>
+      <tbody>
+        <tr><td>25% (about 1 day a week)</td><td class="num">30</td><td class="num">₹2.4 – 3.6L</td><td class="num">≈ ₹3 – 4.5 lakh</td></tr>
+        <tr class="total"><td>35% (about 1.5–2 days a week), used above</td><td class="num">42</td><td class="num">₹3.4 – 5.0L</td><td class="num">≈ ₹4 – 6 lakh</td></tr>
+        <tr><td>50% (2.5 days a week)</td><td class="num">60</td><td class="num">₹4.8 – 7.2L</td><td class="num">≈ ₹5.4 – 8 lakh</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Totals include ₹0.55–0.85 lakh for language review and vendor set-up. At 25%, two developers cannot realistically cover set-up, sign-off and 10 weeks of support.</p>
+  </section>
+
+  <section>
+    <span class="tag model">Pilot cost model</span>
+    <h2>2. Running cost (cloud + AI): ≈ ₹18–23k per facility per month</h2>
+    <p class="note">Assumed volume: one clinic, about 1,000 patients, 3,000 replies a month, 1,000 voice notes of about 45 seconds.</p>
+
+    <h3>AWS (Mumbai): about US$140–200 a month</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Item</th><th>Notes</th><th class="num">US$/month</th></tr></thead>
+      <tbody>
+        <tr><td>RDS PostgreSQL</td><td>t4g.small, Multi-AZ, backups</td><td class="num">60</td></tr>
+        <tr><td>NAT Gateway</td><td>Managed</td><td class="num">40</td></tr>
+        <tr><td>CloudWatch + X-Ray</td><td>14-day retention, alarms</td><td class="num">15</td></tr>
+        <tr><td>WAF</td><td>1 web ACL + 4 rules</td><td class="num">12</td></tr>
+        <tr><td>AWS Backup</td><td>Cross-region copy to Hyderabad (ap-south-2)</td><td class="num">10</td></tr>
+        <tr><td>Lambda, API Gateway, SQS, EventBridge Scheduler</td><td>Serverless, pay per use</td><td class="num">8</td></tr>
+        <tr><td>S3 + CloudFront</td><td>Website, audio, documents</td><td class="num">6</td></tr>
+        <tr><td>Secrets Manager + KMS</td><td>3–4 secrets, 1 key</td><td class="num">4</td></tr>
+        <tr><td>Route 53, Cognito, SES</td><td>Cognito free at this user count</td><td class="num">3</td></tr>
+        <tr class="total"><td>AWS subtotal</td><td></td><td class="num">≈ 140–200</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Sarvam AI: about US$75 a month (≈ ₹6,300)</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>API</th><th>List price</th><th>Pilot use</th><th class="num">₹/month</th></tr></thead>
+      <tbody>
+        <tr><td>Saaras speech-to-text</td><td>₹30 per audio hour</td><td>12.5 hours</td><td class="num">375</td></tr>
+        <tr><td>Translation (typed messages)</td><td>₹50 per 10K characters</td><td>900K characters</td><td class="num">4,500</td></tr>
+        <tr><td>sarvam-105b (language model)</td><td>₹29 / ₹73 per 1M tokens in / out</td><td>≈ 10M tokens</td><td class="num">400</td></tr>
+        <tr><td>Bulbul text-to-speech</td><td>₹30 per 10K characters</td><td>Made once, then cached</td><td class="num">≈ 0</td></tr>
+        <tr><td>Document reading</td><td>₹1 per page</td><td>1,000 pages</td><td class="num">1,000</td></tr>
+        <tr class="total"><td>Sarvam subtotal</td><td></td><td></td><td class="num">≈ 6,300</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="tbl"><table>
+      <tbody>
+        <tr class="total"><td>Total running cost: US$140–200 + US$75</td><td class="num">≈ US$215–275 ≈ ₹18–23k</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <span class="tag model">From the code</span>
+    <h2>3. Per voice triage case: ≈ ₹3–5 on the slide</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Step</th><th>Sarvam call</th><th class="num">≈ ₹</th></tr></thead>
+      <tbody>
+        <tr><td>Voice note (≈ 30 s)</td><td>Saaras twice: transcribe, then translate (≈ 1 minute of audio)</td><td class="num">0.50</td></tr>
+        <tr><td>5–10 spoken answers</td><td>Saaras (≈ 0.5–1 minute of audio)</td><td class="num">0.25–0.50</td></tr>
+        <tr><td>Tagging the message</td><td>One sarvam-105b call; more only if the word lists cannot read an answer</td><td class="num">0.10–0.40</td></tr>
+        <tr><td>Call questions</td><td>Bulbul, made once and cached</td><td class="num">≈ 0</td></tr>
+        <tr class="total"><td>At list prices</td><td></td><td class="num">≈ 1–1.5</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">The slide's ₹3–5 is deliberately cautious: it allows for retries, longer notes and audio not yet cached. "≈ ₹1–5" is also defensible. Either way, AI cost is small next to the subscription.</p>
+  </section>
+
+  <section>
+    <span class="tag check">Points to check before submitting</span>
+    <h2>4. What judges may ask</h2>
+    <ol>
+      <li><b>One-time ₹4–6 lakh:</b> based on 2 part-time developers (section 1a). Validate the day rate and the 35% time share.</li>
+      <li><b>The running cost is for a production-grade setup</b> (Multi-AZ database, NAT, WAF, backups). Today's MVP runs a smaller demo setup at about US$45–60 a month.</li>
+      <li><b>Not included:</b> telephony minutes, staff time, GST, and optional self-hosted Sarvam speech models (US$250–800 a month extra).</li>
+      <li><b>Margin:</b> the subscription brings in ₹30–50k against ₹18–23k of running cost at one hospital. It improves as hospitals share one platform: AWS is mostly a fixed cost, and only the Sarvam part grows with volume.</li>
+    </ol>
+  </section>
+
+  <section>
+    <span class="tag check">Cost controls in the MVP</span>
+    <h2>5. Why the AI bill stays small</h2>
+    <ul>
+      <li>Button replies (Booked, Please help me book, I can't come) and the triage rules use no AI.</li>
+      <li>The fixed call questions are spoken once by Bulbul and cached for every later call.</li>
+      <li>The language model is asked only when the word lists cannot read an answer.</li>
+      <li>The automated call stops at the first danger sign, so fewer questions are asked.</li>
+      <li>Serverless Lambda is pay per use; the demo database stops when idle.</li>
+    </ul>
+  </section>
+
+  <footer>Synthetic data only. Planning estimates, not quotes. Prepared for the CarePilot AI final submission, November 2026.</footer>
+</div>
+</body>
+</html>

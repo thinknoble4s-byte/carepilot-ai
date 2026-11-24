@@ -143,7 +143,7 @@ def outside_report_pdf(patient: dict, day: date, test_name: str, variant: str = 
                  f"Name: {name}", *mrn, f"Age: {patient.get('age') or 54}", f"Sex: {patient.get('sex') or 'F'}",
                  "Lab ID: SD-2026-48213", "Facility: Sunrise Diagnostics, Jayanagar (synthetic)",
                  f"Report date: {when.isoformat()}", f"Document type: {kind}", f"Scan quality: {quality}", "",
-                 "Findings: synthetic values only" if variant == "ct_scan" else
+                 "Findings: synthetic values only" if imaging or variant == "ct_scan" else
                  "Haemoglobin 12.9 g/dL | WBC 5.8 x10^9/L | Platelets 260 x10^9/L (synthetic values)"])
 
 
@@ -535,6 +535,25 @@ def _open_check(conn, mrn: str) -> dict | None:
                            (answer = 'done_outside') DESC NULLS LAST, check_id DESC LIMIT 1""", (mrn,)).fetchone()
 
 
+def booked_outside(conn, mrn: str) -> list[dict]:
+    """Case 1c: the tests booked elsewhere whose report the patient was asked to send, the latest first."""
+    if not (config(conn) or {}).get("report_when_booked_elsewhere"):
+        return []
+    return conn.execute(
+        """SELECT c.* FROM order_card c JOIN LATERAL (
+               SELECT max(m.message_id) AS asked FROM outbox_message m
+               WHERE m.card_id = c.card_id AND m.template_id = 'report_when_ready' AND m.status = 'sent') a ON true
+           WHERE c.mrn = %s AND c.state = 'Booked' AND c.booking_source = 'patient_elsewhere' AND a.asked IS NOT NULL
+           ORDER BY a.asked DESC""", (mrn,)).fetchall()
+
+
+def _done_outside_by_report(conn, card: dict, report: dict, actor: str) -> bool:
+    """Case 1c: a scan booked elsewhere whose report has come was done: Booked -> Completed, so the report fits."""
+    if card["specimen"] is not False or card["card_id"] not in [c["card_id"] for c in booked_outside(conn, card["mrn"])]:
+        return False
+    return _complete_outside(conn, card, report["inbound_id"], actor)
+
+
 def receive_outside(conn, mrn: str, *, data: bytes, mime: str, file_name: str, channel: str,
                     inbound_id: int | None = None, actor: str = SYSTEM, sender_phone: str | None = None,
                     note: str | None = None, note_translation: str | None = None) -> dict:
@@ -589,11 +608,22 @@ def receive_outside(conn, mrn: str, *, data: bytes, mime: str, file_name: str, c
     # Which test the file answers: of the tests the patient said were done outside, the one the document names;
     # else the open report check's test; else the earliest open lab test (or a scan marked done outside).
     doc = ids.get("document_type") or ""
+    named = doc.partition(" - ")[2] or doc
     for ch in awaiting:
         c = conn.execute("SELECT * FROM order_card WHERE card_id = %s", (ch["card_id"],)).fetchone()
-        if c and c["state"] == "Completed" and doc and _test_matches(doc.partition(" - ")[2] or doc, c, rules):
+        if c and c["state"] == "Completed" and doc and _test_matches(named, c, rules):
             check = ch
             break
+    else:  # case 1c: else a test booked elsewhere that the document names
+        outside = booked_outside(conn, mrn)
+        expected = next((c for c in outside if doc and _test_matches(named, c, rules)), None)
+        if expected is None and not check and outside:
+            expected = outside[0]
+        if expected and check and check["card_id"] != expected["card_id"]:
+            check = None  # that check is about another test: its timer keeps running
+            conn.execute("UPDATE test_report SET check_id = NULL WHERE report_id = %s", (rid,))
+        if expected and not check:
+            check = {"card_id": expected["card_id"], "timer_from": None}
     if check and check["timer_from"]:
         conn.execute("UPDATE report_check SET timer_from = NULL, nudge_due = false, report_id = %s WHERE check_id = %s",
                      (rid, check["check_id"]))
@@ -694,6 +724,7 @@ def _auto_match(conn, card: dict, report: dict) -> None:
     name, MRN and test match, clear, score at or above the threshold -- so the card moves Report received -> Report
     verified by the system, and the doctor gets the review item. No person confirms it; the patient is told nothing."""
     label = f"Outside report (checked by AI: name, MRN and test match, score {report['score']})"
+    _done_outside_by_report(conn, card, report, SYSTEM)
     states.transition_card(conn, card["card_id"], "Report received", "system", SYSTEM,
                            source="outside_report_auto_matched", file_ref=report["file_name"],
                            report_id=report["report_id"], score=report["score"])
@@ -821,7 +852,7 @@ def verify_outside(conn, report_id: int, user_id: str, matched: list[str] | None
     if card["state"] not in ("Due", "Booked", "Completed"):
         raise Conflict(f"The test card is already {card['state']}")
     scan = card["specimen"] is False
-    if scan and card["state"] != "Completed":
+    if scan and card["state"] != "Completed" and not _done_outside_by_report(conn, card, r, user_id):
         raise Invalid(f"{card['name']} is a scan: its outside report fits only once the patient said it was done")
     now = clock.get_now(conn)
     audit.append(conn, actor_type="person", actor_name=user_id, action="outside_report_verified", entity_type="test_report",
@@ -941,6 +972,8 @@ def flag_copy(conn, copy_id: int, user_id: str, reason: str | None) -> dict:
     back = r["prior_state"] if r["prior_state"] in OPEN_TEST else "Due"
     states.transition_card(conn, card["card_id"], back, "person", user_id, source="flagged_wrong",
                            report_id=r["report_id"], reason=reason)
+    if back == "Booked":
+        conn.execute("UPDATE order_card SET completed_on = NULL WHERE card_id = %s", (card["card_id"],))
     conn.execute("UPDATE order_card SET label = %s, report_road = NULL WHERE card_id = %s",
                  ("Booked outside" if back == "Booked" and card["booking_source"] == "patient_elsewhere" else None,
                   card["card_id"]))

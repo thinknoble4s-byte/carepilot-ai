@@ -55,6 +55,7 @@ def build(conn, mrn: str) -> dict:
              and abs((c["due_date"] - a["appointment_date"]).days) <= 30), None)
         events.append(_ev(a["appointment_date"], f"Appointment: {a['item'] or a['department']}", "routine", "hosp",
                           f"Appointment list (batch #{a['batch_id']})" if a["batch_id"]
+                          else "Booked by the CarePilot agent on the call (simulated)" if a["source"] == "voice_agent"
                           else "Booked by the patient on WhatsApp",
                           f"Order card {match['item_code']}" if match else None))
 
@@ -93,6 +94,13 @@ def build(conn, mrn: str) -> dict:
     for c in conn.execute("SELECT * FROM call_log WHERE mrn = %s ORDER BY call_id", (mrn,)).fetchall():
         events.append(_ev(c["called_on"], f"Call to {c['who']}: {c['outcome']}" + (f" — {c['note']}" if c["note"] else ""),
                           "routine", "hosp", "Call log", f"Logged by {_who(c['called_by'])}"))
+    for v in conn.execute("SELECT * FROM voice_call WHERE mrn = %s AND status = 'ended' ORDER BY call_id",
+                          (mrn,)).fetchall():
+        ending = "rejected" if v["reason_code"] == "patient_rejected" else v["outcome"].replace("_", " ")
+        events.append(_ev(v["ended_at"].date(), f"Automated call (simulated): {ending}"
+                          + (f"; booking undone by {_who(v['undone_by'])}" if v["undone_by"] else ""), "routine",
+                          "carepilot", f"Voice call #{v['call_id']}", "Voice escalation: no booking 48 hours after "
+                          "the reminder", "V1"))
     for h in conn.execute("SELECT * FROM handover WHERE mrn = %s ORDER BY handover_id", (mrn,)).fetchall():
         events.append(_ev(h["opened_on"], f"Handover opened ({h['trigger'].replace('_', ' ')}); automated messages stopped",
                           "routine", "carepilot", h["source"] or "Handover", f"Handover #{h['handover_id']}"))

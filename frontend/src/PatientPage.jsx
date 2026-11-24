@@ -5,6 +5,7 @@ import { CloseReason, openCall, openHandover, openMessages, openPause, PatientWo
 import ProposalCard from './Proposals.jsx';
 import { TasksSection } from './Tasks.jsx';
 import { openReportFile, ReportsSection } from './TestCycle.jsx';
+import { SimulateCall, VoiceCalls } from './VoiceCall.jsx';
 import { BOOKED_VIA, bookedLabel, Chip, Dl, fmt, GapState, patientStatusPill, Pill, Reason, ScreenHead, tapLabel, useUI } from './ui.jsx';
 
 // Test cards (Use Case 2T v1.4): specimen-based (blood test) or not (imaging). A report is verified by its two
@@ -17,7 +18,8 @@ const canVerify = (c) => c.card_type === 'test' && c.specimen === false
   && (c.state === 'Report received' || (c.state === 'Completed' && c.report_road !== 'outside'));
 const when = (c) => `${c.appointment_date ? ` ${fmt(c.appointment_date)}` : ''}${c.appointment_time ? ` ${String(c.appointment_time).slice(0, 5)}` : ''}`;
 const SCOPES = [['whatsapp_patient', 'WhatsApp to patient'], ['whatsapp_caregiver', 'WhatsApp to caregiver'],
-  ['automated_messaging', 'Automated messaging'], ['outside_records', 'Outside records'], ['external_care', 'External care']];
+  ['automated_messaging', 'Automated messaging'], ['outside_records', 'Outside records'], ['external_care', 'External care'],
+  ['automated_voice_call', 'Automated voice call']];
 const CALL_OUTCOME = { noans: 'No answer', book: 'Will come', concern: 'Reported a concern', away: 'Away', ok: 'All well', wrong: 'Wrong number' };
 const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
@@ -55,11 +57,13 @@ function OrderCard({ card, today, task }) {
     state = <Pill tone="good">Completed {fmt(card.completed_on)} — {card.specimen === false && card.report_road !== 'outside' ? "waiting for the doctor's verification" : 'waiting for the report'}</Pill>;
   } else if (done) state = <Pill tone="good">Complete</Pill>;
   else if (card.state === 'Booked') state = <Pill tone="good">{bookedLabel(card)}</Pill>;
+  else if (card.on_hold) state = <Pill tone="bad">On hold: handover open</Pill>;
   else if (card.state !== 'Due') state = <Pill tone="good">{card.state}{when(card)}</Pill>;
   else if (instruction) state = <Pill tone="brand">From doctor's instruction</Pill>;
+  else if (card.voice) state = <Pill tone="bad">Booking overdue · due {d < 0 ? `in ${-d} days` : d === 0 ? 'today' : `${d} days ago`}</Pill>;
   else if (d > 0) state = <Pill tone="bad">{d} days overdue</Pill>;
   else state = <Pill tone="warn">Not booked · due {d === 0 ? 'today' : `in ${-d} days`}</Pill>;
-  const over = card.state === 'Due' && d > 0;
+  const over = card.state === 'Due' && (d > 0 || Boolean(card.voice));
   return (
     <div className={`v4-item ${over ? 'over' : instruction ? 'req' : 'soon'}`}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
@@ -73,6 +77,7 @@ function OrderCard({ card, today, task }) {
         <div className="d">Label: <b>{card.label}</b></div>
       )}
       <Stepper card={card} />
+      {(card.voice || card.voice_note) && <SimulateCall card={card} focus />}
       {card.report && (
         <div className="d">Report: {card.report.file_name} · received {fmt(String(card.report.received_at_demo).slice(0, 10))} {String(card.report.received_at_demo).slice(11, 16)}
           {' '}<button type="button" className="btn sm" onClick={() => openReportFile(ui, card.report.report_id)}>Open source file</button></div>
@@ -150,6 +155,15 @@ function ConcernCard({ h, tasks, today, role, patient }) {
       {role === 'oncologist' && h.stage === 'awaiting_doctor' && (
         <div className="btn-row"><button type="button" className="btn sm primary" onClick={() => ui.nav('decide')}>Decide on Needs my decision</button></div>
       )}
+    </div>
+  );
+}
+
+function DemoCase({ demo }) {
+  return (
+    <div className="card demo-case">
+      <div className="card-title">Case {demo.case}: {demo.title} <span className="tag unverified">SYNTHETIC DEMO</span></div>
+      <div className="small-note">{`The plan is confirmed at reset. Set the demo date to ${fmt(demo.show_on)}, 10:00. `}{demo.steps}</div>
     </div>
   );
 }
@@ -303,9 +317,10 @@ export default function PatientPage({ mrn }) {
   const open = cards.filter((c) => (!DONE.includes(c.state) || c.card_type === 'test')
     && (new Date(`${c.due_date}T00:00:00`) <= horizon || c.item_code.startsWith('X')));
   const act = async (fn, msg) => {
-    try { await fn(); ui.toast(msg); ui.refresh(); } catch (e) { ui.toast(e.message); }
+    try { const r = await fn(); ui.toast(typeof msg === 'function' ? msg(r) : msg); ui.refresh(); } catch (e) { ui.toast(e.message); }
   };
   const hOpen = p.handover && p.handover.stage !== 'closed';
+  const demo = ui.demoCases?.find((c) => c.mrn === mrn);
 
   return (
     <>
@@ -350,7 +365,7 @@ export default function PatientPage({ mrn }) {
           <div className="btn-row">
             <button type="button" className="btn primary" onClick={() => openMessages(ui, p)}>Messages</button>
             <button type="button" className="btn" disabled={!cards.some((c) => c.state === 'Due')}
-              onClick={() => act(() => post(`patients/${mrn}/remind`), `Approved reminder sent in ${p.preferred_language}`)}>Send reminder</button>
+              onClick={() => act(() => post(`patients/${mrn}/remind`), (r) => (r.status === 'blocked' ? `Reminder blocked and logged: ${r.blocked_reason}` : `Approved reminder sent in ${p.preferred_language}`))}>Send reminder</button>
             <button type="button" className="btn" onClick={() => openCall(ui, p)}>Log a call</button>
             <button type="button" className="btn" disabled title="Document intake arrives with AI reading (a later increment)">Upload a document</button>
             {p.status === 'Paused'
@@ -390,7 +405,8 @@ export default function PatientPage({ mrn }) {
         </div>
       </div>
 
-      {!plan && !ro && <PlanForm mrn={mrn} />}
+      {demo && !ro && <DemoCase demo={demo} />}
+      {!plan && !ro && <PlanForm key={mrn} mrn={mrn} />}
 
       {p.handover && (hOpen || p.handover.closed_on === today) && (
         <div className="card">
@@ -410,6 +426,8 @@ export default function PatientPage({ mrn }) {
       </div>
 
       <TasksSection mrn={mrn} />
+
+      <VoiceCalls mrn={mrn} />
 
       {cards.some((c) => c.card_type === 'test') && <ReportsSection mrn={mrn} />}
 

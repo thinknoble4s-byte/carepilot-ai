@@ -38,7 +38,7 @@ export function Modal({ modal, onClose }) {
   if (!modal) return null;
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-wrap" role="dialog" aria-modal="true" style={modal.wide ? { maxWidth: 920 } : undefined}>
+      <div className="modal modal-wrap" role="dialog" aria-modal="true" style={modal.wide ? { maxWidth: modal.wide === 'call' ? 1080 : 920 } : undefined}>
         <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>&times;</button>
         <h3>{modal.title}</h3>
         {modal.sub && <div className="modal-sub">{modal.sub}</div>}
@@ -117,7 +117,7 @@ const MARKS = {
   health_mention: ['Health mention', 'unverified'], voice: ['🎙 Voice note', 'hosp'], ai_failed: ['AI could not read it', 'unverified'],
   urgent: ['Urgent', 'live'],
   task_help_booking: ['Help booking', 'hosp'], task_cant_come: ["Can't come", 'hosp'], task_help_request: ['Help request', 'hosp'],
-  overdue: ['Overdue', 'unverified'],
+  overdue: ['Overdue', 'live'], safety_stop: ['Safety stop', 'live'],
 };
 
 // The patient's reply buttons, as the patient sees them (English labels of the approved template).
@@ -132,7 +132,8 @@ export const tapLabel = (m, thread) => (m.button?.startsWith('slot_')
 
 // A booked card shows only "Booked" (or "Booked outside") with its date and time (5 Nov); how it was booked is a detail.
 export const BOOKED_VIA = { patient_button: 'the patient tapped Booked', patient_elsewhere: 'the patient tapped Booked elsewhere',
-  patient_slot: 'the patient chose a slot on WhatsApp', coordinator: 'the coordinator', appointment_list: 'the appointment list' };
+  patient_slot: 'the patient chose a slot on WhatsApp', coordinator: 'the coordinator', appointment_list: 'the appointment list',
+  voice_agent: 'the CarePilot agent on the call' };
 export const bookedLabel = (c) => `${c.booking_source === 'patient_elsewhere' ? 'Booked outside' : 'Booked'}`
   + `${c.appointment_date ? ` ${fmt(c.appointment_date)}` : ''}${c.appointment_time ? ` ${String(c.appointment_time).slice(0, 5)}` : ''}`;
 
@@ -141,17 +142,28 @@ export function Marks({ marks }) {
 }
 
 // A stored voice note (UC2a): played from the database through the API.
-export function VoiceClip({ inboundId }) {
+export function VoiceClip({ inboundId, path }) {
+  const from = path || `inbound/${inboundId}/audio`;
   const [src, setSrc] = useState(null);
   const [err, setErr] = useState('');
   useEffect(() => {
     let url;
-    blobUrl(`inbound/${inboundId}/audio`).then((u) => { url = u; setSrc(u); }).catch((e) => setErr(e.message));
+    blobUrl(from).then((u) => { url = u; setSrc(u); }).catch((e) => setErr(e.message));
     return () => { if (url) URL.revokeObjectURL(url); };
-  }, [inboundId]);
+  }, [from]);
   if (err) return <span className="small-note">Audio not available ({err})</span>;
   if (!src) return <span className="small-note">Loading audio…</span>;
   return <audio controls preload="metadata" src={src} style={{ width: '100%', maxWidth: 300, height: 34 }} />;
+}
+
+// UC1-V V11: the 2-hour callback target, red when missed.
+export function CallbackTimer({ c }) {
+  if (!c) return null;
+  const at = String(c.due_at).slice(11, 16);
+  if (c.done) return <span className="dl">✓ Callback done (target was {at})</span>;
+  const left = Math.abs(c.minutes_left);
+  const span = `${Math.floor(left / 60) ? `${Math.floor(left / 60)} h ` : ''}${left % 60} min`;
+  return <span className={`dl vc-timer ${c.overdue ? 'bad' : 'warn'}`}>⏱ Call back by {at} · {c.overdue ? `overdue by ${span}` : `${span} left`}</span>;
 }
 
 export function Reason({ r, today }) {
@@ -191,6 +203,13 @@ const ACTION_TEXT = {
   card_created: 'Order card created from the plan', gap_check_run: '07:00 gap check run', reminder_run: '07:30 reminder run',
   duplicate_suppressed: 'Duplicate suppressed (already on file)', clock_set: 'Set the demo date',
   policy_mode_changed: 'Agent task mode changed',
+  voice_escalation_due: 'Voice escalation due: not booked 48 hours after the reminder', gate_passed: 'Safety gate passed',
+  gate_blocked: 'Safety gate: no call', call_started: 'Call started (simulated)', identity_reply: 'Identity reply sorted',
+  identity_confirmed: 'Patient confirmed who they are', line_spoken: 'Agent spoke a library line', reply_label: 'Reply sorted',
+  slot_offered: 'One slot offered', booked_by_agent: 'Booked by the agent', whatsapp_sent: 'WhatsApp sent',
+  whatsapp_blocked: 'WhatsApp blocked', send_block_on: 'Send block on', handover_created: 'Safety handover created',
+  call_ended: 'Call ended', coordinator_action: 'Coordinator action', doctor_decision: "Doctor's decision",
+  doctor_informed: 'Doctor informed', agent_booking_undone: "Agent's booking undone by a person",
 };
 
 export function describe(e) {

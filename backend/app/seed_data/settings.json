@@ -10,6 +10,14 @@
   "act_on_replies": true,
   "people_tasks": true,
   "clinic_name": "Hospital A",
+  "slots_by_due_date": true,
+  "demo_cases": [
+    {"mrn": "SYN-0202", "case": "1", "title": "Already booked", "steps": "When the T-7 reminder arrives, the patient taps \"… booked\" on it. The DEXA card shows Booked with that date.", "show_on": "2026-11-25", "template_id": "BC-HRPOS-1", "therapy": "Letrozole", "treatment_end_date": "2026-09-09"},
+    {"mrn": "SYN-0204", "case": "1a", "title": "Help me book", "steps": "The patient taps \"Please help me book\" on the reminder, then one of the four slots. The DEXA card shows Booked with that date and time.", "show_on": "2026-11-25", "template_id": "BC-HRPOS-1", "therapy": "Letrozole", "treatment_end_date": "2026-09-09"},
+    {"mrn": "SYN-0206", "case": "1c", "title": "Booked elsewhere", "steps": "The patient taps \"Booked elsewhere\" on the reminder. CarePilot asks for the report once it is available; send it from Messages to finish the case.", "show_on": "2026-11-25", "template_id": "BC-HRPOS-1", "therapy": "Letrozole", "treatment_end_date": "2026-09-09"},
+    {"mrn": "SYN-0011", "case": "2 (S2)", "title": "No response, the agent calls and books", "steps": "Tap and type nothing as this patient. 48 hours after the reminder, Simulate call shows on the DEXA card, set to S2 (the agent books).", "show_on": "2026-11-27", "template_id": "BC-HRPOS-1", "therapy": "Letrozole", "treatment_end_date": "2026-09-09", "script": "s2"},
+    {"mrn": "SYN-0209", "case": "2 (S3)", "title": "No response, the agent calls: safety stop", "steps": "Tap and type nothing as this patient. 48 hours after the reminder, Simulate call shows on the DEXA card, set to S3 (the patient mentions pain: safety stop).", "show_on": "2026-11-27", "template_id": "BC-HRPOS-1", "therapy": "Letrozole", "treatment_end_date": "2026-09-09", "script": "s3"}
+  ],
   "instruction_card": {
     "name": "Doctor-requested visit",
     "department": "Oncology OPD",
@@ -25,6 +33,34 @@
   },
   "hold_on_proposal": true,
   "voice_clips": [
+    {
+      "id": "HI-04",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-04 — since yesterday very sleepy, nausea, headache, left arm pain (Hindi)",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa) from the guide's voice note; replace with a native recording."
+    },
+    {
+      "id": "HI-05",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-05 — severe pain in the left arm (v1.2 scene 7: 8 questions, at least Amber) (Hindi)",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"मेरे बाएँ हाथ में बहुत तेज़ दर्द है।\"; replace with a native recording."
+    },
+    {
+      "id": "HI-06",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-06 — very tired for ten days (v1.2: 7 questions) (Hindi)",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"पिछले दस दिनों से मैं बहुत थकी हुई महसूस कर रही हूँ।\"; replace with a native recording."
+    },
+    {
+      "id": "HI-07",
+      "patient": null,
+      "language": "Hindi",
+      "label": "HI-07 — wants to go shopping tomorrow (v1.2 scene 2: one standard reply, no call) (Hindi)",
+      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"मैं कल शॉपिंग के लिए जाना चाहती हूँ।\"; replace with a native recording."
+    },
     {
       "id": "HI-01",
       "patient": null,
@@ -45,96 +81,13 @@
       "language": "Hindi",
       "label": "HI-03 — feeling perfectly OK, no complaints",
       "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice ritu): \"मैं बिल्कुल ठीक हूँ, मुझे कोई शिकायत नहीं है।\""
-    },
-    {
-      "id": "TA-01",
-      "patient": "SYN-0142",
-      "language": "Tamil",
-      "label": "TA-01 — Lakshmi: since yesterday very sleepy, nausea, headache, left arm pain (Tamil)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa) from the guide's voice note; replace with a native recording."
-    },
-    {
-      "id": "HI-04",
-      "patient": "SYN-0011",
-      "language": "Hindi",
-      "label": "HI-04 — Savitri: since yesterday very sleepy, nausea, headache, left arm pain (Hindi)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa) from the guide's voice note; replace with a native recording."
-    },
-    {
-      "id": "TE-01",
-      "patient": "SYN-0013",
-      "language": "Telugu",
-      "label": "TE-01 — Nirmala: since yesterday very sleepy, nausea, headache, left arm pain (Telugu)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa) from the guide's voice note; replace with a native recording."
-    },
-    {
-      "id": "HI-05",
-      "patient": "SYN-0011",
-      "language": "Hindi",
-      "label": "HI-05 — Savitri: severe pain in the left arm (v1.2 scene 7: 8 questions, at least Amber) (Hindi)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"मेरे बाएँ हाथ में बहुत तेज़ दर्द है।\"; replace with a native recording."
-    },
-    {
-      "id": "HI-06",
-      "patient": "SYN-0011",
-      "language": "Hindi",
-      "label": "HI-06 — Savitri: very tired for ten days (v1.2: 7 questions) (Hindi)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"पिछले दस दिनों से मैं बहुत थकी हुई महसूस कर रही हूँ।\"; replace with a native recording."
-    },
-    {
-      "id": "HI-07",
-      "patient": "SYN-0011",
-      "language": "Hindi",
-      "label": "HI-07 — Savitri: wants to go shopping tomorrow (v1.2 scene 2: one standard reply, no call) (Hindi)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"मैं कल शॉपिंग के लिए जाना चाहती हूँ।\"; replace with a native recording."
-    },
-    {
-      "id": "TE-02",
-      "patient": "SYN-0013",
-      "language": "Telugu",
-      "label": "TE-02 — Nirmala: severe pain in the left arm (v1.2 scene 7: 8 questions, at least Amber) (Telugu)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"నా ఎడమ చేతిలో తీవ్రమైన నొప్పి ఉంది.\"; replace with a native recording."
-    },
-    {
-      "id": "TE-03",
-      "patient": "SYN-0013",
-      "language": "Telugu",
-      "label": "TE-03 — Nirmala: very tired for ten days (v1.2: 7 questions) (Telugu)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"గత పది రోజులుగా నాకు చాలా అలసటగా ఉంది.\"; replace with a native recording."
-    },
-    {
-      "id": "TE-04",
-      "patient": "SYN-0013",
-      "language": "Telugu",
-      "label": "TE-04 — Nirmala: wants to go shopping tomorrow (v1.2 scene 2: one standard reply, no call) (Telugu)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"నేను రేపు షాపింగ్‌కి వెళ్లాలనుకుంటున్నాను.\"; replace with a native recording."
-    },
-    {
-      "id": "TA-02",
-      "patient": "SYN-0142",
-      "language": "Tamil",
-      "label": "TA-02 — Lakshmi: severe pain in the left arm (v1.2 scene 7: 8 questions, at least Amber) (Tamil)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"என் இடது கையில் கடுமையான வலி இருக்கிறது.\"; replace with a native recording."
-    },
-    {
-      "id": "TA-03",
-      "patient": "SYN-0142",
-      "language": "Tamil",
-      "label": "TA-03 — Lakshmi: very tired for ten days (v1.2: 7 questions) (Tamil)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"கடந்த பத்து நாட்களாக எனக்கு ரொம்ப சோர்வாக இருக்கிறது.\"; replace with a native recording."
-    },
-    {
-      "id": "TA-04",
-      "patient": "SYN-0142",
-      "language": "Tamil",
-      "label": "TA-04 — Lakshmi: wants to go shopping tomorrow (v1.2 scene 2: one standard reply, no call) (Tamil)",
-      "note": "Synthetic stand-in generated with Sarvam Bulbul v3 (voice roopa): \"நான் நாளைக்கு ஷாப்பிங் போக வேண்டும்.\"; replace with a native recording."
     }
   ],
   "help_keyword": "handover",
   "hold_on_task": false,
   "test_cycle": {
     "reminder_template": "test_booking_reminder",
+    "report_when_booked_elsewhere": true,
     "doctor_days": 1,
     "report_check": {
       "check_after_working_days": 1,

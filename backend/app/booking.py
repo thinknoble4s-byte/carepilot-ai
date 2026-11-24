@@ -2,8 +2,10 @@
 
 - "{item} booked": the card moves Due -> Booked, dated the day of the tap (source patient_button).
 - "Booked elsewhere" (a test): the card moves Due -> Booked, labelled "Booked outside", dated the day of the tap
-  (source patient_elsewhere).
-- "Please help me book": CarePilot offers four appointment slots as buttons. The slot she taps books the card with
+  (source patient_elsewhere). Where the data set says so (case 1c), she is asked to send the report once it is
+  available; no timer runs, as the test is still to be done.
+- "Please help me book": CarePilot offers four appointment slots as buttons (in the Golden Path none after the due
+  date). The slot she taps books the card with
   that date and time (source patient_slot) and she gets a confirmation message. If the offer cannot be sent (no
   consent for automated messages, a ticket open), a coordinator gets the help-booking task instead.
 
@@ -12,7 +14,7 @@ Every booking is written to the appointment list (Intake & verification) and clo
 import random
 from datetime import date, time, timedelta
 
-from . import audit, clock, help_tasks, messaging, states
+from . import audit, clock, help_tasks, messaging, policy, states
 from .agent import AGENT, set_next_action
 
 SLOT_BUTTONS = ("slot_1", "slot_2", "slot_3", "slot_4")
@@ -56,22 +58,39 @@ def tap_booked(conn, card: dict, inbound_id: int, actor: str, *, elsewhere: bool
     """"Booked" or "Booked elsewhere": booked for the day of the tap."""
     book(conn, card, source="patient_elsewhere" if elsewhere else "patient_button", day=clock.get_today(conn),
          at=None, inbound_id=inbound_id, actor=actor)
+    if elsewhere and (policy.settings(conn).get("test_cycle") or {}).get("report_when_booked_elsewhere"):
+        msg = messaging.send_message(conn, mrn=card["mrn"], template_id="report_when_ready", actor_type="agent",
+                                     actor=AGENT, reason_code="report_asked_when_ready", card_id=card["card_id"])
+        if msg["status"] == "sent":
+            set_next_action(conn, card["mrn"], f"{card['name']} booked outside; the patient will send the report "
+                                               "once it is available")
     return "card_booked_elsewhere" if elsewhere else "card_booked"
 
 
 def slots(conn, card: dict) -> list[dict]:
-    """Four slots on different working days in the next two weeks, each at a clinic time. Random, but the same
-    card on the same day gets the same four (a repeated tap offers the same times)."""
+    """Four slots on working days in the next two weeks, each at a clinic time. Random, but the same card on the same
+    day gets the same four (a repeated tap offers the same times). With slots_by_due_date (Golden Path) none is
+    after the due date: fewer days left means two times on a day, and no day left means no slots, so a person books.
+    A test already past its due date still gets the next two weeks."""
     today = clock.get_today(conn)
     days, d = [], today
     while len(days) < SLOT_DAYS:
         d += timedelta(days=1)
         if d.weekday() < 5:
             days.append(d)
+    if policy.settings(conn).get("slots_by_due_date") and card["due_date"] >= today:
+        days = [day for day in days if day <= card["due_date"]]
+        if not days:
+            return []
+    count = len(SLOT_BUTTONS)
     pick = random.Random(f"{card['card_id']}:{today.isoformat()}")
+    chosen = pick.sample(days, count) if len(days) >= count else [days[n % len(days)] for n in range(count)]
+    picked = []
+    for day in sorted(chosen):
+        picked.append((day, pick.choice([t for t in SLOT_TIMES if (day, t) not in picked])))
     out = []
-    for n, day in enumerate(sorted(pick.sample(days, len(SLOT_BUTTONS)))):
-        at = time.fromisoformat(pick.choice(SLOT_TIMES))
+    for n, (day, clinic_time) in enumerate(sorted(picked)):
+        at = time.fromisoformat(clinic_time)
         label = f"{day:%a} {_fmt(day, at)}"
         out.append({"id": SLOT_BUTTONS[n], "label": label, "label_en": label, "date": day.isoformat(),
                     "time": at.strftime("%H:%M")})
@@ -81,6 +100,14 @@ def slots(conn, card: dict) -> list[dict]:
 def offer_slots(conn, mrn: str, card: dict, inbound_id: int, actor: str) -> str:
     """"Please help me book": the slot message with four buttons. Not sent -> a person books her."""
     offered = slots(conn, card)
+    if not offered:
+        audit.append(conn, actor_type="agent", actor_name=AGENT, action="agent_decision", entity_type="inbound_message",
+                     entity_id=str(inbound_id), mrn=mrn, reason_code="no_slot_by_due_date", task="patient_help",
+                     outcome="escalate_to_coordinator", trigger_event=f"inbound_message:{inbound_id}",
+                     decision_inputs={"card": card["item_code"], "card_state": card["state"], "ai_used": False},
+                     details={"due_date": card["due_date"].isoformat(), "slots": []})
+        r = help_tasks.escalate(conn, mrn=mrn, task_type="help_booking", card=card, inbound_id=inbound_id, actor=actor)
+        return f"no_slot_by_due_date_help_booking_{'created' if r['created'] else 'already_open'}"
     msg = messaging.send_message(conn, mrn=mrn, template_id="booking_slots", actor_type="agent", actor=AGENT,
                                  reason_code="patient_asked_help_booking", card_id=card["card_id"], buttons=offered)
     audit.append(conn, actor_type="agent", actor_name=AGENT, action="agent_decision", entity_type="inbound_message",

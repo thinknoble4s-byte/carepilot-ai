@@ -457,5 +457,20 @@
       "Telugu": "నమస్తే {first_name} గారు. మీ {item} అపాయింట్‌మెంట్ విజయవంతంగా బుక్ అయింది: {appointment}. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
     },
     "effective_from": "2026-10-05"
+  },
+  {
+    "template_id": "report_when_ready",
+    "version": "1.0",
+    "approved_by": "MOCK sign-off: Dr. Sekhar (demo clinical lead)",
+    "note": "Case 1c (22 Nov): sent after \"Booked elsewhere\". Proposed text, pending clinician sign-off. Kannada, Hindi, Tamil and Telugu are drafts, to be checked by a native speaker.",
+    "buttons": [],
+    "text": {
+      "English": "Namaste {first_name}. Thank you for letting us know that you booked your {item} elsewhere. Once the report is available, please send a clear photo or PDF of it to the hospital here. Reply HELP to reach a person. — Hospital A (automated assistant)",
+      "Hindi": "नमस्ते {first_name} जी। बताने के लिए धन्यवाद कि आपने अपनी {item} कहीं और बुक कर ली है। जब रिपोर्ट मिल जाए, तो कृपया उसकी साफ़ फ़ोटो या PDF यहाँ अस्पताल को भेज दें। किसी व्यक्ति से बात करने के लिए मदद लिखें। — अस्पताल A (स्वचालित सहायक)",
+      "Kannada": "ನಮಸ್ಕಾರ {first_name} ಅವರೇ. ನಿಮ್ಮ {item} ಬೇರೆಡೆ ಬುಕ್ ಮಾಡಿರುವುದನ್ನು ತಿಳಿಸಿದ್ದಕ್ಕೆ ಧನ್ಯವಾದ. ವರದಿ ಸಿಕ್ಕಾಗ, ದಯವಿಟ್ಟು ಅದರ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಥವಾ PDF ಅನ್ನು ಇಲ್ಲಿ ಆಸ್ಪತ್ರೆಗೆ ಕಳುಹಿಸಿ. ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ಸಹಾಯ ಎಂದು ಬರೆಯಿರಿ. — ಆಸ್ಪತ್ರೆ A (ಸ್ವಯಂಚಾಲಿತ ಸಹಾಯಕ)",
+      "Tamil": "வணக்கம் {first_name}. உங்கள் {item} வேறு இடத்தில் முன்பதிவு செய்ததைத் தெரிவித்ததற்கு நன்றி. அறிக்கை கிடைத்ததும், அதன் தெளிவான புகைப்படம் அல்லது PDF-ஐ இங்கே மருத்துவமனைக்கு அனுப்புங்கள். ஒருவருடன் பேச உதவி என்று எழுதுங்கள். — மருத்துவமனை A (தானியங்கி உதவியாளர்)",
+      "Telugu": "నమస్తే {first_name} గారు. మీ {item} వేరే చోట బుక్ చేసుకున్నట్లు తెలిపినందుకు ధన్యవాదాలు. రిపోర్ట్ వచ్చాక, దయచేసి దాని స్పష్టమైన ఫోటో లేదా PDF ఇక్కడ ఆసుపత్రికి పంపండి. ఒక వ్యక్తితో మాట్లాడటానికి సహాయం అని రాయండి. — ఆసుపత్రి A (ఆటోమేటెడ్ సహాయకుడు)"
+    },
+    "effective_from": "2026-10-05"
   }
 ]

@@ -11,16 +11,17 @@ import json
 
 from psycopg.types.json import Jsonb
 
-from . import audit, clock, consent, importer, plan, states
+from . import audit, clock, consent, importer, plan, reference, states
 from .errors import Invalid
-from .reference import (DEMO_START_DATE, STEP_A_USERS, autonomy_policy, deadline_policy,
+from .reference import (DEMO_START_DATE, IDENTIFIER_OPTIONS, STEP_A_USERS, autonomy_policy, deadline_policy,
                         message_templates, plan_templates, read_seed, report_routing, step_a_settings, triage_history,
-                        uc1, uc2a, uc2b, uc2c, uc2t, vt)
+                        uc1, uc1v, uc1v_library, uc2a, uc2b, uc2c, uc2t, vt)
 
 SEED_USER = "u_priya"
 SELF_BOOKING_TEMPLATES = ("booking_slots", "booking_confirmed")
 
 DEMO_TABLES = (
+    "voice_turn", "voice_call", "voice_escalation", "voice_slot", "voice_line",
     "triage_document", "triage_episode", "triage_history",
     "demo_setting", "task_call_attempt", "proposal", "call_log", "inbound_message", "audio_blob", "outbox_message", "gap_event", "handover",
     "order_card", "care_plan", "coordinator_task", "consent", "appointment", "import_exception",
@@ -35,7 +36,7 @@ RULE_THRESHOLDS = {
 }
 
 
-SCENARIOS = ("uc1", "uc2a", "uc2b", "uc2c", "uc2t", "vt", "step_a")
+SCENARIOS = ("uc1", "uc1v", "uc2a", "uc2b", "uc2c", "uc2t", "vt", "step_a")
 DEFAULT_SCENARIO = "uc1"
 
 
@@ -47,12 +48,14 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
     uc2b    Use Case 2b: TP001, TP004-TP007, same start; taps and HELP become tasks.
     uc2c    Use Case 2c: TP001, TP004-TP007, Urgent - call the patient today; clock Tue 10 Nov 09:30.
     uc2t    Use Case 2T test cycle: TP001, TP004-TP007; D0 Mon 2 Nov.
+    uc1v    Voice escalation: Mrs. Sunita Verma (Hindi), her T-7 reminder ignored for 2 days; Fri 27 Nov 10:00.
     vt      Voice Triage MVP-lite: Mrs. Lakshmi V. (Tamil) and her history; clock Tue 27 Oct 10:12.
-    step_a  Step A / Golden Path: Savitri Patil and Nirmala Reddy (Tamil), Priya and Meera, everything on; a health
+    step_a  Step A / Golden Path: Savitri and Sushila (also the simulated call, S2 and S3), Nirmala, Lakshmi, Priya and Meera, all on; a health
             message goes to Voice Triage.
 
-    Every data set offers the same three care plans (T1 hormone receptor positive, T2 hormone receptor negative,
-    T3 HER2 positive) and seeds no plan: the coordinator chooses one for each patient. A scenario file may still
+    Every data set but uc1v offers the same three care plans (T1 hormone receptor positive, T2 hormone receptor negative,
+    T3 HER2 positive) and seeds no plan (but for step_a's five demo_cases, fix C): the coordinator chooses one for each
+    patient. A scenario file may still
     carry plans (the tests' fixed copies); then the scripted start state is rebuilt from them.
     """
     if scenario not in SCENARIOS:
@@ -78,6 +81,8 @@ def reset(conn, by: str | None = None, scenario: str = DEFAULT_SCENARIO) -> dict
         _seed_uc1(conn)
     elif scenario in ("uc2a", "uc2b"):
         _seed_after_uc1(conn, uc2a() if scenario == "uc2a" else uc2b())
+    elif scenario == "uc1v":
+        _seed_uc1v(conn, uc1v(), uc1v_library())
     elif scenario == "uc2c":
         _seed_uc2c(conn, uc2c())
     elif scenario == "uc2t":
@@ -130,9 +135,36 @@ def _seed_step_a(conn) -> None:
     for row in csv.DictReader(io.StringIO(read_seed("consent_records.csv"))):
         consent.record_consent(conn, row["recorded_by"], row["mrn"], row["consent_reference"],
                                row["scopes"].split(";"), row["recorded_on"])
+    # Fix C (22 Nov): the booking and call cases' patients start with their plan confirmed, so the order in which the demo
+    # date is moved and the cases are shown does not matter. Everyone else confirms a plan on the screen.
+    for case in step_a_settings().get("demo_cases", []):
+        plan.confirm_plan(conn, SEED_USER, case["mrn"], case["template_id"], case["therapy"],
+                          case["treatment_end_date"], IDENTIFIER_OPTIONS[:2])
     if (step_a_settings().get("voice_triage") or {}).get("enabled"):
         # Voice Triage: the short synthetic record the call reads (triage v3: no ER Desk users).
         _triage_history(conn, {k: v for k, v in triage_history().items() if not k.startswith("_")})
+    if any("automated_voice_call" in row["scopes"].split(";")
+           for row in csv.DictReader(io.StringIO(read_seed("consent_records.csv")))):
+        _golden_path_voice(conn, uc1v(), uc1v_library())
+
+
+def _golden_path_voice(conn, uc: dict, library: dict) -> None:
+    """UC1-V in the regular Golden Path (scope A, 22 Nov): a call only where the fixed lines are true (Hindi, DEXA,
+    Letrozole on the plan), slots up to that card's due date, and a date set forward past a T-7 day still sends
+    that day's reminders to every patient."""
+    voice = {**uc["settings"]["voice_escalation"], "scripted_only": True, "catch_up_reminder": True,
+             "slot_times": ["10:30", "11:00", "11:30", "12:00"]}
+    conn.execute("""UPDATE config_versions SET body = body || %s
+                    WHERE kind = 'scenario_settings' AND name = 'default'""", (Jsonb({"voice_escalation": voice}),))
+    policy = deadline_policy()
+    for part in ("working_days", "escalation"):
+        policy = {**policy, part: {**policy[part], **{k: v for k, v in uc["deadline_policy"][part].items()
+                                                      if k.startswith("voice_")}}}
+    conn.execute("UPDATE config_versions SET body = %s WHERE kind = 'deadline_policy' AND name = 'default'",
+                 (Jsonb(policy),))
+    _config(conn, [("message_template", f"{t['template_id']}:{t['language']}", t, t["approved_by"])
+                   for t in uc["message_templates"] if t["template_id"].startswith("uc1v_")])
+    _voice_data(conn, {**uc, "slots": []}, library)
 
 
 def _triage_history(conn, records: dict) -> None:
@@ -142,7 +174,7 @@ def _triage_history(conn, records: dict) -> None:
 
 
 def _seed_vt(conn, uc: dict) -> None:
-    """Voice Triage MVP-lite (guide v1.1, section 1.3): Mrs. Lakshmi V., 54, Tamil, son Karthik; her 10 Oct and
+    """Voice Triage MVP-lite (guide v1.1, section 1.3): Mrs. Lakshmi V., 54, Hindi (22 Nov; was Tamil), son Karthik; her 10 Oct and
     19 Oct history; Anita (cover Ravi), Dr. Ananya on duty, Dr. Sekhar. Clock Tue 27 Oct 10:12, just
     before her voice note."""
     from datetime import date, time
@@ -165,6 +197,38 @@ def _seed_after_uc1(conn, uc: dict) -> None:
     rules.run_gap_check(conn)
     agent.run_agent(conn)
     clock.set_time(conn, time.fromisoformat(uc["seed_time"]))
+
+
+def _seed_uc1v(conn, uc: dict, library: dict) -> None:
+    """UC1-V section 8, starting state: the DEXA card is not booked, the T-7 reminder went at 07:30 and had no
+    reply, voice-call consent is on record. Plus the line library (with its real draft status) and the slots.
+    With load_at the data loads booking overdue (the product owner's option 1, 22 Nov): the reminder is really sent
+    on its day, then the clock stands after the 48 hours and rule V1 has run, so nobody has to move the date."""
+    _seed_after_uc1(conn, uc)
+    _voice_data(conn, uc, library)
+    if uc.get("load_at"):
+        from datetime import datetime
+
+        from . import voice_escalation
+
+        at = datetime.fromisoformat(uc["load_at"])
+        clock.set_today(conn, at.date())
+        clock.set_time(conn, at.time())
+        voice_escalation.run_due(conn)
+
+
+def _voice_data(conn, uc: dict, library: dict) -> None:
+    for language, pack in library["languages"].items():
+        for ln in pack["lines"]:
+            conn.execute(
+                """INSERT INTO voice_line (line_id, language, channel, spoken_when, text, text_en, status, status_note,
+                                           approved_by, approved_on, version)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (ln["line_id"], language, ln["channel"], ln["when"], ln["text"], ln["text_en"], ln["status"],
+                 ln["status_note"], ln["approved_by"], ln["approved_on"], library["version"]))
+    for s in uc["slots"]:
+        conn.execute("INSERT INTO voice_slot (slot_date, slot_time, status) VALUES (%s, %s, %s)",
+                     (s["date"], s["time"], s["status"]))
 
 
 def _seed_uc2c(conn, uc: dict) -> None:
@@ -203,6 +267,11 @@ def _seed_uc1(conn, uc: dict | None = None) -> None:
     from datetime import date
 
     uc = uc or uc1()
+    if native := reference.native_language(uc):  # user, 22 Nov: the Voice Triage patient speaks Hindi
+        uc = {**uc, "patients": [{**pt, "preferred_language": native} for pt in uc["patients"]],
+              "message_templates": [*uc["message_templates"], *reference.cleared_templates(uc, native)],
+              "settings": {**uc["settings"], "voice_clips": [c for c in uc["settings"].get("voice_clips", [])
+                                                             if c["language"] == native]}}
     coordinator = next(u["user_id"] for u in uc["users"] if u["name"] == uc["coordinator"])
     _users(conn, uc["users"])
     clock.set_today(conn, date.fromisoformat(uc["demo_start_date"]) if uc.get("demo_start_date") else DEMO_START_DATE)

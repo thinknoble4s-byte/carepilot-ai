@@ -9,7 +9,7 @@ as facts and never added up into a score.
 from collections import defaultdict
 from datetime import date, timedelta
 
-from . import clock, policy
+from . import clock, policy, voice_escalation
 from .agent import HELD_TEXT
 
 PRIORITY = ["action", "noresp", "overdue", "verify", "approval", "agent", "duesoon", "watch"]
@@ -22,6 +22,8 @@ PEOPLE_TASKS = {
     "report_mismatch": "action", "outside_report": "action", "no_next_visit": "action",
     # Use Case 2T v1.4: the report check
     "find_hospital_report": "action", "call_about_test": "action", "call_patient_resend": "action",
+    # UC1-V: the safe exits of the automated call
+    **{t: "action" for t in voice_escalation.TASKS},
 }
 HELP_TAGS = {"help_booking": "Help booking", "cant_come": "Can't come", "help_request": "Help request"}
 ESCALATED = {"patient_asked_help_booking": "Escalated: help booking", "patient_cannot_come": "Escalated: can't come",
@@ -83,6 +85,12 @@ def build(conn, viewer: str | None = None) -> dict:
     outbox = _group(conn.execute("SELECT * FROM outbox_message ORDER BY message_id").fetchall())
     inbound = _group(conn.execute("SELECT * FROM inbound_message ORDER BY inbound_id").fetchall())
     calls = _group(conn.execute("SELECT * FROM call_log ORDER BY call_id").fetchall())
+    for v in conn.execute("SELECT mrn, outcome, ended_tx_at FROM voice_call "
+                          "WHERE status = 'ended' AND outcome <> 'no_answer'").fetchall():
+        calls[v["mrn"]].append({"created_at": v["ended_tx_at"], "outcome": v["outcome"]})  # she was reached
+    auto_calls = {e["card_id"]: e for e in conn.execute(
+        "SELECT * FROM voice_escalation WHERE status <> 'done'").fetchall()}
+    now = clock.get_now(conn)
 
     rows = []
     for p in patients:
@@ -128,8 +136,15 @@ def build(conn, viewer: str | None = None) -> dict:
             return f" (escalated to {t[0]['assigned_name']})" if t and t[0]["escalated_on"] else ""
 
         h = handovers.get(mrn)
+        safety = voice_escalation.callback_state(conn, h, now) if h and h["voice_call_id"] else None
         if h:
             base["handover_id"] = h["handover_id"]
+            if safety:  # UC1-V V11: the top of Needs you, with the 2-hour target
+                base["safety"] = {**safety, "call_id": h["voice_call_id"]}
+                if not safety["done"]:
+                    add("action", f"Safety stop on the automated call: a person calls her by "
+                        f"{safety['due_at']:%H:%M} on {_d(safety['due_at'].date())}", True, None,
+                        ["safety_stop"] + (["overdue"] if safety["overdue"] else []))
             if h["stage"] == "awaiting_coordinator":
                 why = {"help_keyword": "Patient asked for a person (HELP)", "manual": "Handover opened by the team",
                        "unclassified_reply": "Agent stopped: the patient wrote a message — review the handover",
@@ -201,6 +216,9 @@ def build(conn, viewer: str | None = None) -> dict:
                         add("duesoon", f"{name} — from doctor's instruction; booking with {t['assigned_name']}",
                             False, t["due_date"])
                 continue
+            if safety:
+                add("verify", f"{name}: On hold: handover open")
+                continue
             if c["card_id"] in task_cards:
                 continue  # a person already has a task for this card
             if c["card_id"] in blocked:
@@ -208,6 +226,13 @@ def build(conn, viewer: str | None = None) -> dict:
                 if code == "held_not_active":
                     continue  # shown as paused or closed
                 add("action", f"{name} — reminder blocked: {HELD_TEXT.get(code, code)} ({code})", True)
+                continue
+            if (e := auto_calls.get(c["card_id"])):
+                what = {"due": "automated call due", "in_call": "automated call in progress (simulated)",
+                        "retry": "no answer: one retry" + (f" from {e['retry_at']:%H:%M}" if e["retry_at"] else ""),
+                        "held": f"automated call held ({e['held_reason']})"}[e["status"]]
+                waits = e["status"] == "held" and e["held_reason"] not in ("outside_call_window", "retry_not_due")
+                add("action" if waits else "agent", f"{name}: {what}", waits)
                 continue
             d = (today - c["due_date"]).days
             sent_on = reminded.get(c["card_id"])
@@ -244,13 +269,13 @@ def build(conn, viewer: str | None = None) -> dict:
 
         main = next((t for t in PRIORITY if t in tags), "ontrack")
         order = {t: i for i, t in enumerate(PRIORITY)}
-        reasons.sort(key=lambda r: ("urgent" not in r["marks"], not r["action"], order.get(r["tag"], 9),
+        reasons.sort(key=lambda r: ("safety_stop" not in r["marks"], "urgent" not in r["marks"], not r["action"], order.get(r["tag"], 9),
                                     r["due"] or date.max))
         dues = sorted(r["due"] for r in reasons if r["due"])
         rows.append({**base, "main": main, "reasons": reasons, "next": dues[0] if dues else None})
 
     rank = {t: i for i, t in enumerate(PRIORITY + ["ontrack", "paused", "closed"])}
-    rows.sort(key=lambda r: (not any("urgent" in x.get("marks", []) and x["action"] for x in r["reasons"]),
+    rows.sort(key=lambda r: (not r.get("safety"), not any("urgent" in x.get("marks", []) and x["action"] for x in r["reasons"]),
                              rank[r["main"]], r["next"] or date.max, r["mrn"]))
     return {"today": today, "patients": rows, "glance": _glance(conn, today, rows), "feed": agent_feed(conn, today),
             "proposals": _proposals(conn), "appointments": _last_appointments(conn),
@@ -299,6 +324,24 @@ def agent_feed(conn, today: date) -> list[dict]:
               "text": ESCALATED.get(s["reason_code"]) or ("Stopped: health mention" if s["reason_code"] == "health_flag_handover"
                                                          else "Held: open proposal")
               + f" ({s['reason_code']})"} for s in stops]
+    booked = conn.execute(
+        """
+        SELECT v.ended_at::date AS day, v.ended_tx_at AS ts, v.mrn, p.full_name, v.outcome, v.reason_code, c.name, c.appointment_date,
+               c.appointment_time, v.undone_at, v.call_id
+        FROM voice_call v JOIN patient p USING (mrn) JOIN order_card c ON c.card_id = v.card_id
+        WHERE v.status = 'ended' AND v.ended_at::date >= %s
+        """,
+        (since,),
+    ).fetchall()
+    for v in booked:
+        if v["outcome"] == "booked" and not v["undone_at"] and v["appointment_date"]:
+            what = (f"Booked {v['name']} on the call for {v['appointment_date']:%a} {_d(v['appointment_date'])}"
+                    + (f" {v['appointment_time']:%H:%M}" if v["appointment_time"] else ""))
+        else:
+            what = f"Automated call (simulated): {'rejected' if v['reason_code'] == 'patient_rejected' else v['outcome'].replace('_', ' ')}"
+            what += ", booking undone by a person" if v["undone_at"] else ""
+        rows.append({"day": v["day"], "ts": v["ts"], "mrn": v["mrn"], "full_name": v["full_name"], "text": what,
+                     "call_id": v["call_id"]})
     return sorted(rows, key=lambda r: r["ts"], reverse=True)
 
 

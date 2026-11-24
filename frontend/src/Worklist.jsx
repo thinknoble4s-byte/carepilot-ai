@@ -5,7 +5,8 @@ import { openCall, openDeptLists, openHandover, openMessages, openPause } from '
 import { PatientLink } from './PatientCard.jsx';
 import ProposalCard from './Proposals.jsx';
 import { InfoCopies, RoutingSettings } from './TestCycle.jsx';
-import { bookedLabel, Chip, fmt, GapState, GUARD, Reason, ScreenHead, useUI } from './ui.jsx';
+import { SimulateCall, VoicePanel } from './VoiceCall.jsx';
+import { bookedLabel, CallbackTimer, Chip, fmt, GapState, GUARD, Reason, ScreenHead, useUI } from './ui.jsx';
 
 const FILTERS = [['action', 'Coordinator action required'], ['noresp', 'No response'], ['overdue', 'Overdue'],
   ['verify', 'Awaiting verification'], ['duesoon', 'Due soon'], ['watch', 'Early warning'], ['ontrack', 'On track']];
@@ -74,6 +75,7 @@ export default function Worklist() {
       <ScreenHead eyebrow={`Care coordinator · ${me || ''}`} title="Workspace"
         sub="Everyone on follow-up. The CarePilot agent runs the repetitive coordination work around the clock; you see what needs a person — exceptions, escalations and conversations — and what the agent has already done. Click a patient to open them." />
       {GUARD}
+      <VoicePanel />
       <div className="card" style={{ padding: '12px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div className="seg">
@@ -165,12 +167,14 @@ export default function Worklist() {
               <div className="v4-name">
                 <PatientLink mrn={p.mrn} name={p.full_name} style={{ color: 'inherit', textDecoration: 'none' }} />
                 {p.mrn === 'SYN-0011' && <> <span className="tag hosp">Demo patient</span></>}
+                {ui.demoCases?.filter((c) => c.mrn === p.mrn).map((c) => <React.Fragment key={c.case}> <span className="tag hosp">Case {c.case}</span></React.Fragment>)}
               </div>
               <div className="v4-meta">{p.mrn} · {p.language}{p.therapy ? ` · ${p.therapy}` : ''}
                 {p.treatment_end ? ` · month ${Math.max(0, Math.round((new Date(data.today) - new Date(p.treatment_end)) / 864e5 / 30.4))}` : ''}</div>
             </div>
             <div><Chip k={p.main} /></div>
             <div className="v4-reason">
+              {p.safety && <div><CallbackTimer c={p.safety} /></div>}
               {p.reasons.length ? p.reasons.slice(0, 3).map((r, i) => <Reason key={i} r={r} today={data.today} />)
                 : <div>Nothing due in the next 14 days</div>}
               {p.reasons.length > 3 && <div className="small-note">+{p.reasons.length - 3} more</div>}
@@ -229,7 +233,8 @@ export default function Worklist() {
                 <tr key={c.card_id}>
                   <td><PatientLink mrn={c.mrn} name={c.full_name} /> <span className="small-note">{c.mrn}</span></td>
                   <td>{c.name}</td><td>{fmt(c.due_date)}</td>
-                  <td><span className={`tag ${c.state === 'Due' ? '' : 'verified'}`}>{c.state === 'Booked' ? bookedLabel(c) : c.state}</span></td>
+                  <td><span className={`tag ${c.state === 'Due' ? '' : 'verified'}`}>{c.state === 'Booked' ? bookedLabel(c) : c.on_hold ? 'On hold: handover open' : c.voice ? 'Booking overdue' : c.state}</span>
+                    {c.voice && <SimulateCall card={c} />}</td>
                   <td>{c.owner_name}<div className="small-note">cover {c.cover_name}</div></td>
                   <td>{c.origin === 'plan_item' ? 'Plan item' : "Doctor's instruction"}</td>
                   <td><GapState status={c.gap_status} reason={c.gap_reason} rule={c.gap_rule} /></td>
@@ -251,7 +256,8 @@ export default function Worklist() {
             <div key={i} className="e">
               <div className="ts">{fmt(r.day)}</div>
               <div><span className="v4-k agent">Agent</span></div>
-              <div><PatientLink mrn={r.mrn} name={r.full_name} bold /> — {r.text}</div>
+              <div><PatientLink mrn={r.mrn} name={r.full_name} bold /> — {r.text}
+                {r.call_id && <> <button type="button" className="btn sm ghost" onClick={() => ui.voiceCall({ callId: r.call_id })}>Call record</button></>}</div>
             </div>
           ))}
           {!data.feed.length && <div className="small-note">No agent actions yet today. Run the morning check.</div>}

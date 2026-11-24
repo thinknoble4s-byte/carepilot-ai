@@ -1,8 +1,10 @@
 // Voice Triage MVP-lite (CarePilot_Voice_Triage_MVP_Lite_v1.2): the call pane in the phone simulator (what the AI
 // heard and the questions the router built), the "Why this tier" panel, the Triage Room and the Pre-OPD brief.
-// The call is simulated: Bulbul speaks the fixed lines in the patient's language (Tamil, Hindi or Telugu; text only
+// The call is simulated: Bulbul speaks the fixed lines in the patient's language (Hindi for every demo patient; text only
 // in simulated mode), the tester answers by voice, words or on-screen buttons, and plain rules give Red, Amber or Green. Every screen says SYNTHETIC DEMO.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { CallFace, startRingtone } from './CallPhone.jsx';
 import { api, blobUrl, post, upload } from './api.js';
 import { openMessages, toWav } from './Modals.jsx';
 import { PatientLink } from './PatientCard.jsx';
@@ -65,7 +67,7 @@ function Previous({ ep }) {
 export function Synthetic() {
   return (
     <div className="vt-synth">SYNTHETIC DEMO · Voice Triage MVP-lite v1.2 · DRAFT_UNSIGNED — thresholds, the new rules and the
-      Tamil, Hindi and Telugu lines are clinician-reviewed drafts until Dr. Sekhar signs them. AI listens, code decides, people decide care.</div>
+      Hindi lines are clinician-reviewed drafts until Dr. Sekhar signs them. AI listens, code decides, people decide care.</div>
   );
 }
 
@@ -306,7 +308,7 @@ export function PlanChips({ ep }) {
 
 // The call pane in the phone simulator (coordinator plays the patient). onChange reloads the chat beside it, where
 // the call's messages (the Green advice, the family's Red message with the PDF) appear.
-export function CallPane({ patient, onChange }) {
+export function CallPane({ patient, onChange, phone, onRinging }) {
   const ui = useUI();
   const [ep, setEp] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -360,6 +362,12 @@ export function CallPane({ patient, onChange }) {
     run(() => upload(`triage/episodes/${ep.episode_id}/answer-voice`, fd)).then(shown);
   };
 
+  // While the call is due the patient's phone rings (the same screen as the DEXA call), in place of the chat.
+  const ringing = ep?.call_status === 'due' && ep.status === 'open';
+  useEffect(() => { onRinging?.(ringing); }, [ringing, onRinging]);
+  useEffect(() => () => onRinging?.(false), [onRinging]);
+  useEffect(() => (ringing && !busy ? startRingtone() : undefined), [ringing, busy, ep?.attempts]);
+
   if (!loaded) return null;
   const q = ep?.current;
   return (
@@ -367,7 +375,7 @@ export function CallPane({ patient, onChange }) {
       <div className="card-title">📞 Automated triage call {ep && <TierPill ep={ep} />}
         {ep && <span className="small-note">#{ep.episode_id} · {ep.call_status.replace('_', ' ')}{ep.status === 'closed' ? ' · closed' : ''}</span>}</div>
       <Synthetic />
-      {!ep && <div className="small-note">No call yet. Send a voice note about her health (e.g. TA-01 below): the AI tags it, the rules build
+      {!ep && <div className="small-note">No call yet. Send a voice note about her health (e.g. HI-04 below): the AI tags it, the rules build
         the questions, the fixed acknowledgement goes out and the call is due within 2 minutes. A message that is clearly not about health
         (e.g. “I want to go shopping tomorrow”) gets one standard reply and no call.</div>}
       {ep && (
@@ -375,15 +383,13 @@ export function CallPane({ patient, onChange }) {
           <label style={{ marginLeft: 8 }}><input type="checkbox" checked={voice} onChange={(e) => { if (!e.target.checked) stopVoice(); setVoice(e.target.checked); }} /> Play Bulbul voice{provider === 'fake' ? ' (simulated mode: text only)' : ''}</label></div>
       )}
       {ep && <PlanChips ep={ep} />}
-      {ep?.call_status === 'due' && ep.status === 'open' && (
-        <div className="vt-ring">
-          <div><b>Incoming call — {ep.attempts ? 'second call' : `due by ${hm(ep.call_due_at)}`}</b><span className="small-note"> · from {ui.user?.person ? 'the clinic' : 'CarePilot'} (automated)</span></div>
-          <div className="btn-row">
-            <button type="button" className="btn primary" disabled={busy} onClick={() => act('pickup', {}, 'Call answered')}>Pick up</button>
-            <button type="button" className="btn" disabled={busy} onClick={() => act('no-answer', {}, (r) => (r.tier ? 'Second call not answered: Red (no answer)' : 'Not answered; the next call is in 5 minutes (clock moved)'))}>She does not answer</button>
-          </div>
-        </div>
+      {ringing && phone && createPortal(
+        <CallFace phase="ringing" clinic={ui.demoSettings?.voice_escalation?.caller_name || ui.clinic || 'Hospital A'} now={ui.now}
+          busy={busy} onAccept={() => act('pickup', {}, 'Call answered')}
+          onReject={() => act('no-answer?rejected=true', {}, (r) => (r.tier ? 'Second call not answered: handed on (no answer)' : 'Rejected; the next call is in 5 minutes (clock moved)'))} />,
+        phone,
       )}
+      {ringing && <div className="vc-hearing">Ringing on the patient's phone{ep.attempts ? ' (second call)' : ''}: tap Accept or Reject there.</div>}
       {ep?.call_status === 'in_call' && q && (
         <div className="vt-q">
           <div className="small-note">Question {ep.table.findIndex((x) => x.id === q.id) + 1} of {ep.table.length}{q.history && <span className="tag">history</span>}{q.danger && <span className="tag">Red question</span>}</div>
@@ -1079,7 +1085,7 @@ function Ticket({ id, view, cfg }) {
 function QuestionBank() {
   const [bank, setBank] = useState(null);
   const [error, setError] = useState('');
-  const [lang, setLang] = useState('Tamil');
+  const lang = 'Hindi';
   useEffect(() => { api('triage/questions').then(setBank).catch((e) => setError(e.message)); }, []);
   if (!bank) return <div className="card"><div className="empty">{error || 'Loading…'}</div></div>;
   return (
@@ -1087,7 +1093,7 @@ function QuestionBank() {
       <div className="card-title">Question bank ({bank.questions.length} questions)</div>
       <ul className="vt-sum">{bank.rules.map((r) => <li key={r}>{r}</li>)}</ul>
       <div className="seg" role="group" aria-label="Language" style={{ margin: '8px 0' }}>
-        {['Tamil', 'Hindi', 'Telugu'].map((l) => <button key={l} type="button" className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>{l}</button>)}
+        <button type="button" className="on">{lang}</button>
       </div>
       <table className="vt-table">
         <thead><tr><th>#</th><th>Question</th><th>Module (asked when)</th><th>Answer</th><th>Rules</th></tr></thead>
@@ -1108,7 +1114,7 @@ function QuestionBank() {
           ))}
         </tbody>
       </table>
-      <div className="small-note" style={{ marginTop: 8 }}>&lt;…&gt; is filled from her record (the day she last reported a headache). Tamil, Hindi and Telugu are drafts until Dr. Sekhar signs them.</div>
+      <div className="small-note" style={{ marginTop: 8 }}>&lt;…&gt; is filled from her record (the day she last reported a headache). Hindi lines are drafts until Dr. Sekhar signs them.</div>
     </div>
   );
 }

@@ -110,7 +110,9 @@ def gate1(conn, handover_id: int, user: dict, choice: str | None) -> dict:
         h = _stage(conn, h, "ready_to_close", gate1_choice=choice, gate1_by=user["user_id"],
                    gate1_on=clock.get_today(conn))
         next_action = "Coordinator to close the handover with a reason"
-    audit.append(conn, actor_type="person", actor_name=user["user_id"], action="gate1_decided", entity_type="handover",
+    audit.append(conn, actor_type="person", actor_name=user["user_id"], entity_type="handover",
+                 action="coordinator_action" if h["voice_call_id"] else "gate1_decided",
+                 reason_code=choice if h["voice_call_id"] else None,
                  entity_id=str(handover_id), mrn=h["mrn"], outcome=choice,
                  details={"handover_response_minutes": minutes})
     set_next_action(conn, h["mrn"], next_action)
@@ -161,7 +163,9 @@ def gate2(conn, handover_id: int, user: dict, decision: str | None) -> dict:
     next_action = f"Doctor's instruction (Gate 3) by {_due(task)}"
     h = _stage(conn, h, "awaiting_instruction", gate2_decision=decision, gate2_by=user["user_id"],
                gate2_on=clock.get_today(conn), gate2_at_demo=clock.get_now(conn))
-    audit.append(conn, actor_type="person", actor_name=user["user_id"], action="gate2_decided", entity_type="handover",
+    audit.append(conn, actor_type="person", actor_name=user["user_id"], entity_type="handover",
+                 action="doctor_decision" if h["voice_call_id"] else "gate2_decided",
+                 reason_code=decision if h["voice_call_id"] else None,
                  entity_id=str(handover_id), mrn=h["mrn"], outcome=decision)
     if decision == "urgent" and urgent_calls.config(conn):
         # Use Case 2c REQ-01: the call-today task is created at once, before the instruction is typed.

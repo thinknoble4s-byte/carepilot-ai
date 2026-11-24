@@ -8,6 +8,7 @@ import Intake from './Intake.jsx';
 import PatientPage from './PatientPage.jsx';
 import Timeline from './Timeline.jsx';
 import { myView, TriageRoom, waitsOn } from './Triage.jsx';
+import { VoiceCallScreen } from './VoiceCall.jsx';
 import Worklist from './Worklist.jsx';
 import { fmt, Modal, Scope, UI } from './ui.jsx';
 
@@ -76,11 +77,23 @@ function readUser() {
   }
 }
 
-function ResetChoice({ onReset }) {
+function ResetChoice({ onReset, onVoice }) {
   return (
     <div className="grid-2">
       <div className="card-flat" style={{ gridColumn: '1 / -1' }}>
-        <div className="small-note" style={{ lineHeight: 1.7 }}><b>No plan is seeded in any data set.</b> On each Patient page the
+        <div className="card-title">Use Case 1-V: voice escalation <span className="vc-sim">SIMULATED CALL</span></div>
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Mrs. Sunita Verma (SYN-0301, Hindi, on Letrozole): her 3-month DEXA
+          is booking overdue. Wednesday's WhatsApp reminder has had no reply for 2 days, and the demo loads on Friday 10:00. Start
+          opens her order card: press Simulate call there. S2: she is fine, the agent explains once and books. S3: she
+          mentions pain, so the agent stops and a person takes over.</div>
+        <div className="btn-row">
+          <button type="button" className="btn primary" onClick={() => onVoice('s2')}>Start S2: I'm fine, no need</button>
+          <button type="button" className="btn primary" onClick={() => onVoice('s3')}>Start S3: safety stop</button>
+          <button type="button" className="btn" onClick={() => onReset('uc1v')}>Reset to Use Case 1-V</button>
+        </div>
+      </div>
+      <div className="card-flat" style={{ gridColumn: '1 / -1' }}>
+        <div className="small-note" style={{ lineHeight: 1.7 }}><b>No plan is seeded in the data sets below</b>, except for the Golden Path's five case patients. On each other Patient page the
           coordinator chooses one of the three care plans: <b>T1</b> hormone receptor positive, <b>T2</b> hormone receptor negative or
           <b> T3</b> HER2 positive, with the treatment end date. Visits fall at months 3, 6, 9 and 12, and each visit's tests are due
           7 days before it. The blood test goes Due → Booked → Completed → Report received → Report verified (the system verifies a
@@ -125,19 +138,22 @@ function ResetChoice({ onReset }) {
       </div>
       <div className="card-flat">
         <div className="card-title">Voice Triage MVP-lite</div>
-        <div className="small-note" style={{ lineHeight: 1.7 }}>Mrs. Lakshmi V. (SYN-0142, Tamil, son Karthik), her 10 Oct and 19 Oct
+        <div className="small-note" style={{ lineHeight: 1.7 }}>Mrs. Lakshmi V. (SYN-0142, Hindi, son Karthik), her 10 Oct and 19 Oct
           history; Anita (cover Ravi), Dr. Ananya on duty, Dr. Sekhar; clock Tue 27 Oct 10:12. Send voice note TA-01:
-          the acknowledgement, then the automated call (10 Tamil questions), Red, Amber or Green by plain rules, the Red package
+          the acknowledgement, then the automated call (10 Hindi questions), Red, Amber or Green by plain rules, the Red package
           with the PDF, the doctor's order, the follow-up and the Pre-OPD brief. Replaces the Use Case 2c handover for health messages.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('vt')}>Reset to Voice Triage</button></div>
       </div>
       <div className="card-flat">
         <div className="card-title">Golden Path data</div>
         <div className="small-note" style={{ lineHeight: 1.7 }}>Savitri Patil (SYN-0011, the demo patient, Hindi), Nirmala Reddy
-          (SYN-0013, Telugu) and Lakshmi V. (SYN-0142, Tamil; for Voice Triage: son Karthik, her 10 Oct and 19 Oct history); Priya and
-          Meera. Each patient's messages and triage call are in her own language (voice notes HI-04, TE-01, TA-01). Everything switched on, including the test cycle: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
+          (SYN-0013, Hindi) and Lakshmi V. (SYN-0142, Hindi; for Voice Triage: son Karthik, her 10 Oct and 19 Oct history); Priya and
+          Meera. Every patient's messages and triage call are in Hindi (voice notes HI-04 to HI-07). Everything switched on, including the test cycle: G0 and G1, visit and test cards, caregiver copy, button replies and handovers,
           tasks for people. A health message goes to Voice Triage (the call, Red, Amber or Green); HELP still
-          opens a handover.</div>
+          opens a handover. Booking cases, all Hindi, the plans already confirmed: 1 Radha Sharma (already booked), 1a Anjana
+          Gupta (help me book), 1c Kamla Joshi (booked elsewhere), 2 Savitri Patil (no response, S2 books) and Sushila Kulkarni (no response, S3 safety stop). Set
+          25 Nov 2026 10:00 to reply to the reminders, then 27 Nov 2026 10:00 (or go straight to it) for Simulate call on
+          their DEXA cards.</div>
         <div className="btn-row"><button type="button" className="btn" onClick={() => onReset('step_a')}>Reset to Golden Path</button></div>
       </div>
     </div>
@@ -164,6 +180,7 @@ export default function App() {
   const [today, setToday] = useState(null);
   const [now, setNow] = useState(null);
   const [demoSettings, setDemoSettings] = useState(null);
+  const [voiceScript, setVoiceScript] = useState('s2'); // UC1-V: how the simulated patient answers
   const [counts, setCounts] = useState({});
   const [version, setVersion] = useState(0);
   const [modal, setModal] = useState(null);
@@ -220,6 +237,14 @@ export default function App() {
     window.scrollTo(0, 0);
   }, []);
 
+  // UC1-V: the call screen. A new key each time, so each opening is its own call.
+  const voiceCall = useCallback((props) => setModal({
+    title: 'Hospital agent calling the patient',
+    sub: "An automated call in the patient's preferred language. The line and approval status show on every agent line.",
+    body: <VoiceCallScreen key={Date.now()} {...props} />,
+    wide: 'call',
+  }), []);
+
   const ui = useMemo(() => ({
     toast,
     showModal: (title, sub, body, wide) => setModal({ title, sub, body, wide }),
@@ -233,7 +258,14 @@ export default function App() {
     name: (id) => users.find((u) => u.id === id)?.person || id,
     // Testing round 2 Nov: "Pending with" switches to that persona in one click (demo only; no sign-in here)
     switchTo: (id, screen, mrn) => switchRef.current?.(id, screen, mrn),
-  }), [toast, refresh, nav, today, now, role, user, users]);
+    clinic: demoSettings?.clinic_name,
+    demoCases: demoSettings?.demo_cases || [],
+    demoSettings,
+    voiceCall,
+    voiceScript,
+    setVoiceScript,
+    runVoiceDemo: (script) => voiceRef.current?.(script),
+  }), [toast, refresh, nav, today, now, role, user, users, demoSettings, voiceCall, voiceScript]);
 
   useEffect(() => {
     api('users').then(setUsers).catch(() => {});
@@ -278,6 +310,7 @@ export default function App() {
   const reloadUsers = () => api('users').then(setUsers).catch(() => {});
 
   const switchRef = useRef(null);
+  const voiceRef = useRef(null);
   const switchUser = (next) => {
     setUserId(next);
     setUser(next);
@@ -300,7 +333,26 @@ export default function App() {
   const demo = async (fn, message) => {
     setBusy(true);
     try {
-      toast(message(await fn()));
+      const r = await fn();
+      toast(message(r));
+      refresh();
+    } catch (e) {
+      toast(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // UC1-V: the data loads booking overdue. Start only lands on the order card, whose button places the call.
+  voiceRef.current = async (script) => {
+    setBusy(true);
+    try {
+      setModal(null);
+      await post('demo/reset', { scenario: 'uc1v' });
+      await reloadUsers();
+      switchUser('u_anita');
+      setVoiceScript(script);
+      nav('plan', 'SYN-0301');
       refresh();
     } catch (e) {
       toast(e.message);
@@ -411,7 +463,7 @@ export default function App() {
                   )}
                   <button type="button" className="scope-btn" disabled={busy}
                     onClick={() => ui.showModal('Reset demo', 'All demo data and the audit trail go back to a starting state. Choose the data set.',
-                      <ResetChoice onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); return `Demo reset (${{ uc1: 'Use Case 1', uc2a: 'after Use Case 1', uc2b: 'Use Case 2b', uc2c: 'Use Case 2c', uc2t: 'Use Case 2T', vt: 'Voice Triage', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
+                      <ResetChoice onVoice={ui.runVoiceDemo} onReset={(scenario) => { ui.closeModal(); demo(() => post('demo/reset', { scenario }), (r) => { reloadUsers(); if (r.scenario === 'uc1v') setPid('SYN-0301'); return `Demo reset (${{ uc1: 'Use Case 1', uc1v: 'Use Case 1-V', uc2a: 'after Use Case 1', uc2b: 'Use Case 2b', uc2c: 'Use Case 2c', uc2t: 'Use Case 2T', vt: 'Voice Triage', step_a: 'Golden Path' }[r.scenario]}): ${r.patients} patients, demo date ${fmt(r.clock)}`; }); }} />)}>
                     Reset demo
                   </button>
                 </>

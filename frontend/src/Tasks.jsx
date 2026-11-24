@@ -21,6 +21,9 @@ const RESULTS = {
   find_hospital_report: ['sorted', 'needs_follow_up'],
   call_about_test: ['booked', 'sorted', 'needs_follow_up', 'not_reached'],
   call_patient_resend: ['sorted', 'needs_follow_up', 'not_reached'],
+  // UC1-V section 6.2: the safe exits of the automated call
+  ...Object.fromEntries(['voice_not_connected', 'voice_not_reached', 'voice_declined', 'voice_book_by_phone', 'voice_unclear',
+    'voice_rebook'].map((t) => [t, ['booked', 'could_not_book', 'not_reached']])),
 };
 const REASON_LABEL = { cost: 'Cost', pre_authorisation: 'Pre-authorisation', transport: 'Transport or distance', work_family: 'Work or family', other: 'Other' };
 const STATE_TONE = { Open: 'warn', Overdue: 'bad', Done: 'good', Cancelled: 'gray', 'Moved to cover': 'bad' };

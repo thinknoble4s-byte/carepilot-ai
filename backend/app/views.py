@@ -1,5 +1,5 @@
 """Read side for the Workspace, Patient journey and Summary screens."""
-from . import messaging, policy, urgent_calls
+from . import messaging, policy, urgent_calls, voice_escalation
 from .errors import NotFound
 from .states import DONE_STATES
 
@@ -61,11 +61,11 @@ def patient_detail(conn, mrn: str) -> dict:
             """,
             (mrn,),
         ).fetchall(),
-        "handover": conn.execute(
+        "handover": voice_escalation.safety_handover(conn, conn.execute(
             """SELECT h.*, i.kind AS inbound_kind, i.transcript, i.translation AS ai_translation, i.audio_id
                FROM handover h LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id
                WHERE h.mrn = %s ORDER BY (h.stage = 'closed'), h.handover_id DESC LIMIT 1""", (mrn,)
-        ).fetchone(),
+        ).fetchone()),
         "proposals": conn.execute(
             """SELECT p.*, i.transcript, i.translation, i.audio_id, i.kind, i.text
                FROM proposal p JOIN inbound_message i USING (inbound_id) WHERE p.mrn = %s
@@ -124,22 +124,24 @@ def patient_card(conn, mrn: str) -> dict:
 def patient_cards(conn, mrn: str) -> list[dict]:
     if conn.execute("SELECT 1 FROM patient WHERE mrn = %s", (mrn,)).fetchone() is None:
         raise NotFound(f"Patient {mrn} not found")
-    return conn.execute(
+    return voice_escalation.for_cards(conn, conn.execute(
         """
-        SELECT c.card_id, c.item_code, c.card_type, c.name, c.department, c.due_date, c.state, c.appointment_date,
+        SELECT c.card_id, c.mrn, c.item_code, c.card_type, c.name, c.department, c.due_date, c.state, c.appointment_date,
                c.appointment_time, c.booking_source, c.owner_name, c.cover_name, c.origin, c.care_plan_id,
                c.test_code, c.patient_says_booked, c.completed_on, c.report_road, c.specimen, c.verified_by, c.label,
                c.verified_at_demo,
                (SELECT row_to_json(r) FROM (SELECT report_id, file_name, received_at_demo, status FROM test_report
                   WHERE card_id = c.card_id AND status IN ('verified', 'auto_matched') ORDER BY report_id DESC LIMIT 1) r) AS report,
                g.rule AS gap_rule, g.status AS gap_status, g.blocked_reason AS gap_reason, g.detected_on AS gap_detected_on,
-               g.acted_on AS gap_acted_on
+               g.acted_on AS gap_acted_on,
+               c.state = 'Due' AND EXISTS (SELECT 1 FROM handover h JOIN voice_call v ON v.call_id = h.voice_call_id
+                 WHERE v.card_id = c.card_id AND h.stage <> 'closed') AS on_hold
         FROM order_card c
         LEFT JOIN LATERAL (SELECT * FROM gap_event WHERE card_id = c.card_id ORDER BY gap_id DESC LIMIT 1) g ON true
         WHERE c.mrn = %s ORDER BY c.card_id
         """,
         (mrn,),
-    ).fetchall()
+    ).fetchall())
 
 
 def open_tasks(conn) -> list[dict]:
@@ -208,6 +210,14 @@ def messages(conn, mrn: str) -> list[dict]:
         SELECT 'call', call_id, created_at, called_on, NULL, who, note, NULL, NULL, outcome, NULL, NULL, called_by,
                NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
         FROM call_log WHERE mrn = %(mrn)s
+        UNION ALL
+        SELECT 'call', -v.call_id, v.ended_tx_at, v.ended_at::date, v.ended_at::time, 'patient',
+               'SIMULATED CALL', NULL, NULL, CASE WHEN v.reason_code = 'patient_rejected' THEN 'rejected' ELSE replace(v.outcome, '_', ' ') END, NULL, NULL, 'CarePilot agent',
+               NULL, NULL, NULL, 'voice_call', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+               (SELECT c.name FROM order_card c WHERE c.card_id = v.card_id),
+               (SELECT min(a.id) FROM audit_ledger a WHERE a.mrn = %(mrn)s AND a.entity_type = 'voice_call'
+                  AND a.entity_id = v.call_id::text)
+        FROM voice_call v WHERE v.mrn = %(mrn)s AND v.status = 'ended'
         ) t LEFT JOIN triage_episode e ON e.episode_id = t.triage_episode_id
         ORDER BY t.created_at, t.seq NULLS LAST, t.direction <> 'in', t.id
         """,
@@ -221,9 +231,9 @@ def needs_you(conn) -> dict:
         "handovers": conn.execute(
             """
             SELECT h.handover_id, h.mrn, p.full_name, h.trigger, h.stage, h.patient_words, h.opened_on,
-                   h.gate2_decision, h.opened_at_demo, i.kind AS inbound_kind
+                   h.gate2_decision, h.opened_at_demo, i.kind AS inbound_kind, h.voice_call_id, h.callback_due_at
             FROM handover h JOIN patient p USING (mrn) LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id
-            WHERE h.stage <> 'closed' ORDER BY h.handover_id
+            WHERE h.stage <> 'closed' ORDER BY h.voice_call_id IS NULL, h.handover_id
             """
         ).fetchall(),
         "tasks": conn.execute(
@@ -251,13 +261,15 @@ def doctor_queue(conn) -> list[dict]:
         SELECT h.handover_id, h.mrn, p.full_name, p.preferred_language, h.stage, h.trigger, h.patient_words,
                h.translation, h.source, h.call_note, h.gate1_by, h.gate2_decision, h.doctor, h.ai_failed,
                i.kind AS inbound_kind, i.audio_id, i.transcript, h.inbound_id,
+               h.voice_call_id, h.voice_turn, h.callback_due_at, h.called_on,
                (SELECT due_date FROM coordinator_task t WHERE t.handover_id = h.handover_id AND t.status = 'open'
                   AND t.task_type IN ('doctor_decision', 'doctor_instruction') ORDER BY task_id DESC LIMIT 1) AS due_date
         FROM handover h JOIN patient p USING (mrn) LEFT JOIN inbound_message i ON i.inbound_id = h.inbound_id
         WHERE h.stage IN ('awaiting_doctor', 'awaiting_instruction') ORDER BY h.handover_id
         """
     ).fetchall()
-    return [{**r, "call_line": urgent_calls.call_line(conn, r["handover_id"])} for r in rows]
+    return [{**voice_escalation.safety_handover(conn, r), "call_line": urgent_calls.call_line(conn, r["handover_id"])}
+            for r in rows]
 
 
 def handover_detail(conn, handover_id: int) -> dict:
@@ -268,7 +280,7 @@ def handover_detail(conn, handover_id: int) -> dict:
         (handover_id,)).fetchone()
     if h is None:
         raise NotFound(f"Handover {handover_id} not found")
-    return {**h, "tasks": conn.execute(
+    return {**voice_escalation.safety_handover(conn, h), "tasks": conn.execute(
         """
         SELECT task_id, task_type, reason, status, owner_name, cover_name, assigned_name, due_date, escalated_on,
                done_by, done_note, done_on
@@ -290,13 +302,15 @@ def appointments(conn) -> list[dict]:
 
 def all_cards(conn) -> list[dict]:
     """Every order card across patients, with its latest gap (state and reason): the Workspace card list."""
-    return conn.execute(
+    return voice_escalation.for_cards(conn, conn.execute(
         """
         SELECT c.card_id, c.mrn, p.full_name, c.item_code, c.card_type, c.name, c.due_date, c.state, c.booking_source,
                c.appointment_date, c.appointment_time, c.owner_name, c.cover_name, c.origin, g.rule AS gap_rule, g.status AS gap_status,
-               g.blocked_reason AS gap_reason
+               g.blocked_reason AS gap_reason,
+               c.state = 'Due' AND EXISTS (SELECT 1 FROM handover h JOIN voice_call v ON v.call_id = h.voice_call_id
+                 WHERE v.card_id = c.card_id AND h.stage <> 'closed') AS on_hold
         FROM order_card c JOIN patient p USING (mrn)
         LEFT JOIN LATERAL (SELECT * FROM gap_event WHERE card_id = c.card_id ORDER BY gap_id DESC LIMIT 1) g ON true
         ORDER BY c.due_date, p.full_name, c.card_id
         """
-    ).fetchall()
+    ).fetchall())

@@ -68,10 +68,62 @@ Follow-up and continuity-of-care agent for cancer survivors. This repo builds th
     - **New voice notes per patient language:** severe left-arm pain (HI-05, TE-02, TA-02), tired for ten days (HI-06, TE-03, TA-03) and shopping tomorrow (HI-07, TE-04, TA-04). They are Bulbul stand-ins for native recordings.
     - **Deferred:** the PDF restyle, the read-only Senior Oncologist view, TR-24 PDF export, TR-22 audio retention, and re-stitching the audio with end times.
   - With the AI off (`AI_PROVIDER=fake`) Bulbul is silent and a spoken answer fails closed to Red; use the buttons or typed words.
-  - Data: the new **Voice Triage** data set (`seed_data/vt/`). It holds Mrs. Lakshmi V., SYN-0142, Tamil, son Karthik, with her 10 Oct and 19 Oct history, plus Anita, Ravi, Dr. Ananya on duty, Dr. Sekhar and the ER Desk. The clock starts on 27 Oct 10:12; send voice note TA-01. The **Golden Path** has it switched on as well (`settings.json` v1.2 `voice_triage`, history in `seed_data/triage_history.json`) and includes Lakshmi V. (SYN-0142) as a third patient for testing it, with the same history and the Golden Path's doctors (advice by Dr. Kavita Menon, treating oncologist Dr. Sekhar). Each Golden Path patient's call, messages and family Red message are in her own language: Savitri Hindi (voice note HI-04), Nirmala Telugu (TE-01), Lakshmi Tamil (TA-01). Every Hindi, Telugu and Tamil line is a draft for a native speaker to check. Use Case 2c is unchanged. Migration `012_voice_triage.sql`; tests are in `tests/test_voice_triage.py`.
+  - Data: the new **Voice Triage** data set (`seed_data/vt/`). It holds Mrs. Lakshmi V., SYN-0142, Hindi (was Tamil), son Karthik, with her 10 Oct and 19 Oct history, plus Anita, Ravi, Dr. Ananya on duty, Dr. Sekhar and the ER Desk. The clock starts on 27 Oct 10:12; send voice note TA-01. The **Golden Path** has it switched on as well (`settings.json` v1.2 `voice_triage`, history in `seed_data/triage_history.json`) and includes Lakshmi V. (SYN-0142) as a third patient for testing it, with the same history and the Golden Path's doctors (advice by Dr. Kavita Menon, treating oncologist Dr. Sekhar). Each Golden Path patient's call, messages and family Red message are in her own language: Savitri Hindi (voice note HI-04), Nirmala Telugu (TE-01), Lakshmi Tamil (TA-01). Every Hindi, Telugu and Tamil line is a draft for a native speaker to check. Use Case 2c is unchanged. Migration `012_voice_triage.sql`; tests are in `tests/test_voice_triage.py`.
 - **Screens match prototype v7.2** (`prototype/carepilot_ai_prototype_v7.2.html`; its stylesheet is copied verbatim into `frontend/src/prototype.css`): Workspace worklist with statuses and reasons, the patient page, Patient journey timeline with origin tracing, Needs my decision, Intake & verification (upload → preview → apply), Care Plan, Performance Indicators and a filterable Audit trail, each fed by real records. Panels that need data not built yet (documents, medicines, refills, measured KPIs) say so instead of showing invented values.
 
 > **Demo profile:** synthetic data only, security deferred (no login, public endpoints, public database with a password). Do not load real patient data into this stack.
+
+## Use Case 1-V: voice escalation (SIMULATED CALL)
+
+Spec: `usecase-docs/CarePilot_UC1-V_Voice_Escalation_Spec_v0.1.2.docx` (a draft, not yet approved). Migration 020.
+
+When a follow-up is still not booked and the T-7 reminder has had no reply for 48 hours, that test's order card shows **Simulate call**. The hospital's agent then calls the patient in their preferred language. The patient's phone rings with Accept and Reject, and after Accept both sides play by themselves. There is no telephony, and the patient is a synthetic voice.
+
+**Run it:** **Reset demo → Start S2** or **Start S3** → **Simulate call** on the DEXA order card → **Accept**.
+
+- The data loads booking overdue: reminder Wed 25 Nov 07:30, clock Fri 27 Nov 10:00. No date change is needed. Reset restores this for the next showing.
+- **In the Golden Path (scope A):** Reset to Golden Path → set the demo date to 27 Nov 2026 10:00 → Savitri Patil (opens on S2, books) or Sushila Kulkarni (opens on S3, safety stop) → Simulate call on the DEXA card, no reset between them. The plan (T1, Letrozole, treatment end 9 Sep 2026) is confirmed at reset.
+  - **Booking cases** (`settings.json` `demo_cases`; the plans are confirmed at reset): 1 Radha Sharma taps Booked, 1a Anjana Gupta taps Please help me book and a slot, 1c Kamla Joshi taps Booked elsewhere and is asked for the report once available, 2 Savitri Patil does not reply and gets the call. 25 Nov 2026 10:00 (the reminders go) → the three replies → 27 Nov 2026 10:00 → Simulate call.
+  - **Patient voice:** pace 1.5; S3 also has loudness 1.0, pitch -0.5 (the lowest bulbul:v3 accepts; -1.0 was asked). S2 keeps the usual tone. Set in `uc1v/scenario.json` `scripts.<s2 or s3>.patient_voice`; after a change delete that script's `*-s2*` or `*-s3*` clips, then run the kit's `clips` and `check`.
+  - **Simulated call pacing (22 Nov):** the patient thinks for 3 seconds before each reply and speaks at pace 1.5; S3 also has tone -0.5.
+  - **Hindi (22 Nov):** every patient in the Golden Path, Voice Triage (`vt` `native_language`) and 1-V speaks Hindi. Use Cases 1 to 2T keep English until their Hindi drafts are approved (`draft: true`: never sent).
+  - **Triage call:** after a health voice note the patient's phone rings in Messages; Accept starts the questions, Reject is an unanswered call.
+  - Setting the date forward runs each skipped T-7 morning for every patient, dated that day. For anyone outside the booking cases, confirm the plan before setting the date.
+  - The §7 lines are used only where they are true: Hindi, a DEXA card, Letrozole as the therapy on the plan and a checked Hindi spelling of the name (`library.json` `names`). Other overdue cards say why there is no call.
+  - Slots, on the call and after Please help me book, run up to the card's due date (none left: a person books). A booking by the agent closes that card's "help to book" task.
+  - A new name: add it to `names`, then run `scripts/voice_escalation_kit.py clips`, `lines` and `check`.
+- The button is absent before 48 hours, after a booking or after a patient reply. It is disabled, with the reason, when the safety gate would not pass.
+- **Reject:** no retry, and a task for the coordinator. **No answer:** one retry after 3 hours.
+- Nothing is said before Accept. The incoming call, line L2 and W1 say "Dr. Sekhar Clinic". No calls on Sunday.
+
+- **S2:** "I'm fine, no need" → one explanation → a yes to one slot → booked Tue 1 Dec 10:30 → confirmation W1.
+- **S3:** a mention of pain → safety stop, nothing booked → W2 → a handover at the top of Needs you with a 2-hour callback → the doctor chooses Urgent or Routine.
+
+**Guardrails:**
+
+- The agent says only section 7's lines (`backend/app/seed_data/uc1v/library.json`).
+- The AI listens and sorts; rules decide. A health word, an invalid answer, a timeout or an error is a safety stop.
+- A booking needs a clear yes to the slot offered.
+- Every step is audited in the same transaction.
+- Only Hindi lines exist, written for Mrs. Verma. Any other patient or language stops at the gate.
+
+**Voices:** the agent's lines are recorded in advance, because Bulbul was found to leave out clauses in long requests (it dropped one from the safety line L9). The kit records sentence by sentence and listens back. A long line without a recording is shown as text and never made live. After any wording or helpline change, run:
+
+```bash
+python scripts/voice_escalation_kit.py lines     # exit 1 lists sentences a person must listen to (needs ffmpeg and the Sarvam key)
+python scripts/voice_escalation_kit.py check     # the section 9 set on the real models
+python scripts/run_tests.py -k usecase1v
+```
+
+**Open before any real patient (spec section 11, and found while building):**
+
+- Dr. Sekhar's approval of L2, L4, L9 and W2. They show as DRAFT. W1 and W2 send in this data set only, as "DEMO ONLY, not approved".
+- The named owner of the 2-hour callback, and out-of-hours cover.
+- The real hospital, department and helpline. `000-000-0000` is a placeholder, and its run of zeros is not read out reliably.
+- The consent wording and the audio retention period.
+- A Hindi speaker's review of every recording, and human patient clips.
+- The model name: the spec says Sarvam-30B, the app uses `sarvam-105b`.
+- The choices the spec left open: the timing of the jobs and the 2-working-day due date of exit tasks.
 
 ## Layout
 

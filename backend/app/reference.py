@@ -28,6 +28,20 @@ def config() -> dict:
     return _json("config.json")
 
 
+def native_language(uc: dict) -> str | None:
+    """The language of every patient in a data set that names one (vt: Hindi, user 22 Nov). None: as the file says.
+    Not for uc1 to uc2t: their Hindi is unapproved (draft: true, never sent), so Hindi patients would get no message."""
+    return uc.get("native_language")
+
+
+def cleared_templates(uc: dict, language: str) -> list[dict]:
+    """For templates a data set has in other languages only: the Golden Path's own records, word for word, so no
+    new wording gets an approval."""
+    have = {t["template_id"] for t in uc["message_templates"] if t["language"] == language}
+    wanted = {t["template_id"] for t in uc["message_templates"]} - have
+    return [t for t in message_templates() if t["language"] == language and t["template_id"] in wanted]
+
+
 def plan_templates(departments: dict | None = None) -> list[dict]:
     """The three care plans (T1 hormone receptor positive, T2 hormone receptor negative, T3 HER2 positive), the
     only plan templates in every demo data set. A data set may name its own department owners and covers."""
@@ -65,6 +79,30 @@ def uc2a() -> dict:
 def vt() -> dict:
     """Voice Triage MVP-lite data set: Mrs. Lakshmi V. and her history (seed_data/vt)."""
     return _json("vt/scenario.json")
+
+
+def uc1v_library() -> dict:
+    """UC1-V: the section 7 lines and the section 10.1 patient clips, copied from the spec."""
+    return _json("uc1v/library.json")
+
+
+@cache
+def uc1v() -> dict:
+    """UC1-V voice escalation seed (seed_data/uc1v): W1 and W2 become templates from the same library."""
+    uc, library = _json("uc1v/scenario.json"), uc1v_library()
+    templates = [t for t in message_templates()
+                 if t["template_id"] in uc["base_templates"] and t["language"] in ("Hindi", "English")]
+    common = {"version": library["version"], "effective_from": "2026-10-21", "closing": None, "buttons": [],
+              "note": "DRAFT in the spec. Sendable in the synthetic demo only.",
+              "approved_by": "DEMO ONLY, not approved: UC1-V spec v0.1 draft wording"}
+    for language, pack in library["languages"].items():
+        for ln in pack["lines"]:
+            if ln["channel"] != "whatsapp":
+                continue
+            template_id = {"W1": "uc1v_w1_booked", "W2": "uc1v_w2_safety"}[ln["line_id"]]
+            templates += [{**common, "template_id": template_id, "language": language, "text": ln["text"]},
+                          {**common, "template_id": template_id, "language": "English", "text": ln["text_en"]}]
+    return {**uc, "message_templates": templates}
 
 
 def triage_history() -> dict:

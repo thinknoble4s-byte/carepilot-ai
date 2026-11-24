@@ -1,0 +1,34 @@
+﻿Section,Case,Patient,MRN,Language,Family contact,What you do as the patient,What the demo shows,Demo date / how to start,Notes
+Golden Path: booking and voice agent,1,Radha Sharma,SYN-0202,Hindi,,"Taps ""Booked"" on the T-7 reminder",DEXA card turns Booked with that date,Reset demo > Golden Path; set date 25 Nov 2026 10:00,"Plan T1, Letrozole, treatment end 9 Sep 2026"
+Golden Path: booking and voice agent,1a,Anjana Gupta,SYN-0204,Hindi,,"Taps ""Please help me book"", picks one of 4 slots",Card Booked with date and time (self-booking on WhatsApp),Reset demo > Golden Path; set date 25 Nov 2026 10:00,"Plan T1, Letrozole, treatment end 9 Sep 2026"
+Golden Path: booking and voice agent,1c,Kamla Joshi,SYN-0206,Hindi,,"Taps ""Booked elsewhere""",CarePilot asks for the report; send it from Messages to finish,Reset demo > Golden Path; set date 25 Nov 2026 10:00,"Plan T1, Letrozole, treatment end 9 Sep 2026"
+Golden Path: booking and voice agent,2 (S2),Savitri Patil,SYN-0011,Hindi,Ganesh Patil (son),No reply for 48 hours,"Hindi voice agent: 'I'm fine, no need' > one explanation > books Tue 1 Dec 10:30 > WhatsApp confirmation",Then set date 27 Nov 2026 10:00 > Simulate call on DEXA card > Accept,"Plan T1, Letrozole"
+Golden Path: booking and voice agent,2 (S3),Sushila Kulkarni,SYN-0209,Hindi,Rohan Kulkarni (son),No reply for 48 hours,"Mentions pain at the operation site > safety stop, nothing booked > handover to doctor with 2-hour callback > Urgent or Routine",Then set date 27 Nov 2026 10:00 > Simulate call on DEXA card > Accept,"Plan T1, Letrozole"
+Golden Path: voice triage,Triage,Savitri Patil,SYN-0011,Hindi,Ganesh Patil (son),"Sends a health voice note, e.g. HI-04 (left arm swollen); accepts the call",Automated call in Hindi > Red / Amber / Green; Red sends family message with the one-page PDF,Reset demo > Golden Path; Messages > voice note,"Pick the outcome with test-pack clips HI-R01..R05 (Red), HI-A01..A06 (Amber), HI-G01..G05 (Green)"
+Golden Path: voice triage,Triage,Nirmala Reddy,SYN-0013,Hindi (Telugu clips),None on file,Sends voice note TE-01; accepts the call,As above; no family message on Red (no family contact),Reset demo > Golden Path; Messages > voice note,Clips TE-R / TE-A / TE-G
+Golden Path: voice triage,Triage,Lakshmi V.,SYN-0142,Hindi (Tamil clips),Karthik (son),Sends voice note TA-01; accepts the call,As above; her 10 and 19 Oct history drives recurrence and 'worse than last time' rules,Reset demo > Golden Path; Messages > voice note,Clips TA-R / TA-A / TA-G
+Voice Triage data set (vt),Triage,Lakshmi V.,SYN-0142,Hindi,Karthik (son),Sends voice note TA-01,Triage on its own,Reset demo > Voice Triage; clock 27 Oct 10:12,
+Use Case 1-V,S2 / S3,Sunita Verma,SYN-0301,Hindi,,No reply; agent calls,S2 books / S3 safety stop,Reset demo > Start S2 or Start S3 > Simulate call > Accept,
+UC1 booking reminder,Normal,Meena,TP001,English,,Gets T-7 reminder,Normal reminder,Reset demo > Use Case 1,
+UC1 booking reminder,No consent,Asha,TP002,English,,-,No automated-messaging consent: no reminder,Reset demo > Use Case 1,
+UC1 booking reminder,Already booked,Ramesh,TP003,English,,-,Visit card already Booked: no reminder,Reset demo > Use Case 1,
+UC2a Hindi voice reply,Positive,Meena,TP001,English,,Sends voice note HI-01,Health concern flagged > handover to doctor,Reset demo > After Use Case 1,
+UC2a Hindi voice reply,Negative,Kavita,TP004,English,,Sends voice note HI-02,AI-drafted proposal for the coordinator,Reset demo > After Use Case 1,
+UC2b buttons and HELP,P1,Meena,TP001,English,,"Taps ""Please help me book""",Help-to-book task,Reset demo > Use Case 2b,
+UC2b buttons and HELP,P2,Kavita,TP004,English,,"Taps ""I can't come""",Reschedule handling,Reset demo > Use Case 2b,
+UC2b buttons and HELP,P3,Lakshmi,TP005,English,,"Types ""help""",HELP handling,Reset demo > Use Case 2b,
+UC2b buttons and HELP,N,Farida,TP006,English,,"Types ""this doesn't help my pain""",Negative case: treated as a health concern,Reset demo > Use Case 2b,
+UC2b buttons and HELP,P4,Rekha,TP007,English,,"Taps ""I can't come""; cannot be reached",Not-reached path,Reset demo > Use Case 2b,
+UC2c doctor picks Urgent,P1,Meena,TP001,English,,-,Doctor chooses Urgent; Anita reaches her the same morning,Reset demo > Use Case 2c (clock 10 Nov 09:30),
+UC2c doctor picks Urgent,N,Kavita,TP004,English,,-,Anita's call not answered; the cover reaches her,Reset demo > Use Case 2c,
+UC2c doctor picks Urgent,T5,Lakshmi,TP005,English,,-,Two no-answer attempts > Pass to cover,Reset demo > Use Case 2c,
+UC2c doctor picks Urgent,T6,Rekha,TP007,English,,-,Nobody reaches her by 18:00 > Overdue,Reset demo > Use Case 2c,
+UC2c doctor picks Urgent,T7,Farida,TP006,English,,-,Doctor chooses Routine: no call task,Reset demo > Use Case 2c,
+UC2T test cycle,P,Meena,TP001,English,,"Taps ""Please help me book""",Hospital lab; review visit already Booked Mon 14 Dec 10:30,Reset demo > Use Case 2T,
+UC2T test cycle,N,Kavita,TP004,English,,Taps Booked; outside lab; sends a clear photo of the report,"Report auto-matched, score 97",Reset demo > Use Case 2T,
+UC2T test cycle,T4,Lakshmi,TP005,English,,Taps Booked (no date),Hospital lab,Reset demo > Use Case 2T,
+UC2T test cycle,T6,Farida,TP006,English,,-,Lab sends a report with the wrong test code and one with the wrong MRN,Reset demo > Use Case 2T,
+UC2T test cycle,T7,Rekha,TP007,English,,-,Same as Meena but no next visit card,Reset demo > Use Case 2T,
+UC2T test cycle,T11,Geeta,TP008,English,,"Each button, silence, no upload",Outside-lab patient who does not follow through,Reset demo > Use Case 2T,
+UC2T test cycle,T12,Shobha,TP009,English,,Sends a CT report instead of the blood test; later a file with another name,Wrong report / wrong person caught,Reset demo > Use Case 2T,
+UC2T test cycle,"N2, T13",Asha,TP010,English,,Sends a slightly blurred photo,"Name partly read, score 82 > coordinator checks",Reset demo > Use Case 2T,

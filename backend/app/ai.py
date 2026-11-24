@@ -107,11 +107,11 @@ class Sarvam:
             raise AIFailure("empty model answer")
         return content
 
-    def tts(self, text: str, language: str, speaker: str, model: str) -> bytes:
-        """Bulbul: a fixed call line -> WAV (Voice Triage)."""
+    def tts(self, text: str, language: str, speaker: str, model: str, style: dict | None = None) -> bytes:
+        """Bulbul: a fixed call line -> WAV (Voice Triage). style: pace, loudness and pitch, for a simulated voice."""
         body = self._json("https://api.sarvam.ai/text-to-speech", {
             "text": text, "language_code": LANG_CODES.get(language, "en-IN"), "model": model, "speaker": speaker,
-            "pace": 0.95, "speech_sample_rate": 22050, "output_audio_codec": "wav"})
+            "pace": 0.95, "speech_sample_rate": 22050, "output_audio_codec": "wav", **(style or {})})
         try:
             return base64.b64decode(body["audios"][0])
         except (KeyError, IndexError, ValueError) as e:
@@ -164,19 +164,52 @@ FAKE_TAGS = (  # the simulated tagger: English words in the translation -> a tag
 SEVERE_WORDS = re.compile(r"severe|unbearable|very bad", re.I)
 
 
+def fake_sort(system: str, message: str) -> str:
+    """UC1-V, simulated sorter: word rules on the Hindi reply. Health words never reach it (voice_sorter)."""
+    has = lambda words: re.search(words, message) is not None
+    if "am I speaking with the patient" in system:
+        if has("बेटा|बेटी|पति|घर पर नहीं"):
+            return "NO"
+        return "YES" if has("हाँ|सुनीता बोल") and not has("कौन") else "UNCLEAR"
+    if "shall I book the scan date" in system:
+        if has("कल बात|बाद में"):
+            return "UNCLEAR"
+        if has("नहीं|क्या ज़रूरत"):
+            return "NO"
+        return "YES" if has("हाँ|बुक कर|ठीक है") else "UNCLEAR"
+    if has("नहीं"):
+        return "NO"
+    return "YES" if has("हाँ|चलेगा|ठीक है") else "UNCLEAR"
+
+
+def fake_uc1v_clips() -> dict:
+    from . import reference
+
+    from . import voice_script
+
+    pack, out = reference.uc1v_library()["languages"]["Hindi"], {}
+    for full_name in pack["names"]:
+        for clip_id in pack["clips"]:
+            for script in (None, *reference.uc1v()["scripts"]):
+                c = voice_script.clip("Hindi", clip_id, {"full_name": full_name}, script)
+                out[c["take"]] = (c["text"], c["text_en"])
+    return out
+
+
 class Fake:
     """Deterministic stand-in (no network): known clips, simple word rules. Labelled in the audit."""
     stt_model = "fake-saaras"
     llm_model = "fake-language-model"
 
     def speech(self, audio: bytes, mime: str, language: str, mode: str, clip_id: str | None = None) -> str:
-        if clip_id in FAKE_CLIPS:
-            hi, en = FAKE_CLIPS[clip_id]
+        clips = {**FAKE_CLIPS, **fake_uc1v_clips()}
+        if clip_id in clips:
+            hi, en = clips[clip_id]
             return hi if mode == "transcribe" else en
         raise AIFailure("fake speech: unknown clip")
 
     def translate(self, text: str, language: str) -> str:
-        for hi, en in FAKE_CLIPS.values():
+        for hi, en in [*FAKE_CLIPS.values(), *fake_uc1v_clips().values()]:
             if text.strip() == hi:
                 return en
         return text
@@ -185,6 +218,8 @@ class Fake:
         if "Return the JSON now" in user:  # Voice Triage answer value: the simulated model cannot tell
             return '{"value": "UNKNOWN"}'
         message = user.split("Message:", 1)[-1]
+        if system.startswith("UC1-V reply sorter"):
+            return fake_sort(system, message)
         if "Return only JSON with three fields" in user:  # Voice Triage v1.2 tagger: fixed word rules
             symptoms = [tag for tag, words in FAKE_TAGS if words.search(message)]
             other = re.search(r"shopping|travel|wedding|hello|thank|will come|booked|appointment", message, re.I)
@@ -203,6 +238,13 @@ class Fake:
 def _provider(conn):
     c = _cfg(conn)
     return Fake() if provider_name() == "fake" else Sarvam(c["timeout"], c["stt_model"], c["llm_model"])
+
+
+def provider_for(models: dict, timeout: float):
+    """A provider with its own time limit (UC1-V: the reply sorter works inside the API's 20 seconds)."""
+    if provider_name() == "fake":
+        return Fake()
+    return Sarvam(timeout, models.get("speech_model", "saaras:v3"), models.get("language_model", "sarvam-105b"))
 
 
 def _tries(conn, fn, errors: list):
@@ -335,10 +377,12 @@ def _triage_cfg(conn) -> dict:
     return {"speaker": t.get("speaker", "kavitha"), "tts_model": t.get("tts_model", "bulbul:v3")}
 
 
-def speak(conn, text: str, language: str, cached_only: bool = False) -> tuple[bytes, str] | None:
+def speak(conn, text: str, language: str, cached_only: bool = False, *, speaker: str | None = None,
+          model: str | None = None, timeout: float | None = None) -> tuple[bytes, str] | None:
     """Bulbul audio of one fixed line, made once and kept (tts_cache). None in simulated mode or on failure: the
     screen then shows the text only. cached_only: never call Sarvam (a line not made yet gives None)."""
     cfg = _triage_cfg(conn)
+    cfg = {"speaker": speaker or cfg["speaker"], "tts_model": model or cfg["tts_model"]}
     key = hashlib.sha256(f"{cfg['tts_model']}|{cfg['speaker']}|{language}|{text}".encode()).hexdigest()
     row = conn.execute("SELECT data, mime FROM tts_cache WHERE cache_key = %s", (key,)).fetchone()
     if row:
@@ -346,6 +390,8 @@ def speak(conn, text: str, language: str, cached_only: bool = False) -> tuple[by
     if cached_only or provider_name() == "fake" or not sarvam_enabled(conn):
         return None
     p = _provider(conn)
+    if timeout:
+        p.timeout = timeout
     try:
         audio = p.tts(text, language, cfg["speaker"], cfg["tts_model"])
     except AIFailure:

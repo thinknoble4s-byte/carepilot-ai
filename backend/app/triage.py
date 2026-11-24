@@ -370,7 +370,7 @@ def answer(conn, episode_id: int, user: dict, *, text: str | None = None, value=
     return state(conn, episode_id)
 
 
-def no_answer(conn, episode_id: int, user: dict) -> dict:
+def no_answer(conn, episode_id: int, user: dict, rejected: bool = False) -> dict:
     """The call rings out. After the first, the next call goes 5 minutes later (the demo clock moves); after the
     second, Red (no answer)."""
     ep = _load(conn, episode_id)
@@ -379,10 +379,11 @@ def no_answer(conn, episode_id: int, user: dict) -> dict:
     cfg = config(conn)
     attempts = ep["attempts"] + 1
     turns = list(ep["turns"])
-    _turn(turns, conn, "system", "no_answer", en=f"Call {attempts} rang out, not answered")
+    _turn(turns, conn, "system", "no_answer",
+          en=f"Call {attempts} " + ("rejected, not answered" if rejected else "rang out, not answered"))
     ep = _update(conn, ep, attempts=attempts, turns=turns)
     _audit(conn, ep, "triage_call_not_answered", actor_type="agent", actor=AGENT, outcome="not_answered",
-           details={"attempt": attempts, "demo_operator": user["user_id"]})
+           details={"attempt": attempts, "demo_operator": user["user_id"], "rejected": rejected})
     if attempts >= 2:
         return _finish(conn, ep, no_answer=True)
     later = clock.get_now(conn) + timedelta(minutes=cfg["retry_minutes"])

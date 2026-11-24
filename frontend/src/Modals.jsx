@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api, blobUrl, post, upload } from './api.js';
 import { CallPane } from './Triage.jsx';
-import { fmt, tapLabel, useUI, VoiceClip } from './ui.jsx';
+import { CallbackTimer, fmt, tapLabel, useUI, VoiceClip } from './ui.jsx';
 
 export const CLOSE_REASONS = ['Nothing clinical', 'Travel or booking plans only', 'Patient called; matter resolved',
   'Doctor instruction done, patient messaged', 'Review booked; doctor\'s plan in place',
@@ -27,12 +27,18 @@ export function CloseReason({ value, onChange, id }) {
 
 // What the patient said: original words, the AI translation (labelled), the audio, and an AI failure note.
 export function PatientWords({ h, language }) {
+  const ui = useUI();
   return (
     <div className="msgprev" style={{ maxWidth: 'none' }}>
       {h.inbound_kind === 'voice' && <span className="small-note">🎙 Voice note{language ? ` · profile language ${language}` : ''}</span>}
       <span>{h.patient_words || '—'}</span>
       {h.translation && <span className="small-note">English (AI translation, Sarvam — check before relying on it): {h.translation}</span>}
       {h.inbound_kind === 'voice' && h.inbound_id && <VoiceClip inboundId={h.inbound_id} />}
+      {h.voice_audio && <VoiceClip path={`voice/calls/${h.voice_call_id}/turns/${h.voice_turn}/audio`} />}
+      {h.voice_call_id && (
+        <span><CallbackTimer c={h.callback} />{' '}
+          <button type="button" className="btn sm ghost" onClick={() => ui.voiceCall({ callId: h.voice_call_id })}>Open call record</button></span>
+      )}
       {h.ai_failed && <span className="small-note"><b>The AI could not read this message</b> — listen to the audio. It was handed to you as a precaution.</span>}
       <span className="small-note">{h.source}</span>
     </div>
@@ -87,6 +93,7 @@ function HandoverReview({ patient }) {
       <PatientWords h={h} language={patient.preferred_language} />
       <div className="small-note" style={{ marginTop: 8, lineHeight: 1.7 }}>
         What the agent did: {h.trigger === 'manual' ? 'nothing — a person opened this handover' :
+          h.voice_call_id ? 'the reply on the simulated call was sorted as a health concern (or could not be sorted), so the agent stopped the script, spoke only a fixed line, booked nothing, switched the send block on and handed over to you' :
           h.trigger === 'health_matter' ? 'the AI flagged a possible health mention, so the agent sent the fixed acknowledgement, stopped all routine messages (send block on) and handed the conversation to you. It did not reply to the content'
             : 'logged any button reply, sent the fixed acknowledgement, stopped all automated messages and handed the conversation to you'}.
       </div>
@@ -318,9 +325,6 @@ function VoiceRecorder({ patient, onSend }) {
           <select id="msgL" className="v3-in" value={spoken} onChange={(e) => setSpoken(e.target.value)}>
             <option value="">Patient's language ({patient.preferred_language || patient.language})</option>
             <option value="Hindi">Hindi</option>
-            <option value="Kannada">Kannada</option>
-            <option value="Tamil">Tamil</option>
-            <option value="Telugu">Telugu</option>
             <option value="English">English</option>
             <option value="auto">Detect automatically</option>
           </select>
@@ -506,6 +510,8 @@ function Messages({ patient }) {
   const [docNote, setDocNote] = useState('');
   const [lastEvent, setLastEvent] = useState(null);
   const [act, error] = useAct();
+  const [phone, setPhone] = useState(null); // where a ringing triage call shows
+  const [ringing, setRinging] = useState(false);
   useEffect(() => {
     api('simulator/clips').then((list) => {
       setClips(list);
@@ -574,7 +580,7 @@ function Messages({ patient }) {
   const coordinator = ui.role === 'coordinator';
   // Waiting for an outside report: the last message to the patient asked for it and no file has come since.
   const askAt = thread.map((m) => m.direction === 'out' && m.status === 'sent'
-    && ['report_upload_request', 'report_upload_nudge', 'report_wrong_report'].includes(m.template_id)).lastIndexOf(true);
+    && ['report_upload_request', 'report_upload_nudge', 'report_wrong_report', 'report_when_ready'].includes(m.template_id)).lastIndexOf(true);
   const awaiting = askAt >= 0 && !thread.slice(askAt + 1).some((m) => m.direction === 'in' && m.kind === 'document');
   return (
     <div className="grid-2">
@@ -586,19 +592,22 @@ function Messages({ patient }) {
             <button type="button" className={english ? 'on' : ''} onClick={() => setEnglish(true)}>+ English</button>
           </div>
         </div>
-        <WaPhone thread={thread} patient={patient} settings={settings} english={english} coordinator={coordinator}
-          now={ui.now} onTap={(m, b) => reply({ button: b.id, in_reply_to: m.id })} />
+        <div ref={setPhone} />
+        {!ringing && (
+          <WaPhone thread={thread} patient={patient} settings={settings} english={english} coordinator={coordinator}
+            now={ui.now} onTap={(m, b) => reply({ button: b.id, in_reply_to: m.id })} />
+        )}
         {thread.some((m) => m.language && m.language !== 'English') && (
-          <div className="small-note" style={{ marginTop: 8 }}>Kannada, Hindi, Tamil and Telugu wording are drafts — to be checked by a native speaker.</div>
+          <div className="small-note" style={{ marginTop: 8 }}>Hindi wording is a draft — to be checked by a native speaker.</div>
         )}
       </div>
       <div>
-        {coordinator && settings?.voice_triage?.enabled && <CallPane patient={patient} onChange={load} />}
+        {coordinator && settings?.voice_triage?.enabled && <CallPane patient={patient} onChange={load} phone={phone} onRinging={setRinging} />}
         {coordinator ? (
           <>
             <div className={awaiting ? 'card-flat' : ''} style={awaiting ? { borderLeft: '4px solid var(--amber, #d97706)', marginBottom: 14 } : { marginBottom: 14 }}>
               <div className="card-title">Upload the test report (test done at an outside lab or imaging centre)</div>
-              {awaiting && <div className="small-note"><b>Waiting for the report:</b> the patient said the test was done at an outside lab and was asked to send it here.</div>}
+              {awaiting && <div className="small-note"><b>Waiting for the report:</b> the patient said the test was done or booked elsewhere and was asked to send the report here.</div>}
               <label className="v3-field" htmlFor="msgD">A photo or PDF of the report</label>
               <input id="msgD" type="file" accept="image/*,application/pdf" className="v3-in"
                 onChange={(e) => setDoc(e.target.files?.[0] || null)} />

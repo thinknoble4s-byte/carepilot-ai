@@ -2,8 +2,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, post } from './api.js';
 import { fmt, Scope, ScreenHead, useUI } from './ui.jsx';
+import { CallTab, TierTab } from './TriageCriteria.jsx';
 
-const TABS = [['plan', 'Plan'], ['rules', 'Gap rules & deadlines'], ['agent', 'Agent autonomy'], ['msgs', 'Messages'], ['scope', 'What CarePilot is']];
+const TABS = [['plan', 'Plan'], ['rules', 'Gap rules & deadlines'], ['agent', 'Agent autonomy'], ['msgs', 'Messages'],
+  ['red', '🔴 Triage: Red'], ['amber', '🟠 Triage: Amber'], ['green', '🟢 Triage: Green'], ['call', '📞 Simulated call'], ['scope', 'What CarePilot is']];
 const LIFE = { visit: 'Due → booked → attended', specimen: 'Due → scheduled → completed → report received → report verified (doctor)',
   imaging: 'Due → scheduled → completed → verified (doctor)' };
 const life = (i) => (i.type === 'visit' ? LIFE.visit : i.specimen === false ? LIFE.imaging : LIFE.specimen);
@@ -184,6 +186,10 @@ export default function CarePlan() {
         {m.body.buttons.length > 0 && <div className="rbtns">{m.body.buttons.map((b) => <span key={b.id} className="rbtn">{b.label}</span>)}</div>}
       </div>
     ));
+  } else if (['red', 'amber', 'green'].includes(tab)) {
+    body = <TierTab tier={tab} />;
+  } else if (tab === 'call') {
+    body = <CallTab />;
   } else {
     body = <div className="card"><Scope /></div>;
   }

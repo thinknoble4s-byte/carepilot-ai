@@ -263,7 +263,7 @@ def steps(page, run: Run):
 
     def tc03():
         pane = state["pane"]
-        pane.get_by_role("button", name="Pick up").click()
+        pane.get_by_role("button", name="Accept").click()
         answer(pane, 1, NO)
         answer(pane, 2, NO)
         answer(pane, 3, "98.4 °F")
@@ -442,10 +442,10 @@ def steps(page, run: Run):
         persona("u_anita")
         pane = voice_note()
         before = page.locator(".demo-bar").inner_text()
-        pane.get_by_role("button", name="She does not answer").click()
+        pane.get_by_role("button", name="Reject").click()
         toast("next call is in 5 minutes")
         expect(pane.locator(".vt-ring")).to_contain_text("second call")
-        pane.get_by_role("button", name="She does not answer").click()
+        pane.get_by_role("button", name="Reject").click()
         tier(pane, "Red · NO ANSWER")
         assert page.locator(".demo-bar").inner_text() != before, "the clock did not move"
         expect(pane.locator(".vt-out")).to_contain_text("Emergency package sent")
@@ -541,7 +541,7 @@ def steps(page, run: Run):
     def tc23():
         persona("u_anita")
         pane = voice_note()
-        pane.get_by_role("button", name="Pick up").click()
+        pane.get_by_role("button", name="Accept").click()
         answer(pane, 1, NO)
         close_modal()
         page.locator(".demo-bar label", has_text="Sarvam").locator("input").click()
@@ -570,7 +570,7 @@ def steps(page, run: Run):
     def tc24():
         close_red_as_er_doctor("System fault case: family reached, she is well (synthetic).")
         pane = voice_note()
-        pane.get_by_role("button", name="Pick up").click()
+        pane.get_by_role("button", name="Accept").click()
         answer(pane, 1, NO)
         answer(pane, 2, NO)
         box = pane.locator(".vt-q").first
@@ -585,7 +585,7 @@ def steps(page, run: Run):
     def tc25():
         close_red_as_er_doctor("Fever case: seen, discharged (synthetic).")
         pane = voice_note()
-        pane.get_by_role("button", name="Pick up").click()
+        pane.get_by_role("button", name="Accept").click()
         answer(pane, 1, NO)
         answer(pane, 2, NO)
         answer(pane, 3, "100.3 °F")
@@ -655,7 +655,7 @@ def steps(page, run: Run):
         voice = pane.locator("input[type=checkbox]")
         if not voice.is_checked():
             voice.check()
-        pane.get_by_role("button", name="Pick up").click()
+        pane.get_by_role("button", name="Accept").click()
         # Wait for Bulbul to start the opening line, then answer straight away, before the questions are spoken.
         page.wait_for_function("window.__playing >= 1", timeout=60_000)
         page.evaluate("window.__maxPlaying = window.__playing")

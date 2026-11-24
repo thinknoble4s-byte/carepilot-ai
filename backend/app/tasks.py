@@ -35,7 +35,8 @@ def create_task(conn, *, mrn: str, task_type: str, reason: str, owner_name: str 
     return task
 
 
-def complete_task(conn, task_id: int, done_by: str, note: str | None = None) -> dict:
+def complete_task(conn, task_id: int, done_by: str, note: str | None = None, actor_type: str = "person",
+                  reason_code: str | None = None) -> dict:
     task = conn.execute("SELECT * FROM coordinator_task WHERE task_id = %s FOR UPDATE", (task_id,)).fetchone()
     if task is None:
         raise NotFound(f"Task {task_id} not found")
@@ -48,7 +49,8 @@ def complete_task(conn, task_id: int, done_by: str, note: str | None = None) -> 
         """,
         (done_by, note, clock.get_today(conn), task_id),
     ).fetchone()
-    audit.append(conn, actor_type="person", actor_name=done_by, action="task_done", entity_type="task",
+    audit.append(conn, actor_type=actor_type, actor_name=done_by, action="task_done", entity_type="task",
+                 reason_code=reason_code,
                  entity_id=str(task_id), mrn=task["mrn"], details={"task_type": task["task_type"], "note": note})
     return done
 

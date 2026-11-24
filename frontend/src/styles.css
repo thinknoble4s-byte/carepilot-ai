@@ -239,3 +239,76 @@ button.wa-tap:hover { background: #f5f6f6; }
 .vt-state.s-CLOSED, .vt-state.s-IN_DIGEST { background: #dcfce7; color: #166534; }
 .vt-close { margin-top: 6px; }
 .vt-summary { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+
+/* UC1-V: the SIMULATED CALL screen. The phone keeps its own colours in light and dark. */
+.vc { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.vc-left { position: sticky; top: 0; min-width: 0; }
+.vc-right { min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.vc-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.vc-sim { display: inline-block; align-self: center; background: #ffd54f; color: #3b2a00; font-size: 11px; font-weight: 800;
+  letter-spacing: .07em; border-radius: 5px; padding: 3px 8px; }
+.vc-left > .vc-sim { display: block; text-align: center; margin-bottom: 6px; }
+.vc-phone { width: 100%; }
+.vc-face { display: flex; flex-direction: column; align-items: center; gap: 9px; min-height: 500px; padding: 16px 14px 18px;
+  background: #0b141a; color: #e9edef; border-radius: 22px; text-align: center; }
+.vc-stop { align-self: stretch; background: #b91c1c; color: #fff; font-weight: 800; padding: 6px; border-radius: 6px; }
+.vc-avatar { width: 104px; height: 104px; margin-top: 22px; border-radius: 50%; background: #202c33; font-size: 46px;
+  display: flex; align-items: center; justify-content: center; }
+.vc-avatar.on { animation: vc-ring 1.3s ease-out infinite; }
+.vc-name { font-size: 19px; font-weight: 600; }
+.vc-state { color: #8696a0; font-size: 13px; }
+.vc-wave { display: flex; align-items: center; gap: 3px; height: 24px; }
+.vc-wave i { width: 3px; height: 5px; border-radius: 2px; background: #8696a0; }
+.vc-wave.agent i, .vc-wave.patient i { animation: vc-bar .7s ease-in-out infinite alternate; }
+.vc-wave.agent i { background: #00a884; }
+.vc-wave.patient i { background: #53bdeb; }
+.vc-gate { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; }
+.vc-h { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.vc-check { font-size: 12.5px; color: var(--slate); line-height: 1.7; }
+.vc-check.ok b { color: var(--good); }
+.vc-check.fail b { color: var(--bad); }
+.vc-gate-done { font-size: 12px; color: var(--good-deep); }
+.vc-gate-done summary { cursor: pointer; }
+.vc-banner { border-radius: var(--radius-sm); padding: 8px 11px; font-size: 13px; line-height: 1.5; }
+.vc-banner.stop { background: var(--bad-tint); color: var(--bad-deep); border: 1px solid var(--bad); }
+.vc-banner.slot { background: var(--brand-tint); color: var(--brand-deep); }
+.vc-banner.booked { background: var(--good-tint); color: var(--good-deep); border: 1px solid var(--good); }
+.vc-transcript { display: flex; flex-direction: column; gap: 8px; max-height: 44vh; min-height: 150px; overflow-y: auto; }
+.vc-turn { flex: none; border: 1px solid var(--line); border-radius: 9px; padding: 7px 9px; }
+.vc-turn.patient { margin-left: 22px; background: var(--good-tint); }
+.vc-turn.agent { margin-right: 22px; }
+.vc-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 11.5px; color: var(--slate); }
+.vc-said { color: var(--ink); font-size: 14px; line-height: 1.6; margin-top: 4px; }
+.vc-en { color: var(--mist); font-size: 12px; line-height: 1.5; margin-top: 3px; }
+.vc-label { font-size: 10.5px; font-weight: 800; border-radius: 10px; padding: 2px 8px; }
+.vc-label.yes { background: #15803d; color: #fff; }
+.vc-label.no { background: #b45309; color: #fff; }
+.vc-label.health { background: #b91c1c; color: #fff; }
+.vc-label.unclear { background: #4b5563; color: #fff; }
+.vc-play { margin-left: auto; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 50%;
+  width: 24px; height: 24px; cursor: pointer; }
+.vc-hearing { flex: none; color: var(--mist); font-size: 12px; font-style: italic; }
+.vc-record { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 11.5px; color: var(--mist); }
+.vc-undo { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.vc-rules { color: var(--mist); font-size: 11.5px; border-top: 1px solid var(--line); padding-top: 7px; }
+.vc-timer { font-weight: 700; }
+.vc-timer.bad { color: var(--bad); }
+@keyframes vc-ring { from { box-shadow: 0 0 0 0 rgba(0, 168, 132, .55); } to { box-shadow: 0 0 0 20px rgba(0, 168, 132, 0); } }
+@keyframes vc-bar { to { height: 22px; } }
+@media (max-width: 760px) { .vc { grid-template-columns: minmax(0, 1fr); } .vc-left { position: static; }
+  .vc-face { min-height: 380px; } }
+@media (prefers-reduced-motion: reduce) { .vc-avatar.on, .vc-wave i { animation: none !important; } }
+.vc-timer-run { font-size: 14px; color: #d1d7db; font-variant-numeric: tabular-nums; }
+.vc-answer { margin-top: auto; align-self: stretch; display: flex; justify-content: space-around; padding: 24px 8px 10px; }
+.vc-answer-btn { background: none; border: 0; color: #e9edef; cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; gap: 8px; font: inherit; font-size: 13px; }
+.vc-answer-btn > span { width: 66px; height: 66px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; color: #fff; }
+.vc-answer-btn.reject > span { background: #f15c6d; }
+.vc-answer-btn.reject svg { transform: rotate(135deg); }
+.vc-answer-btn.accept > span { background: #00a884; animation: vc-ring 1.3s ease-out infinite; }
+.vc-answer-btn:focus-visible > span { outline: 3px solid #fff; outline-offset: 3px; }
+.vc-answer-btn:disabled { opacity: .5; cursor: default; }
+.vc-cardcall { margin-top: 8px; }
+.vc-ignored { font-size: 12px; color: var(--bad-deep); line-height: 1.6; }
+@media (prefers-reduced-motion: reduce) { .vc-answer-btn.accept > span { animation: none !important; } }

@@ -40,6 +40,10 @@ def check_transition(card_type: str, from_state: str, to_state: str, **ctx) -> N
         raise IllegalTransition(f"Unknown card type {card_type!r}")
     if from_state not in flow or to_state not in flow:
         raise IllegalTransition(f"Unknown state for a {card_type} card: {from_state!r} -> {to_state!r}")
+    if (card_type, from_state, to_state) == ("test", "Booked", "Due") and ctx.get("source") == "agent_booking_undone":
+        if ctx.get("role") != "coordinator":
+            raise IllegalTransition("Only a coordinator undoes the agent's booking")
+        return  # UC1-V V9
     if to_state not in flow[from_state]:
         raise IllegalTransition(f"A {card_type} card cannot move from {from_state} to {to_state}")
     move = (card_type, from_state, to_state)
@@ -50,8 +54,11 @@ def check_transition(card_type: str, from_state: str, to_state: str, **ctx) -> N
     if move == ("visit", "Booked", "Attended") and source not in ("appointment_list", "hospital_feed"):
         raise IllegalTransition("Attendance comes only from the appointment list or a hospital feed, never a reply")
     if move == ("test", "Due", "Booked") and source not in ("patient_button", "patient_elsewhere", "patient_slot",
-                                                             "coordinator", "appointment_list"):
+                                                             "coordinator", "appointment_list", "voice_agent"):
         raise IllegalTransition("A test is Booked from the patient's tap, by a person, or from the appointment list")
+    if move == ("test", "Due", "Booked") and source == "voice_agent" and not (ctx.get("appointment_date")
+                                                                              and ctx.get("appointment_time")):
+        raise IllegalTransition("The agent books only a slot: a date and a time")
     specimen = ctx.get("specimen", True) is not False
     if card_type == "test" and to_state == "Completed" and \
             source not in ("appointment_list", "hospital_feed", "patient_outside"):

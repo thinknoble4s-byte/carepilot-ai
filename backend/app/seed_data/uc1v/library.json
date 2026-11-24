@@ -1,0 +1,256 @@
+{
+  "_source": "usecase-docs/CarePilot_UC1-V_Voice_Escalation_Spec_v0.1.2.docx: sections 7 and 10.1, copied by script. Do not edit the wording here: change it in the spec, have it approved, then copy it again. Product owner, 22 Nov 2026 (scope A): the patient's name became a value ({पूरा नाम}, {नाम}; the checked spellings are in 'names') and the hospital value is Dr. Sekhar Clinic. No other word changed.",
+  "version": "0.1-A",
+  "languages": {
+    "Hindi": {
+      "lines": [
+        {
+          "line_id": "L1",
+          "channel": "voice",
+          "when": "Start of call",
+          "text": "नमस्ते। क्या मेरी बात {पूरा नाम} जी से हो रही है?",
+          "text_en": "Hello. Am I speaking with Mrs. {full_name}?",
+          "status": "DRAFT",
+          "status_note": "language check",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L1b",
+          "channel": "voice",
+          "when": "Wrong person, or identity not confirmed",
+          "text": "माफ़ कीजिए, आपको परेशान किया। मैं बाद में फ़ोन करूँगी। धन्यवाद।",
+          "text_en": "Sorry to disturb you. I will call again later. Thank you.",
+          "status": "DRAFT",
+          "status_note": "language check",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L2",
+          "channel": "voice",
+          "when": "After identity is confirmed",
+          "text": "धन्यवाद। मैं {अस्पताल} की ऑटोमैटिक सहायक बोल रही हूँ, डॉक्टर शेखर की ओर से। आपका तीन महीने वाला हड्डियों की जाँच का स्कैन, यानी DEXA स्कैन, अभी तक बुक नहीं हुआ है। आप रोज़ हार्मोन की गोली लेट्रोज़ोल ले रही हैं, ताकि कैंसर दोबारा न उभरे। इस वजह से डॉक्टर शेखर हर तीन महीने में आपकी हड्डियों की मज़बूती जाँचते हैं। क्या मैं अभी आपके लिए स्कैन की तारीख़ बुक कर दूँ?",
+          "text_en": "Thank you. I am the automated assistant of {hospital}, calling on behalf of Dr. Sekhar. Your 3-monthly bone check scan, the DEXA scan, is not booked yet. You take the daily hormone tablet Letrozole so that the cancer does not relapse. Because of this, Dr. Sekhar checks your bone strength every 3 months. Shall I book the scan date for you now?",
+          "status": "DRAFT-CLINICAL",
+          "status_note": "Dr. Sekhar to approve",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L3",
+          "channel": "voice",
+          "when": "Reply was unclear (once)",
+          "text": "माफ़ कीजिए, मैं ठीक से सुन नहीं पाई। क्या मैं आपके लिए स्कैन की तारीख़ बुक कर दूँ? आप “हाँ” या “नहीं” बोल सकती हैं।",
+          "text_en": "Sorry, I could not hear you properly. Shall I book the scan date for you? You can say “yes” or “no”.",
+          "status": "DRAFT",
+          "status_note": "language check",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L4",
+          "channel": "voice",
+          "when": "She says no or “I’m fine” (once per call)",
+          "text": "यह जानकर अच्छा लगा कि आप ठीक महसूस कर रही हैं। फिर भी यह स्कैन ज़रूरी है, क्योंकि हड्डियों का कमज़ोर होना अक्सर बिना किसी तकलीफ़ के शुरू होता है। स्कैन आसान है, इसमें दर्द नहीं होता और यह थोड़े समय में हो जाता है। अगर हड्डियाँ कमज़ोर होने लगें और यह जल्दी पता चल जाए, तो डॉक्टर उन्हें बचाने के आसान इंतज़ाम कर सकते हैं। अगर स्कैन न हो, तो हो सकता है कि यह तब तक पता न चले जब तक कोई हड्डी टूट न जाए। इसलिए डॉक्टर शेखर चाहते हैं कि आप यह स्कैन समय पर करवाएँ। क्या मैं आपके लिए तारीख़ बुक कर दूँ?",
+          "text_en": "I am glad you feel well. Still, this scan matters, because bone thinning often starts without any symptoms. The scan is simple, painless and quick. If thinning is caught early, the doctor can arrange simple ways to protect your bones. If the scan is not done, it may go unnoticed until a bone breaks. So Dr. Sekhar wants you to have this scan on time. Shall I book a date for you?",
+          "status": "DRAFT-CLINICAL",
+          "status_note": "Dr. Sekhar to approve",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L5",
+          "channel": "voice",
+          "when": "She says yes (offer one slot)",
+          "text": "ठीक है। मेरे पास {दिन}, {तारीख़} को {समय} का समय है। क्या आप इस समय आ सकती हैं?",
+          "text_en": "Okay. I have a slot on {day}, {date} at {time}. Can you come at this time?",
+          "status": "DRAFT",
+          "status_note": "language check",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L6",
+          "channel": "voice",
+          "when": "After booking",
+          "text": "बहुत धन्यवाद, {नाम} जी। आपका DEXA स्कैन {दिन}, {तारीख़} को {समय} बुक हो गया है। पुष्टि का संदेश मैं आपके WhatsApp पर भेज रही हूँ। अपना ध्यान रखिए। नमस्ते।",
+          "text_en": "Thank you very much. Your DEXA scan is booked for {day}, {date} at {time}. I am sending a confirmation to your WhatsApp. Take care. Goodbye.",
+          "status": "DRAFT",
+          "status_note": "language check",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L7",
+          "channel": "voice",
+          "when": "Slot does not suit her",
+          "text": "कोई बात नहीं। हमारी टीम का कोई सदस्य आपको फ़ोन करके आपकी सुविधा के अनुसार तारीख़ तय कर देगा। धन्यवाद। नमस्ते।",
+          "text_en": "No problem. A member of our team will call you and fix a date that suits you. Thank you. Goodbye.",
+          "status": "DRAFT",
+          "status_note": "language check",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L8",
+          "channel": "voice",
+          "when": "Still no after L4",
+          "text": "ठीक है, मैं आपकी बात समझ गई। मैं यह बात डॉक्टर शेखर की टीम को बता दूँगी। जब भी आप स्कैन कराना चाहें, अस्पताल को फ़ोन कर सकती हैं। धन्यवाद। नमस्ते।",
+          "text_en": "Okay, I understand. I will tell Dr. Sekhar’s team. Whenever you want the scan, you can call the hospital. Thank you. Goodbye.",
+          "status": "DRAFT",
+          "status_note": "language check",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "L9",
+          "channel": "voice",
+          "when": "Safety stop (S3)",
+          "text": "{नाम} जी, यह बात बताने के लिए धन्यवाद। यह हमारे लिए ज़रूरी है, इसलिए मैं इसे अभी डॉक्टर शेखर की टीम तक पहुँचा रही हूँ। हमारी टीम का कोई सदस्य अगले दो घंटे में आपको फ़ोन करेगा। स्कैन की तारीख़ भी वे आपसे बात करने के बाद तय करेंगे। अगर इस बीच आपको तेज़ दर्द हो, साँस लेने में तकलीफ़ हो, ज़्यादा ख़ून बहे या तेज़ बुखार हो, तो हमारे फ़ोन का इंतज़ार न करें। तुरंत नज़दीकी अस्पताल के इमरजेंसी विभाग में जाएँ, या 108 या 112 पर फ़ोन करें। अस्पताल की हेल्पलाइन: {हेल्पलाइन}। अपना ध्यान रखिए।",
+          "text_en": "Thank you for telling us this. It matters to us, so I am passing it to Dr. Sekhar’s team right now. A member of our team will call you within two hours. They will also fix the scan date after speaking with you. If in the meantime you have severe pain, trouble breathing, heavy bleeding or high fever, do not wait for our call. Go to the nearest hospital emergency department straight away, or call 108 or 112. Hospital helpline: {helpline}. Take care.",
+          "status": "DRAFT-CLINICAL",
+          "status_note": "Dr. Sekhar to approve",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "W1",
+          "channel": "whatsapp",
+          "when": "WhatsApp after booking",
+          "text": "नमस्ते {नाम} जी, आपका DEXA स्कैन बुक हो गया है। तारीख़ और समय: {दिन}, {तारीख़}, {समय} जगह: {अस्पताल}, {विभाग} तारीख़ बदलनी हो तो हेल्पलाइन {हेल्पलाइन} पर फ़ोन करें।",
+          "text_en": "Hello Mrs. {surname}, your DEXA scan is booked. Date and time: {day}, {date}, {time}. Place: {hospital}, {department}. To change the date, call the helpline {helpline}.",
+          "status": "DRAFT",
+          "status_note": "language check",
+          "approved_by": null,
+          "approved_on": null
+        },
+        {
+          "line_id": "W2",
+          "channel": "whatsapp",
+          "when": "WhatsApp copy of the safety message (S3)",
+          "text": "{नाम} जी, आपने जो बताया उसके लिए धन्यवाद। हमारी टीम का कोई सदस्य अगले दो घंटे में आपको फ़ोन करेगा। अगर तेज़ दर्द, साँस लेने में तकलीफ़, ज़्यादा ख़ून बहना या तेज़ बुखार हो, तो हमारे फ़ोन का इंतज़ार न करें: तुरंत नज़दीकी अस्पताल के इमरजेंसी विभाग जाएँ, या 108 या 112 पर फ़ोन करें। हेल्पलाइन: {हेल्पलाइन}।",
+          "text_en": "Thank you for what you told us. A member of our team will call you within two hours. If you have severe pain, trouble breathing, heavy bleeding or high fever, do not wait for our call: go to the nearest hospital emergency department straight away, or call 108 or 112. Helpline: {helpline}.",
+          "status": "DRAFT-CLINICAL",
+          "status_note": "Dr. Sekhar to approve",
+          "approved_by": null,
+          "approved_on": null
+        }
+      ],
+      "clips": {
+        "P1": {
+          "text": "जी हाँ, मैं {नाम} बोल रही हूँ।",
+          "text_en": "Yes, this is {first_name} speaking."
+        },
+        "P2": {
+          "text": "मैं तो ठीक हूँ। अभी स्कैन की क्या ज़रूरत है?",
+          "text_en": "I am fine. What is the need for the scan now?"
+        },
+        "P3": {
+          "text": "अच्छा, ठीक है। बुक कर दीजिए।",
+          "text_en": "Okay, fine. Please book it."
+        },
+        "P4": {
+          "text": "हाँ, चलेगा।",
+          "text_en": "Yes, that works."
+        },
+        "P5": {
+          "text": "हाँ बुक कर दीजिए, पर ऑपरेशन वाली जगह पर पिछले हफ़्ते से दर्द हो रहा है।",
+          "text_en": "Yes, please book it, but there has been pain at the operation site since last week."
+        }
+      },
+      "written_for": {
+        "test_code": "DEXA",
+        "medicine": [
+          "letrozole",
+          "लेट्रोज़ोल"
+        ],
+        "therapy_words": [
+          "surgery",
+          "breast",
+          "and",
+          "endocrine",
+          "hormone",
+          "hormonal",
+          "therapy",
+          "tablet",
+          "tablets",
+          "daily",
+          "2",
+          "5",
+          "mg",
+          "chemotherapy",
+          "radiation",
+          "radiotherapy"
+        ],
+        "plans": [
+          "BC-LET-DEXA-1"
+        ]
+      },
+      "values": {
+        "अस्पताल": "डॉक्टर शेखर क्लिनिक",
+        "विभाग": "रेडियोलॉजी",
+        "हेल्पलाइन": "000-000-0000"
+      },
+      "days": [
+        "सोमवार",
+        "मंगलवार",
+        "बुधवार",
+        "गुरुवार",
+        "शुक्रवार",
+        "शनिवार",
+        "रविवार"
+      ],
+      "months": [
+        "जनवरी",
+        "फ़रवरी",
+        "मार्च",
+        "अप्रैल",
+        "मई",
+        "जून",
+        "जुलाई",
+        "अगस्त",
+        "सितंबर",
+        "अक्टूबर",
+        "नवंबर",
+        "दिसंबर"
+      ],
+      "times": {
+        "10:00": "सुबह दस बजे",
+        "10:30": "सुबह साढ़े दस बजे",
+        "11:00": "सुबह ग्यारह बजे",
+        "11:30": "सुबह साढ़े ग्यारह बजे",
+        "12:00": "दोपहर बारह बजे"
+      },
+      "names": {
+        "Sunita Verma": {
+          "पूरा नाम": "सुनीता वर्मा",
+          "नाम": "सुनीता",
+          "clip": ""
+        },
+        "Savitri Patil": {
+          "पूरा नाम": "सावित्री पाटिल",
+          "नाम": "सावित्री",
+          "clip": "-savitri"
+        },
+        "Sushila Kulkarni": {
+          "पूरा नाम": "सुशीला कुलकर्णी",
+          "नाम": "सुशीला",
+          "clip": "-sushila"
+        }
+      }
+    }
+  },
+  "values_en": {
+    "hospital": "Dr. Sekhar Clinic",
+    "department": "Radiology",
+    "helpline": "000-000-0000"
+  },
+  "times_en": {
+    "10:00": "10:00 in the morning",
+    "10:30": "10:30 in the morning",
+    "11:00": "11:00 in the morning",
+    "11:30": "11:30 in the morning",
+    "12:00": "12:00 noon"
+  }
+}
